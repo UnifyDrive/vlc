@@ -16,6 +16,7 @@ gcrypt: libgcrypt-$(GCRYPT_VERSION).tar.bz2 .sum-gcrypt
 	$(UNPACK)
 	$(APPLY) $(SRC)/gcrypt/disable-tests-compilation.patch
 	$(APPLY) $(SRC)/gcrypt/work-around-libtool-limitation.patch
+	$(APPLY) $(SRC)/gcrypt/fix-sha1-ssse3-for-clang.patch
 	$(APPLY) $(SRC)/gcrypt/fix-pthread-detection.patch
 	$(APPLY) $(SRC)/gcrypt/0001-random-Don-t-assume-that-_WIN64-implies-x86_64.patch
 	$(APPLY) $(SRC)/gcrypt/0002-aarch64-mpi-Fix-building-the-mpi-aarch64-assembly-fo.patch
@@ -49,6 +50,11 @@ ifdef HAVE_IOS
 GCRYPT_EXTRA_CFLAGS = -fheinous-gnu-extensions
 else
 GCRYPT_EXTRA_CFLAGS =
+endif
+ifdef HAVE_TVOS
+ifeq ($(ARCH), x86_64)
+GCRYPT_CONF += --disable-asm --enable-ciphers=des,rfc2268,arcfour --enable-digests=md5,sha1,rmd160
+endif
 endif
 ifdef HAVE_MACOSX
 GCRYPT_CONF += --disable-aesni-support
