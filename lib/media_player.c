@@ -696,6 +696,12 @@ libvlc_media_player_new( libvlc_instance_t *instance )
     var_Create (mp, "saturation", VLC_VAR_FLOAT | VLC_VAR_DOINHERIT);
     var_Create (mp, "gamma", VLC_VAR_FLOAT | VLC_VAR_DOINHERIT);
 
+    /* SPU */
+    var_Create (mp, "freetype-font", VLC_VAR_STRING | VLC_VAR_DOINHERIT);
+    var_Create (mp, "freetype-rel-fontsize", VLC_VAR_INTEGER | VLC_VAR_DOINHERIT);
+    var_Create (mp, "freetype-color", VLC_VAR_INTEGER | VLC_VAR_DOINHERIT);
+    var_Create (mp, "freetype-bold", VLC_VAR_BOOL | VLC_VAR_DOINHERIT);
+
      /* Audio */
     var_Create (mp, "aout", VLC_VAR_STRING | VLC_VAR_DOINHERIT);
     var_Create (mp, "audio-device", VLC_VAR_STRING);

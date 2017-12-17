@@ -812,7 +812,7 @@ static bool find_sub_source_by_name( libvlc_media_player_t *p_mi, const char *re
 }
 
 typedef const struct {
-    const char name[20];
+    const char name[25];
     unsigned type;
 } opt_t;
 
@@ -839,6 +839,7 @@ set_value( libvlc_media_player_t *p_mi, const char *restrict name,
         }
         case VLC_VAR_INTEGER:
         case VLC_VAR_FLOAT:
+        case VLC_VAR_BOOL:
         case VLC_VAR_STRING:
             if( i_expected_type != opt->type )
             {
@@ -1085,4 +1086,70 @@ float libvlc_video_get_adjust_float( libvlc_media_player_t *p_mi,
                                      unsigned option )
 {
     return get_float( p_mi, "adjust", adjust_option_bynumber(option) );
+}
+
+/* SPU HACK */
+
+static const opt_t *
+textrenderer_option_bynumber( unsigned option )
+{
+    static const opt_t optlist[] =
+    {
+    { "freetype-font",            VLC_VAR_STRING },
+    { "freetype-rel-fontsize",    VLC_VAR_INTEGER },
+    { "freetype-color",           VLC_VAR_INTEGER },
+    { "freetype-bold",            VLC_VAR_BOOL },
+    };
+    enum { num_opts = sizeof(optlist) / sizeof(*optlist) };
+
+    const opt_t *r = option < num_opts ? optlist+option : NULL;
+    if( !r )
+        libvlc_printerr( "Unknown freetype option" );
+    return r;
+}
+
+/* basic text renderer support */
+
+void libvlc_video_set_textrenderer_bool( libvlc_media_player_t *p_mi,
+                                        unsigned option, bool value )
+{
+    set_value( p_mi, "freetype", textrenderer_option_bynumber(option), VLC_VAR_BOOL,
+               &(vlc_value_t) { .b_bool = value }, false );
+}
+
+
+bool libvlc_video_get_textrenderer_bool( libvlc_media_player_t *p_mi,
+                                         unsigned option )
+{
+    return get_int( p_mi, "freetype", textrenderer_option_bynumber(option) );
+}
+
+
+void libvlc_video_set_textrenderer_int( libvlc_media_player_t *p_mi,
+                                       unsigned option, int value )
+{
+    set_value( p_mi, "freetype", textrenderer_option_bynumber(option), VLC_VAR_INTEGER,
+               &(vlc_value_t) { .i_int = value }, false );
+}
+
+
+int libvlc_video_get_textrenderer_int( libvlc_media_player_t *p_mi,
+                                      unsigned option )
+{
+    return get_int( p_mi, "freetype", textrenderer_option_bynumber(option) );
+}
+
+
+void libvlc_video_set_textrenderer_string( libvlc_media_player_t *p_mi,
+                                          unsigned option, const char *psz_value )
+{
+    set_value( p_mi, "freetype", textrenderer_option_bynumber(option), VLC_VAR_STRING,
+               &(vlc_value_t){ .psz_string = (char *)psz_value }, true );
+}
+
+
+char * libvlc_video_get_textrenderer_string( libvlc_media_player_t *p_mi,
+                                            unsigned option )
+{
+    return get_string( p_mi, "freetype", textrenderer_option_bynumber(option) );
 }
