@@ -44,6 +44,7 @@ block_shm_Alloc
 block_Realloc
 block_TryRealloc
 config_AddIntf
+config_AutoSaveConfigFile
 config_ChainCreate
 config_ChainDestroy
 config_ChainDuplicate
