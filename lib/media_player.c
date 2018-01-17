@@ -184,6 +184,7 @@ static void release_input_thread( libvlc_media_player_t *p_mi )
     /* We owned this one */
     input_Stop( p_input_thread );
     input_Close( p_input_thread );
+    config_AutoSaveConfigFile( p_mi );
 }
 
 /*
