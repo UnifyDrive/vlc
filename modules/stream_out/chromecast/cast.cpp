@@ -950,12 +950,25 @@ static std::string GetVencX264Option( sout_stream_t * /* p_stream */,
     return ssout.str();
 }
 
+#ifdef __APPLE__
+static std::string GetVencAvcodecVTOption( sout_stream_t * /* p_stream */,
+                                           const video_format_t * p_vid,
+                                           int i_quality )
+{
+    std::stringstream ssout;
+    ssout << "venc=avcodec{codec=h264_videotoolbox,options{realtime=1}}";
+    return ssout.str();
+}
+#endif
 
 static struct
 {
     vlc_fourcc_t fcc;
     std::string (*get_opt)( sout_stream_t *, const video_format_t *, int);
 } venc_opt_list[] = {
+#ifdef __APPLE__
+    { .fcc = VLC_CODEC_H264, .get_opt = GetVencAvcodecVTOption },
+#endif
     { .fcc = VLC_CODEC_H264, .get_opt = GetVencX264Option },
     { .fcc = VLC_CODEC_VP8,  .get_opt = GetVencVPXOption },
     { .fcc = VLC_CODEC_H264, .get_opt = NULL },
