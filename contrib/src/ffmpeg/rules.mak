@@ -53,7 +53,6 @@ FFMPEGCONF += \
 	--disable-linux-perf
 ifdef HAVE_DARWIN_OS
 FFMPEGCONF += \
-	--disable-videotoolbox \
 	--disable-securetransport
 endif
 endif
