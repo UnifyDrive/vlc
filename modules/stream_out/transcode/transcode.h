@@ -38,6 +38,8 @@ struct sout_stream_sys_t
     char            *psz_af;
 
     /* Video */
+    DECL_ARRAY(config_chain_t *) pp_vencs;
+    vlc_object_t    *p_venc_conf;
     vlc_fourcc_t    i_vcodec;   /* codec video (0 if not transcode) */
     char            *psz_venc;
     config_chain_t  *p_video_cfg;
