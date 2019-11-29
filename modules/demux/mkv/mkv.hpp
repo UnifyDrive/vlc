@@ -125,36 +125,6 @@ void BlockDecode( demux_t *p_demux, KaxBlock *block, KaxSimpleBlock *simpleblock
                   mtime_t i_pts, mtime_t i_duration, bool b_key_picture,
                   bool b_discardable_picture );
 
-class attachment_c
-{
-public:
-    attachment_c( const std::string& _psz_file_name, const std::string& _psz_mime_type, int _i_size )
-        :i_size(_i_size)
-        ,psz_file_name( _psz_file_name)
-        ,psz_mime_type( _psz_mime_type)
-    {
-        p_data = NULL;
-    }
-    ~attachment_c() { free( p_data ); }
-
-    /* Allocs the data space. Returns true if allocation went ok */
-    bool init()
-    {
-        p_data = malloc( i_size );
-        return (p_data != NULL);
-    }
-
-    const char* fileName() const { return psz_file_name.c_str(); }
-    const char* mimeType() const { return psz_mime_type.c_str(); }
-    int         size() const    { return i_size; }
-
-    void          *p_data;
-private:
-    int            i_size;
-    std::string    psz_file_name;
-    std::string    psz_mime_type;
-};
-
 class matroska_segment_c;
 struct matroska_stream_c
 {
