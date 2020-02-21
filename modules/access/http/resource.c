@@ -58,7 +58,9 @@ vlc_http_res_req(const struct vlc_http_resource *res, void *opaque)
     }
 
     /* Authentication */
-    if (res->username != NULL && res->password != NULL)
+    if (res->token != NULL)
+        vlc_http_msg_add_header(req, "Authorization", "Bearer %s", res->token);
+    else if (res->username != NULL && res->password != NULL)
         vlc_http_msg_add_creds_basic(req, false, res->username, res->password);
 
     /* Request context */
@@ -154,6 +156,7 @@ static void vlc_http_res_deinit(struct vlc_http_resource *res)
     free(res->path);
     free(res->authority);
     free(res->host);
+    free(res->token);
 
     if (res->response != NULL)
         vlc_http_msg_destroy(res->response);

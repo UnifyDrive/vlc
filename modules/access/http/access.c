@@ -194,6 +194,8 @@ static int Open(vlc_object_t *obj)
     if (sys->resource == NULL)
         goto error;
 
+    sys->resource->token = var_InheritString(obj, "http-token");
+
     if (vlc_credential_get(&crd, obj, NULL, NULL, NULL, NULL))
         vlc_http_res_set_login(sys->resource,
                                crd.psz_username, crd.psz_password);
@@ -308,6 +310,9 @@ vlc_module_begin()
                   "provided to the HTTP server, i.e. the HTTP \"User-Agent\". "
                   "Name and version must be separated by a forward slash, "
                   "e.g. \"FooBar/1.2.3\"."), true)
+        change_safe()
+        change_private()
+    add_string("http-token", NULL, N_("Token"), N_("Token"), true)
         change_safe()
         change_private()
 vlc_module_end()
