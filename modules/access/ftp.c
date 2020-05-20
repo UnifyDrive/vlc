@@ -942,9 +942,9 @@ static int DirRead (stream_t *p_access, input_item_node_t *p_current_node)
         if( p_sys->features.b_mlst )
         {
             /* MLST Format is key=val;key=val...; FILENAME */
-            if( strstr( psz_line, "type=dir" ) )
+            if( strcasestr( psz_line, "type=dir" ) )
                 type = ITEM_TYPE_DIRECTORY;
-            if( strstr( psz_line, "type=file" ) )
+            if( strcasestr( psz_line, "type=file" ) )
                 type = ITEM_TYPE_FILE;
 
             /* Get the filename or fail */
