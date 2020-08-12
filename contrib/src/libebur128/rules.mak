@@ -15,9 +15,11 @@ $(TARBALLS)/libebur128-$(LIBEBUR128_VERSION).tar.gz:
 
 libebur128: libebur128-$(LIBEBUR128_VERSION).tar.gz .sum-libebur128
 	$(UNPACK)
+	$(call pkg_static,"./ebur128/libebur128.pc.cmake")
 	$(MOVE)
 
 .libebur128: libebur128 toolchain.cmake
 	cd $< && $(HOSTVARS_PIC) $(CMAKE)
 	cd $< && $(MAKE) install
+	rm -f $(PREFIX)/lib/libebur128.so*
 	touch $@
