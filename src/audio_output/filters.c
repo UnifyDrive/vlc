@@ -627,6 +627,11 @@ aout_filters_t *aout_FiltersNew (vlc_object_t *obj,
         free (visual);
     }
 
+    char *meter = var_InheritString(obj, "audio-meter");
+    if (meter != NULL && strcasecmp(meter, "none"))
+        AppendFilter(obj, "audio meter", meter, filters, NULL, &input_format,
+                     &output_format, NULL);
+
     /* convert to the output format (minus resampling) if necessary */
     output_format.i_rate = input_format.i_rate;
     if (aout_FiltersPipelineCreate (obj, filters->tab, &filters->count,

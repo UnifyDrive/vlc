@@ -171,6 +171,18 @@ static int FilterCallback (vlc_object_t *obj, const char *var,
     return VLC_SUCCESS;
 }
 
+static int MeterCallback (vlc_object_t *obj, const char *var,
+                          vlc_value_t prev, vlc_value_t cur, void *data)
+{
+    /* Don't request a restart when the meter is removed to avoid an audio
+     * glitch */
+    if (cur.psz_string != NULL)
+        aout_InputRequestRestart ((audio_output_t *)obj);
+
+    (void) var; (void) prev; (void) data;
+    return VLC_SUCCESS;
+}
+
 static int StereoModeCallback (vlc_object_t *obj, const char *varname,
                                vlc_value_t oldval, vlc_value_t newval, void *data)
 {
@@ -226,6 +238,7 @@ audio_output_t *aout_New (vlc_object_t *parent)
     var_AddCallback (aout, "device", var_CopyDevice, parent);
     /* TODO: 3.0 HACK: only way to signal DTS_HD to aout modules. */
     var_Create (aout, "dtshd", VLC_VAR_BOOL);
+    var_Create (aout, "loudness-meter", VLC_VAR_ADDRESS);
 
     aout->event.volume_report = aout_VolumeNotify;
     aout->event.mute_report = aout_MuteNotify;
@@ -321,6 +334,10 @@ audio_output_t *aout_New (vlc_object_t *parent)
     text.psz_string = _("Audio visualizations");
     var_Change (aout, "audio-visual", VLC_VAR_SETTEXT, &text, NULL);
 
+    var_Create (aout, "audio-meter", VLC_VAR_STRING);
+    var_AddCallback (aout, "audio-meter", MeterCallback, NULL);
+    var_Create (aout, "ebur128-fullmeter", VLC_VAR_BOOL);
+
     /* Replay gain */
     var_Create (aout, "audio-replay-gain-mode",
                 VLC_VAR_STRING | VLC_VAR_DOINHERIT );
@@ -372,6 +389,7 @@ void aout_Destroy (audio_output_t *aout)
     var_DelCallback (aout, "audio-filter", FilterCallback, NULL);
     var_DelCallback (aout, "device", var_CopyDevice, aout->obj.parent);
     var_DelCallback (aout, "mute", var_Copy, aout->obj.parent);
+    var_DelCallback (aout, "audio-meter", MeterCallback, NULL);
     var_SetFloat (aout, "volume", -1.f);
     var_DelCallback (aout, "volume", var_Copy, aout->obj.parent);
     var_DelCallback (aout, "stereo-mode", StereoModeCallback, NULL);

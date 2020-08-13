@@ -112,6 +112,20 @@
 #include <vlc_block.h>
 
 /** Audio output object */
+struct vlc_audio_loudness_meter
+{
+    /** Momentary loudness, in LUFS */
+    double loudness_momentary;
+    /** Short term loudness, in LUFS (VLC_PLAYER_AOUT_LOUDNESS_METER_FULL) */
+    double loudness_shortterm;
+    /** Integrated loudness, in LUFS (VLC_PLAYER_AOUT_LOUDNESS_METER_FULL) */
+    double loudness_integrated;
+    /** Loudness range, in LU (VLC_PLAYER_AOUT_LOUDNESS_METER_FULL) */
+    double loudness_range;
+    /** True Peak, in dBTP (VLC_PLAYER_AOUT_LOUDNESS_METER_FULL) */
+    double truepeak;
+};
+
 struct audio_output
 {
     VLC_COMMON_MEMBERS
