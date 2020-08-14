@@ -156,6 +156,24 @@ static void media_detach_preparsed_event( libvlc_media_t *p_md )
                       p_md );
 }
 
+static int
+loudness_meter_changed( vlc_object_t * p_this, char const * psz_cmd,
+                        vlc_value_t oldval, vlc_value_t newval,
+                        void * p_userdata )
+{
+    libvlc_media_player_t * p_mi = p_userdata;
+
+    struct vlc_audio_loudness_meter *meter = newval.p_address;
+    libvlc_event_t event = {
+        .type = libvlc_MediaPlayerLoudnessChanged,
+    };
+    event.u.media_player_loudness_changed.momentary_loudness = meter->loudness_momentary;
+    libvlc_event_send( &p_mi->event_manager, &event );
+
+    return VLC_SUCCESS;
+    (void) p_this; (void) psz_cmd; (void) oldval;
+}
+
 /*
  * Release the associated input thread.
  *
@@ -171,6 +189,13 @@ stop_input_thread( libvlc_media_player_t *p_mi )
     if( p_input_thread == NULL )
         return NULL;
     p_mi->input.p_thread = NULL;
+
+    audio_output_t *aout = input_resource_HoldAout(p_mi->input.p_resource);
+    if (aout != NULL)
+    {
+        var_DelCallback(aout, "loudness-meter", loudness_meter_changed, p_mi);
+        vlc_object_release(aout);
+    }
 
     media_detach_preparsed_event( p_mi->p_md );
 
@@ -774,6 +799,9 @@ libvlc_media_player_new( libvlc_instance_t *instance )
     var_Create (mp, "equalizer-vlcfreqs", VLC_VAR_BOOL);
     var_Create (mp, "equalizer-bands", VLC_VAR_STRING);
 
+    var_Create (mp, "audio-meter", VLC_VAR_STRING);
+    var_SetString (mp, "audio-meter", "ebur128");
+
     /* Initialize the shared HTTP cookie jar */
     vlc_value_t cookies;
     cookies.p_address = vlc_http_cookies_new();
@@ -1060,6 +1088,14 @@ create_input_thread( libvlc_media_player_t *p_mi )
     var_AddCallback( p_input_thread, "intf-event", input_event_changed, p_mi );
     add_es_callbacks( p_input_thread, p_mi );
 
+    audio_output_t *aout = input_resource_GetAout(p_mi->input.p_resource);
+    if( aout != NULL )
+    {
+        vlc_object_hold(aout);
+        var_AddCallback(aout, "loudness-meter", loudness_meter_changed, p_mi);
+        input_resource_PutAout(p_mi->input.p_resource, aout);
+    }
+
     if( input_Start( p_input_thread ) )
     {
         del_es_callbacks( p_input_thread, p_mi );
@@ -1070,8 +1106,14 @@ create_input_thread( libvlc_media_player_t *p_mi )
         input_Close( p_input_thread );
         media_detach_preparsed_event( p_mi->p_md );
         libvlc_printerr( "Input initialization failure" );
+        if (aout != NULL)
+        {
+            var_DelCallback(aout, "loudness-meter", loudness_meter_changed, p_mi);
+            vlc_object_release(aout);
+        }
         return NULL;
     }
+    vlc_object_release(aout);
 
     return p_input_thread;
 }

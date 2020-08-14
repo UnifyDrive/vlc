@@ -334,7 +334,7 @@ audio_output_t *aout_New (vlc_object_t *parent)
     text.psz_string = _("Audio visualizations");
     var_Change (aout, "audio-visual", VLC_VAR_SETTEXT, &text, NULL);
 
-    var_Create (aout, "audio-meter", VLC_VAR_STRING);
+    var_Create (aout, "audio-meter", VLC_VAR_STRING | VLC_VAR_DOINHERIT);
     var_AddCallback (aout, "audio-meter", MeterCallback, NULL);
     var_Create (aout, "ebur128-fullmeter", VLC_VAR_BOOL);
 
