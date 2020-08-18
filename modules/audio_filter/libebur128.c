@@ -36,7 +36,7 @@ struct filter_sys
 {
     ebur128_state *state;
     mtime_t last_update;
-    bool new_frames;
+    mtime_t last_block_date;
 };
 
 static ebur128_state *
@@ -83,12 +83,12 @@ error:
 }
 
 static int
-SendLoudnessMeter(filter_t *filter)
+SendLoudnessMeter(filter_t *filter, mtime_t play_date)
 {
     struct filter_sys *sys = (void *) filter->p_sys;
 
     int error;
-    struct vlc_audio_loudness_meter meter = { 0, 0, 0, 0, 0 };
+    struct vlc_audio_loudness_meter meter = { play_date, 0, 0, 0, 0, 0 };
 
     error = ebur128_loudness_momentary(sys->state, &meter.loudness_momentary);
     if (error != EBUR128_SUCCESS)
@@ -198,15 +198,15 @@ Process(filter_t *filter, block_t *block)
 
     if (out->i_pts + out->i_length - sys->last_update >= UPDATE_INTERVAL)
     {
-        error = SendLoudnessMeter(filter);
+        error = SendLoudnessMeter(filter, out->i_pts + out->i_length);
         if (error == EBUR128_SUCCESS)
         {
             sys->last_update = out->i_pts + out->i_length;
-            sys->new_frames = false;
+            sys->last_block_date = VLC_TS_INVALID;
         }
     }
     else
-        sys->new_frames = true;
+        sys->last_block_date = out->i_pts + out->i_length;
 
     return out;
 }
@@ -218,10 +218,10 @@ Flush(filter_t *filter)
 
     if (sys->state != NULL)
     {
-        if (sys->new_frames)
+        if (sys->last_block_date != VLC_TS_INVALID)
         {
-            SendLoudnessMeter(filter);
-            sys->new_frames = false;
+            SendLoudnessMeter(filter, sys->last_block_date);
+            sys->last_block_date = VLC_TS_INVALID;
         }
         sys->last_update = VLC_TS_INVALID;
 
@@ -253,7 +253,7 @@ static int Open(vlc_object_t *this)
         return VLC_ENOMEM;
 
     sys->last_update = VLC_TS_INVALID;
-    sys->new_frames = false;
+    sys->last_block_date = VLC_TS_INVALID;
     sys->state = CreateEbuR128State(filter);
     if (sys->state == NULL)
     {

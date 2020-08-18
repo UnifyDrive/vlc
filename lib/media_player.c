@@ -167,6 +167,7 @@ loudness_meter_changed( vlc_object_t * p_this, char const * psz_cmd,
     libvlc_event_t event = {
         .type = libvlc_MediaPlayerLoudnessChanged,
     };
+    event.u.media_player_loudness_changed.date = meter->date;
     event.u.media_player_loudness_changed.momentary_loudness = meter->loudness_momentary;
     libvlc_event_send( &p_mi->event_manager, &event );
 

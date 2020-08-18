@@ -114,6 +114,12 @@
 /** Audio output object */
 struct vlc_audio_loudness_meter
 {
+    /**
+     * Absolute date of the measurement
+     *
+     * It is most likely in the future (0 to 2seconds) depending on the audio
+     * output buffer size. */
+    mtime_t date;
     /** Momentary loudness, in LUFS */
     double loudness_momentary;
     /** Short term loudness, in LUFS (VLC_PLAYER_AOUT_LOUDNESS_METER_FULL) */

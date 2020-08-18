@@ -222,6 +222,13 @@ typedef struct libvlc_event_t
 
         struct
         {
+            /**
+             * Absolute date of the measurement
+             *
+             * It is most likely in the future (0 to 2seconds) depending on the audio
+             * output buffer size. */
+            int64_t date;
+            /** Momentary loudness (last 400ms), in LUFS */
             double momentary_loudness;
         } media_player_loudness_changed;
 
