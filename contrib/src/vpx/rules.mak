@@ -27,6 +27,9 @@ ifeq ($(ARCH),aarch64)
 	$(APPLY) $(SRC)/vpx/libvpx-darwin-aarch64.patch
 endif
 endif
+ifdef HAVE_TVOS
+	$(APPLY) $(SRC)/vpx/libvpx-tvos.patch
+endif
 	$(MOVE)
 
 DEPS_vpx =
