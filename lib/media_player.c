@@ -46,6 +46,8 @@
 
 #define ES_INIT (-2) /* -1 is reserved for ES deselect */
 
+static void *worker_thread(void *data);
+
 static int
 input_seekable_changed( vlc_object_t * p_this, char const * psz_cmd,
                         vlc_value_t oldval, vlc_value_t newval,
@@ -160,13 +162,14 @@ static void media_detach_preparsed_event( libvlc_media_t *p_md )
  * Object lock is NOT held.
  * Input lock is held or instance is being destroyed.
  */
-static void release_input_thread( libvlc_media_player_t *p_mi )
+static input_thread_t *
+stop_input_thread( libvlc_media_player_t *p_mi )
 {
     assert( p_mi );
 
     input_thread_t *p_input_thread = p_mi->input.p_thread;
-    if( !p_input_thread )
-        return;
+    if( p_input_thread == NULL )
+        return NULL;
     p_mi->input.p_thread = NULL;
 
     media_detach_preparsed_event( p_mi->p_md );
@@ -183,8 +186,28 @@ static void release_input_thread( libvlc_media_player_t *p_mi )
 
     /* We owned this one */
     input_Stop( p_input_thread );
-    input_Close( p_input_thread );
-    config_AutoSaveConfigFile( p_mi );
+
+    return p_input_thread;
+}
+
+static void
+release_input_thread(libvlc_media_player_t *mp, bool async)
+{
+    input_thread_t *input = stop_input_thread(mp);
+    if (input != NULL)
+    {
+        if (!async)
+        {
+            input_Close(input);
+            config_AutoSaveConfigFile(mp);
+        }
+        else
+        {
+            assert(mp->worker.close_input == NULL);
+            mp->worker.close_input = input;
+            vlc_cond_signal(&mp->worker.wait);
+        }
+    }
 }
 
 /*
@@ -800,6 +823,18 @@ libvlc_media_player_new( libvlc_instance_t *instance )
     var_AddCallback(mp->obj.libvlc, "snapshot-file", snapshot_was_taken, mp);
 
     libvlc_retain(instance);
+
+    vlc_cond_init(&mp->worker.wait);
+    mp->worker.running = true;
+    mp->worker.open_next = false;
+    mp->worker.close_input = NULL;
+    if (vlc_clone(&mp->worker.thread, worker_thread,
+                  mp, VLC_THREAD_PRIORITY_LOW) != 0)
+    {
+        libvlc_media_player_destroy(mp);
+        return NULL;
+    }
+
     return mp;
 }
 
@@ -840,10 +875,16 @@ static void libvlc_media_player_destroy( libvlc_media_player_t *p_mi )
     var_DelCallback( p_mi, "audio-device", audio_device_changed, NULL );
     var_DelCallback( p_mi, "corks", corks_changed, NULL );
 
-    /* No need for lock_input() because no other threads knows us anymore */
-    if( p_mi->input.p_thread )
-        release_input_thread(p_mi);
-    input_resource_Terminate( p_mi->input.p_resource );
+    lock_input( p_mi );
+
+    release_input_thread(p_mi, true);
+
+    /* Stop and wait for the worker thread */
+    p_mi->worker.running = false;
+    vlc_cond_signal( &p_mi->worker.wait );
+    unlock_input( p_mi );
+    vlc_join(p_mi->worker.thread, NULL);
+
     input_resource_Release( p_mi->input.p_resource );
     if( p_mi->input.p_renderer )
         vlc_renderer_item_release( p_mi->input.p_renderer );
@@ -903,13 +944,13 @@ void libvlc_media_player_retain( libvlc_media_player_t *p_mi )
  *
  * Enter without lock -- function will lock the object.
  **************************************************************************/
-void libvlc_media_player_set_media(
+static void libvlc_media_player_set_media_common(
                             libvlc_media_player_t *p_mi,
-                            libvlc_media_t *p_md )
+                            libvlc_media_t *p_md, bool async )
 {
     lock_input(p_mi);
 
-    release_input_thread( p_mi );
+    release_input_thread( p_mi, async );
 
     lock( p_mi );
     set_state( p_mi, libvlc_NothingSpecial, true );
@@ -934,7 +975,20 @@ void libvlc_media_player_set_media(
     event.type = libvlc_MediaPlayerMediaChanged;
     event.u.media_player_media_changed.new_media = p_md;
     libvlc_event_send( &p_mi->event_manager, &event );
+}
 
+void libvlc_media_player_set_media(
+                            libvlc_media_player_t *p_mi,
+                            libvlc_media_t *p_md )
+{
+    libvlc_media_player_set_media_common( p_mi, p_md, false );
+}
+
+void libvlc_media_player_set_media_async(
+                            libvlc_media_player_t *p_mi,
+                            libvlc_media_t *p_md )
+{
+    libvlc_media_player_set_media_common( p_mi, p_md, true );
 }
 
 /**************************************************************************
@@ -977,6 +1031,51 @@ static void del_es_callbacks( input_thread_t *p_input_thread, libvlc_media_playe
     var_DelListCallback( p_input_thread, "spu-es", input_es_changed, p_mi );
 }
 
+static input_thread_t *
+create_input_thread( libvlc_media_player_t *p_mi )
+{
+    for( size_t i = 0; i < ARRAY_SIZE( p_mi->selected_es ); ++i )
+        p_mi->selected_es[i] = ES_INIT;
+
+    if( p_mi->p_md->p_cookie_jar )
+    {
+        vlc_value_t cookies = { .p_address = p_mi->p_md->p_cookie_jar };
+        var_SetChecked( p_mi, "http-cookies", VLC_VAR_ADDRESS, cookies );
+    }
+
+    media_attach_preparsed_event( p_mi->p_md );
+
+    input_thread_t *p_input_thread =
+        input_Create( p_mi, p_mi->p_md->p_input_item, NULL,
+                      p_mi->input.p_resource, p_mi->input.p_renderer );
+    if( !p_input_thread )
+    {
+        media_detach_preparsed_event( p_mi->p_md );
+        return NULL;
+    }
+
+    var_AddCallback( p_input_thread, "can-seek", input_seekable_changed, p_mi );
+    var_AddCallback( p_input_thread, "can-pause", input_pausable_changed, p_mi );
+    var_AddCallback( p_input_thread, "program-scrambled", input_scrambled_changed, p_mi );
+    var_AddCallback( p_input_thread, "intf-event", input_event_changed, p_mi );
+    add_es_callbacks( p_input_thread, p_mi );
+
+    if( input_Start( p_input_thread ) )
+    {
+        del_es_callbacks( p_input_thread, p_mi );
+        var_DelCallback( p_input_thread, "intf-event", input_event_changed, p_mi );
+        var_DelCallback( p_input_thread, "can-pause", input_pausable_changed, p_mi );
+        var_DelCallback( p_input_thread, "program-scrambled", input_scrambled_changed, p_mi );
+        var_DelCallback( p_input_thread, "can-seek", input_seekable_changed, p_mi );
+        input_Close( p_input_thread );
+        media_detach_preparsed_event( p_mi->p_md );
+        libvlc_printerr( "Input initialization failure" );
+        return NULL;
+    }
+
+    return p_input_thread;
+}
+
 /**************************************************************************
  * Tell media player to start playing.
  **************************************************************************/
@@ -1004,51 +1103,21 @@ int libvlc_media_player_play( libvlc_media_player_t *p_mi )
         return -1;
     }
 
-    for( size_t i = 0; i < ARRAY_SIZE( p_mi->selected_es ); ++i )
-        p_mi->selected_es[i] = ES_INIT;
-
-    if( p_mi->p_md->p_cookie_jar )
+    int ret;
+    if (p_mi->worker.close_input != NULL)
     {
-        vlc_value_t cookies = { .p_address = p_mi->p_md->p_cookie_jar };
-        var_SetChecked( p_mi, "http-cookies", VLC_VAR_ADDRESS, cookies );
+        p_mi->worker.open_next = true;
+        ret = 0;
+    }
+    else
+    {
+        p_mi->input.p_thread = create_input_thread( p_mi );
+        ret = p_mi->input.p_thread == NULL ? -1 : 0;
     }
 
-    media_attach_preparsed_event( p_mi->p_md );
-
-    p_input_thread = input_Create( p_mi, p_mi->p_md->p_input_item, NULL,
-                                   p_mi->input.p_resource,
-                                   p_mi->input.p_renderer );
     unlock(p_mi);
-    if( !p_input_thread )
-    {
-        unlock_input(p_mi);
-        media_detach_preparsed_event( p_mi->p_md );
-        libvlc_printerr( "Not enough memory" );
-        return -1;
-    }
-
-    var_AddCallback( p_input_thread, "can-seek", input_seekable_changed, p_mi );
-    var_AddCallback( p_input_thread, "can-pause", input_pausable_changed, p_mi );
-    var_AddCallback( p_input_thread, "program-scrambled", input_scrambled_changed, p_mi );
-    var_AddCallback( p_input_thread, "intf-event", input_event_changed, p_mi );
-    add_es_callbacks( p_input_thread, p_mi );
-
-    if( input_Start( p_input_thread ) )
-    {
-        unlock_input(p_mi);
-        del_es_callbacks( p_input_thread, p_mi );
-        var_DelCallback( p_input_thread, "intf-event", input_event_changed, p_mi );
-        var_DelCallback( p_input_thread, "can-pause", input_pausable_changed, p_mi );
-        var_DelCallback( p_input_thread, "program-scrambled", input_scrambled_changed, p_mi );
-        var_DelCallback( p_input_thread, "can-seek", input_seekable_changed, p_mi );
-        input_Close( p_input_thread );
-        media_detach_preparsed_event( p_mi->p_md );
-        libvlc_printerr( "Input initialization failure" );
-        return -1;
-    }
-    p_mi->input.p_thread = p_input_thread;
     unlock_input(p_mi);
-    return 0;
+    return ret;
 }
 
 void libvlc_media_player_set_pause( libvlc_media_player_t *p_mi, int paused )
@@ -1089,14 +1158,52 @@ int libvlc_media_player_is_playing( libvlc_media_player_t *p_mi )
     return libvlc_Playing == state;
 }
 
-/**************************************************************************
- * Stop playing.
- **************************************************************************/
-void libvlc_media_player_stop( libvlc_media_player_t *p_mi )
+static void *
+worker_thread(void *data)
 {
-    lock_input(p_mi);
-    release_input_thread( p_mi ); /* This will stop the input thread */
+    libvlc_media_player_t *mp = data;
 
+    lock_input(mp);
+
+    while (mp->worker.running || mp->worker.close_input != NULL)
+    {
+        vlc_cond_wait(&mp->worker.wait, &mp->input.lock);
+
+        if (mp->worker.close_input == NULL)
+            continue;
+
+        input_thread_t *input = mp->worker.close_input;
+        unlock_input(mp);
+
+        input_Close(input);
+        config_AutoSaveConfigFile(mp);
+
+        lock_input(mp);
+        mp->worker.close_input = NULL;
+
+        if (mp->worker.open_next)
+        {
+            mp->worker.open_next = false;
+            lock(mp);
+            if (mp->p_md != NULL)
+                mp->input.p_thread = create_input_thread(mp);
+            unlock(mp);
+        }
+
+        if (mp->input.p_thread == NULL)
+        {
+            /* No media currently playing, we can terminate all resources */
+            input_resource_Terminate(mp->input.p_resource);
+        }
+    }
+    unlock_input(mp);
+
+    return NULL;
+}
+
+static void
+set_stopped_state( libvlc_media_player_t *p_mi )
+{
     /* Force to go to stopped state, in case we were in Ended, or Error
      * state. */
     if( p_mi->state != libvlc_Stopped )
@@ -1108,8 +1215,31 @@ void libvlc_media_player_stop( libvlc_media_player_t *p_mi )
         event.type = libvlc_MediaPlayerStopped;
         libvlc_event_send( &p_mi->event_manager, &event );
     }
+    p_mi->worker.open_next = false;
+}
+
+/**************************************************************************
+ * Stop playing.
+ **************************************************************************/
+void libvlc_media_player_stop( libvlc_media_player_t *p_mi )
+{
+    lock_input(p_mi);
+    release_input_thread( p_mi, false ); /* This will stop the input thread */
+
+    set_stopped_state( p_mi );
 
     input_resource_Terminate( p_mi->input.p_resource );
+    unlock_input(p_mi);
+}
+
+void libvlc_media_player_stop_async( libvlc_media_player_t *p_mi )
+{
+    lock_input(p_mi);
+
+    release_input_thread( p_mi, true );
+
+    set_stopped_state( p_mi );
+
     unlock_input(p_mi);
 }
 

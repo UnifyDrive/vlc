@@ -150,6 +150,53 @@ static void test_media_player_play_stop(const char** argv, int argc)
     libvlc_release (vlc);
 }
 
+static void test_media_player_async(const char** argv, int argc)
+{
+    libvlc_instance_t *vlc;
+    libvlc_media_t *md;
+    libvlc_media_player_t *mi;
+    const char * file = test_default_sample;
+
+    log ("Testing stop/set_media async %s\n", file);
+
+    vlc = libvlc_new (argc, argv);
+    assert (vlc != NULL);
+
+    mi = libvlc_media_player_new (vlc);
+    assert (mi != NULL);
+
+    for (unsigned i = 0; i < 100; ++i)
+    {
+        md = libvlc_media_new_path (vlc, file);
+        assert (md != NULL);
+
+        libvlc_media_player_set_media_async (mi, md);
+
+        libvlc_media_release (md);
+
+        libvlc_media_player_play (mi);
+    }
+
+    libvlc_media_player_stop_async (mi);
+
+    for (unsigned i = 0; i < 100; ++i)
+    {
+        md = libvlc_media_new_path (vlc, file);
+        assert (md != NULL);
+
+        libvlc_media_player_set_media (mi, md);
+
+        libvlc_media_release (md);
+
+        libvlc_media_player_play (mi);
+
+        libvlc_media_player_stop_async (mi);
+    }
+
+    libvlc_media_player_release (mi);
+    libvlc_release (vlc);
+}
+
 static void test_media_player_pause_stop(const char** argv, int argc)
 {
     libvlc_instance_t *vlc;
@@ -197,6 +244,7 @@ int main (void)
 
     test_media_player_set_media (test_defaults_args, test_defaults_nargs);
     test_media_player_play_stop (test_defaults_args, test_defaults_nargs);
+    test_media_player_async (test_defaults_args, test_defaults_nargs);
     test_media_player_pause_stop (test_defaults_args, test_defaults_nargs);
 
     return 0;

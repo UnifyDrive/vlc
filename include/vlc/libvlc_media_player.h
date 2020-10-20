@@ -192,6 +192,10 @@ LIBVLC_API libvlc_media_player_t * libvlc_media_player_new_from_media( libvlc_me
  * release the media player object. If the media player object
  * has been released, then it should not be used again.
  *
+ * If the reference count is 0, the media_player will stop the current media
+ * and all medias that are still stopping asynchronously (cf.
+ * libvlc_media_player_stop_async() and libvlc_media_player_set_media_async()).
+ *
  * \param p_mi the Media Player to free
  */
 LIBVLC_API void libvlc_media_player_release( libvlc_media_player_t *p_mi );
@@ -206,7 +210,9 @@ LIBVLC_API void libvlc_media_player_retain( libvlc_media_player_t *p_mi );
 
 /**
  * Set the media that will be used by the media_player. If any,
- * previous md will be released.
+ * previous md will be released synchronously.
+ *
+ * \warning The function will block until the previous media is released.
  *
  * \param p_mi the Media Player
  * \param p_md the Media. Afterwards the p_md can be safely
@@ -214,6 +220,18 @@ LIBVLC_API void libvlc_media_player_retain( libvlc_media_player_t *p_mi );
  */
 LIBVLC_API void libvlc_media_player_set_media( libvlc_media_player_t *p_mi,
                                                    libvlc_media_t *p_md );
+
+/**
+ * Set the media that will be used by the media_player. If any,
+ * previous md will be released asynchronously.
+ *
+ * \param p_mi the Media Player
+ * \param p_md the Media. Afterwards the p_md can be safely
+ *        destroyed.
+ * \version LibVLC 3.0.12 or later
+ */
+LIBVLC_API void libvlc_media_player_set_media_async( libvlc_media_player_t *p_mi,
+                                                     libvlc_media_t *p_md );
 
 /**
  * Get the media used by the media_player.
@@ -273,6 +291,14 @@ LIBVLC_API void libvlc_media_player_pause ( libvlc_media_player_t *p_mi );
  * \param p_mi the Media Player
  */
 LIBVLC_API void libvlc_media_player_stop ( libvlc_media_player_t *p_mi );
+
+/**
+ * Stop asynchronously (no effect if there is no media)
+ *
+ * \param p_mi the Media Player
+ * \version LibVLC 3.0.12 or later
+ */
+LIBVLC_API void libvlc_media_player_stop_async ( libvlc_media_player_t *p_mi );
 
 /**
  * Set a renderer to the media player

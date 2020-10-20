@@ -51,6 +51,15 @@ struct libvlc_media_player_t
         vlc_mutex_t       lock;
     } input;
 
+    struct
+    {
+        vlc_thread_t thread;
+        vlc_cond_t   wait;
+        input_thread_t *close_input;
+        bool open_next;
+        bool running;
+    } worker;
+
     struct libvlc_instance_t * p_libvlc_instance; /* Parent instance */
     libvlc_media_t * p_md; /* current media descriptor */
     libvlc_event_manager_t event_manager;

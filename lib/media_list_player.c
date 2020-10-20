@@ -460,7 +460,7 @@ set_current_playing_item(libvlc_media_list_player_t * p_mlp, libvlc_media_list_p
     /* Make sure media_player_reached_end() won't get called */
     uninstall_media_player_observer(p_mlp);
 
-    libvlc_media_player_set_media(p_mlp->p_mi, p_md);
+    libvlc_media_player_set_media_async(p_mlp->p_mi, p_md);
 
     install_media_player_observer(p_mlp);
     libvlc_media_release(p_md); /* for libvlc_media_list_item_at_index */
@@ -739,7 +739,7 @@ static void stop(libvlc_media_list_player_t * p_mlp)
 
     /* We are not interested in getting media stop event now */
     uninstall_media_player_observer(p_mlp);
-    libvlc_media_player_stop(p_mlp->p_mi);
+    libvlc_media_player_stop_async(p_mlp->p_mi);
     install_media_player_observer(p_mlp);
 
     free(p_mlp->current_playing_item_path);
