@@ -140,7 +140,7 @@ endif
 
 # Darwin
 ifdef HAVE_DARWIN_OS
-FFMPEGCONF += --arch=$(ARCH) --target-os=darwin --extra-cflags="$(CFLAGS)"
+FFMPEGCONF += --arch=$(ARCH) --target-os=darwin --extra-cflags="$(CFLAGS)" --enable-pic
 ifdef USE_FFMPEG
 FFMPEGCONF += --disable-lzma
 endif
@@ -148,10 +148,13 @@ ifeq ($(ARCH),x86_64)
 FFMPEGCONF += --cpu=core2
 endif
 ifdef HAVE_IOS
-FFMPEGCONF += --enable-pic --extra-ldflags="$(EXTRA_CFLAGS) -isysroot $(IOS_SDK)"
+FFMPEGCONF += --extra-ldflags="$(EXTRA_CFLAGS) -isysroot $(IOS_SDK)"
 ifdef HAVE_NEON
 FFMPEGCONF += --as="$(AS)"
 endif
+endif
+ifdef HAVE_MACOSX
+FFMPEGCONF += --extra-ldflags="$(EXTRA_LDFLAGS) -isysroot $(MACOSX_SDK)"
 endif
 endif
 
