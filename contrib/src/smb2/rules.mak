@@ -13,6 +13,7 @@ $(TARBALLS)/libsmb2-$(SMB2_VERSION).tar.gz:
 
 smb2: libsmb2-$(SMB2_VERSION).tar.gz .sum-smb2
 	$(UNPACK)
+	$(APPLY) $(SRC)/smb2/0001-smb2-avoid-MD5-symbol-conflict.patch
 	$(MOVE)
 
 .smb2: smb2
