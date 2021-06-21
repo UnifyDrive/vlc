@@ -92,6 +92,7 @@ endif
 endif
 	# Fix creating static libs on mingw
 	$(APPLY) $(SRC)/live555/mingw-static-libs.patch
+	$(APPLY) $(SRC)/live555/groupsock-fix-hostname-lookup-on-iOS.patch
 
 	mv live.$(LIVE555_VERSION) $@ && touch $@
 
