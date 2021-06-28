@@ -928,7 +928,6 @@ static void libvlc_media_player_destroy( libvlc_media_player_t *p_mi )
     if ( cookies )
     {
         var_Destroy( p_mi, "http-cookies" );
-        vlc_http_cookies_destroy( cookies );
     }
 
     libvlc_instance_t *instance = p_mi->p_libvlc_instance;
