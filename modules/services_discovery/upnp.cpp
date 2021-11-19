@@ -1648,10 +1648,14 @@ inline char *getPreferedAdapter()
 
     anInterface = listOfInterfaces;
     while (anInterface != NULL) {
-        bool ret = necessaryFlagsSetOnInterface(anInterface);
-        if (ret) {
-            adapterName = strdup(anInterface->ifa_name);
-            break;
+        if (anInterface->ifa_addr->sa_family == AF_INET) {
+            bool ret = necessaryFlagsSetOnInterface(anInterface);
+            if (ret) {
+                if (adapterName) {
+                    FREENULL(adapterName);
+                }
+                adapterName = strdup(anInterface->ifa_name);
+            }
         }
 
         anInterface = anInterface->ifa_next;
