@@ -306,6 +306,8 @@ RequestStatus LibVLCHTTPConnection::request(const std::string &path,
     if(source->create(params.getUrl().c_str(), useragent,referer, range))
         return RequestStatus::GenericError;
 
+    source->http_res->token = NULL;
+
     struct vlc_credential crd;
     struct vlc_url_t crd_url;
     vlc_UrlParse(&crd_url, params.getUrl().c_str());
