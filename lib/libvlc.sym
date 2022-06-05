@@ -336,3 +336,4 @@ libvlc_picture_get_time
 libvlc_picture_list_at
 libvlc_picture_list_count
 libvlc_picture_list_destroy
+libvlc_tdx_init_fontconfig

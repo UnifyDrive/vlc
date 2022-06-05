@@ -8,6 +8,7 @@ BUILT_SOURCES = $(nodist_pkginclude_HEADERS)
 CLEANFILES = $(BUILT_SOURCES) $(pkgconfig_DATA)
 
 pkginclude_HEADERS = \
+	../include/vlc/libvlc_tdx.h \
 	../include/vlc/deprecated.h \
 	../include/vlc/libvlc.h \
 	../include/vlc/libvlc_dialog.h \
@@ -39,6 +40,7 @@ libvlc_la_SOURCES = \
 	picture_internal.h \
 	renderer_discoverer_internal.h \
 	core.c \
+	tdx.c \
 	dialog.c \
 	renderer_discoverer.c \
 	error.c \

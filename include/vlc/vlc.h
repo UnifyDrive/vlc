@@ -50,6 +50,7 @@ extern "C" {
 #include <vlc/libvlc_dialog.h>
 #include <vlc/libvlc_vlm.h>
 #include <vlc/deprecated.h>
+#include <vlc/libvlc_tdx.h>
 
 # ifdef __cplusplus
 }
