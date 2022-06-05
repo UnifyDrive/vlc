@@ -287,6 +287,14 @@ void input_SendEventAout( input_thread_t *p_input )
 }
 
 /*****************************************************************************
+* Event for tdx extendted
+*****************************************************************************/
+void input_SendEventSWVdec( input_thread_t *p_input )
+{
+    Trigger( p_input, INPUT_EVENT_SWVDEC );
+}
+
+/*****************************************************************************
  * Event for control.c/input.c
  *****************************************************************************/
 void input_SendEventBookmark( input_thread_t *p_input )

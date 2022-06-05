@@ -1946,6 +1946,21 @@ static decoder_t *decoder_New( vlc_object_t *p_parent, input_thread_t *p_input,
         return NULL;
     }
 
+    /*
+     * Ugly, 检查 decoder, 进行通知, 只检查了 iOS 和 Android, 如果有其他硬解码器, 比如 VAAPI 等
+     * 需要在这里补充.
+     */
+    if (p_dec->fmt_out.i_cat == VIDEO_ES) {
+        const char* decoder_name = module_get_name( p_dec->p_module, false );
+        msg_Dbg(p_dec, "video decoder name: \"%s\"", decoder_name);
+        //char* ffmpeg_codec_name = p_dec->p_sys->p_codec->name;
+        if (strcmp(decoder_name, "videotoolbox")
+              && strcmp(decoder_name, "mediacodec")) {
+            decoder_owner_sys_t *p_owner = p_dec->p_owner;
+            input_SendEventSWVdec( p_owner->p_input );
+        }
+    }
+
     return p_dec;
 }
 

@@ -512,6 +512,10 @@ input_event_changed( vlc_object_t * p_this, char const * psz_cmd,
         libvlc_event_send( &p_mi->event_manager, &event );
 
         free( file_path );
+    }else if ( newval.i_int == INPUT_EVENT_SWVDEC )
+    {
+        event.type = libvlc_MediaPlayerSWVdecUsed;
+        libvlc_event_send( &p_mi->event_manager, &event );
     }
 
     return VLC_SUCCESS;

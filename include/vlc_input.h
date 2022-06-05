@@ -350,6 +350,8 @@ typedef enum input_event_type_e
     /* A vout_thread_t object has been created/deleted by *the input* */
     INPUT_EVENT_VOUT,
 
+    /* video decoder is software */
+    INPUT_EVENT_SWVDEC,
 } input_event_type_e;
 
 /**

@@ -665,6 +665,23 @@ static int OpenDecoder(vlc_object_t *p_this, pf_MediaCodecApi_init pf_init)
 
     if (p_dec->fmt_in.i_cat == VIDEO_ES)
     {
+        /*
+         * ZQG: ISO 蓝光经常这样，无法判断是硬解或者软解，不如直接跳过这个策略。
+         */
+#if 0
+        /* Not all mediacodec versions can handle a size of 0. Hopefully, the
+         * packetizer will trigger a decoder restart when a new video size is
+         * found. */
+        if (!p_dec->fmt_in.video.i_width || !p_dec->fmt_in.video.i_height)
+            return VLC_EGENERIC;
+#else
+        msg_Dbg(p_dec, "====tdx====: MediaCodec video size %d x %d", p_dec->fmt_in.video.i_width, p_dec->fmt_in.video.i_height);
+        if (!p_dec->fmt_in.video.i_width || !p_dec->fmt_in.video.i_height) {
+            msg_Dbg(p_dec, "====tdx====: MediaCodec video size 0 x 0, using \"640x320\" to open mediacodec.");
+            p_dec->fmt_in.video.i_width = 640;
+            p_dec->fmt_in.video.i_height = 320;
+        }
+#endif
         switch (p_dec->fmt_in.i_codec)
         {
         case VLC_CODEC_H264:
