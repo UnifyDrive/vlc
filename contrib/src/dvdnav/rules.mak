@@ -8,6 +8,7 @@ ifdef GPL
 PKGS += dvdnav
 endif
 endif
+PKGS += dvdnav
 ifeq ($(call need_pkg,"dvdnav > 5.0.3"),)
 PKGS_FOUND += dvdnav
 endif
@@ -25,7 +26,6 @@ dvdnav: libdvdnav-$(LIBDVDNAV_VERSION).tar.bz2 .sum-dvdnav
 DEPS_dvdnav = dvdread $(DEPS_dvdread)
 
 .dvdnav: dvdnav
-	$(REQUIRE_GPL)
 	$(RECONF) -I m4
 	cd $< && $(HOSTVARS) ./configure $(HOSTCONF) --disable-examples
 	cd $< && $(MAKE) install

@@ -7,6 +7,7 @@ ifdef GPL
 PKGS += dvdread
 endif
 endif
+PKGS += dvdread
 ifeq ($(call need_pkg,"dvdread >= 6.1.0"),)
 PKGS_FOUND += dvdread
 endif
@@ -24,7 +25,6 @@ dvdread: libdvdread-$(LIBDVDREAD_VERSION).tar.bz2 .sum-dvdread
 DEPS_dvdread = dvdcss
 
 .dvdread: dvdread .dvdcss
-	$(REQUIRE_GPL)
 	$(RECONF) -I m4
 	cd $< && $(HOSTVARS) ./configure $(HOSTCONF) --with-libdvdcss
 	cd $< && $(MAKE) install
