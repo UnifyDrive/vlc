@@ -727,6 +727,14 @@ static int Open ( vlc_object_t *p_this )
         fmt.i_extra = strlen( p_sys->props.psz_header ) + 1;
     }
 
+    char* psz_path = NULL;
+    if ( p_demux->psz_file != NULL) {
+        psz_path = strdup(p_demux->psz_file);
+    } else if (p_demux->psz_location != NULL) {
+        psz_path = strdup(p_demux->psz_location);
+    }
+    fmt.psz_path = psz_path;
+
     p_sys->es = es_out_Add( p_demux->out, &fmt );
     es_format_Clean( &fmt );
     if( p_sys->es == NULL )

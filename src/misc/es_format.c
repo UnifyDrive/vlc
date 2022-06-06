@@ -446,6 +446,7 @@ void es_format_Init( es_format_t *fmt,
     fmt->psz_language           = NULL;
     fmt->psz_description        = NULL;
     fmt->p_extra_languages      = NULL;
+    fmt->psz_path               = NULL;
 
     if (fmt->i_cat == VIDEO_ES)
         video_format_Init(&fmt->video, 0);
@@ -476,6 +477,13 @@ int es_format_Copy(es_format_t *restrict dst, const es_format_t *src)
     {
         dst->psz_description = strdup(src->psz_description);
         if (unlikely(dst->psz_description == NULL))
+            ret = VLC_ENOMEM;
+    }
+
+    if (src->psz_path != NULL)
+    {
+        dst->psz_path = strdup(src->psz_path);
+        if (unlikely(dst->psz_path == NULL))
             ret = VLC_ENOMEM;
     }
 
@@ -541,6 +549,7 @@ int es_format_Copy(es_format_t *restrict dst, const es_format_t *src)
 
 void es_format_Clean(es_format_t *fmt)
 {
+    free(fmt->psz_path);
     free(fmt->psz_language);
     free(fmt->psz_description);
     assert(fmt->i_extra == 0 || fmt->p_extra != NULL);

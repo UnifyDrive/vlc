@@ -617,6 +617,7 @@ struct es_format_t
     bool     b_packetized;  /**< whether the data is packetized (ie. not truncated) */
     int     i_extra;        /**< length in bytes of extra data pointer */
     void    *p_extra;       /**< extra data needed by some decoders or muxers */
+    char    *psz_path;      /**< 天顶星: 增加对于基本流的来源, 方便外挂字幕选择*/
 
 };
 

@@ -245,7 +245,8 @@ typedef struct libvlc_media_track_t
     unsigned int i_bitrate;
     char *psz_language;
     char *psz_description;
-
+    /* tdx: 流来源*/
+    char *psz_path;
 } libvlc_media_track_t;
 
 /**

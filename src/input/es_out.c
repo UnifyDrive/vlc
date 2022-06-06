@@ -3103,6 +3103,10 @@ static void EsOutUpdateInfo( es_out_t *out, es_out_id_t *es, const es_format_t *
         update.i_extra = 0;
         update.p_extra = NULL;
 
+        /* tdx: 增加 psz_path */
+        if (update.psz_path == NULL)
+            update.psz_path = es->fmt.psz_path;
+
         input_item_UpdateTracksInfo(input_GetItem(p_input), &update);
     }
 

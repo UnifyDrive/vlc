@@ -1053,6 +1053,8 @@ libvlc_media_tracks_get( libvlc_media_t *p_md, libvlc_media_track_t *** pp_es )
         p_mes->i_bitrate = p_es->i_bitrate;
         p_mes->psz_language = p_es->psz_language != NULL ? strdup(p_es->psz_language) : NULL;
         p_mes->psz_description = p_es->psz_description != NULL ? strdup(p_es->psz_description) : NULL;
+        /* tdx: 外挂字幕/音轨的文件名 */
+        p_mes->psz_path = p_es->psz_path != NULL ? strdup(p_es->psz_path) : NULL;
 
         switch(p_es->i_cat)
         {
@@ -1132,6 +1134,7 @@ void libvlc_media_tracks_release( libvlc_media_track_t **p_tracks, unsigned i_co
             continue;
         free( p_tracks[i]->psz_language );
         free( p_tracks[i]->psz_description );
+        free( p_tracks[i]->psz_path );
         switch( p_tracks[i]->i_type )
         {
         case libvlc_track_audio:
