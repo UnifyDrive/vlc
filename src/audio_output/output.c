@@ -627,7 +627,7 @@ int aout_OutputTimeGet (audio_output_t *aout, mtime_t *delay)
 void aout_OutputPlay (audio_output_t *aout, block_t *block)
 {
     aout_OutputAssertLocked (aout);
-#ifndef NDEBUG
+#ifdef DEBUG
     aout_owner_t *owner = aout_owner (aout);
     assert (owner->mixer_format.i_frame_length > 0);
     assert (block->i_buffer == 0 || block->i_buffer / block->i_nb_samples ==
