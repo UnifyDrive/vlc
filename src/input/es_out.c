@@ -3075,7 +3075,15 @@ static void EsOutUpdateInfo( es_out_t *out, es_out_id_t *es, const es_format_t *
     if( es->fmt.i_cat == fmt->i_cat )
     {
         es_format_t update = *fmt;
+        // tdx: 蓝光中的视频, 音频, 字幕流的 id 都不能使用自增 id,
+        // 否则导致蓝光盘不能切换音轨和字幕.
+#if 0
         update.i_id = es->i_meta_id;
+#else
+        update.i_id = es->i_id;
+        update.i_profile = fmt->i_profile;
+        update.i_level = fmt->i_level;
+#endif
         update.i_codec = es->fmt.i_codec;
         update.i_original_fourcc = es->fmt.i_original_fourcc;
 
