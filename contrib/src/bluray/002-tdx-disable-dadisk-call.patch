@@ -1,0 +1,60 @@
+diff --git a/configure.ac b/configure.ac
+index e0e80cc..4baca8a 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -46,7 +46,8 @@ case "${host_os}" in
+     ;;
+   *darwin*)
+     SYS=darwin
+-    EXTRA_LIBS="${EXTRA_LIBS} -framework CoreFoundation -framework DiskArbitration"
++    dnl EXTRA_LIBS="${EXTRA_LIBS} -framework CoreFoundation -framework DiskArbitration"
++    EXTRA_LIBS="${EXTRA_LIBS} -framework CoreFoundation"
+     ;;
+   netbsd*)
+     SYS=netbsd
+@@ -156,6 +157,11 @@ AS_IF([test "${SYS}" != "mingw32"], [
+   AC_SUBST([DLOPEN_LIBS])
+ ])
+ 
++dnl <DiskArbitration/DADisk.h>
++AS_IF([test "${SYS}" == "darwin"], [
++  AC_CHECK_HEADERS([DiskArbitration/DADisk.h],[EXTRA_LIBS="${EXTRA_LIBS} -framework DiskArbitration"], [AC_MSG_WARN([not found DiskArbitration/DADisk.h])])
++  ])
++
+ dnl libxml2 for metadata parser
+ AS_IF([test "x$with_libxml2" != "xno"], [
+   PKG_CHECK_MODULES([LIBXML2], [libxml-2.0 >= 2.6],
+diff --git a/src/file/mount_darwin.c b/src/file/mount_darwin.c
+index 5b13450..08f4f7f 100644
+--- a/src/file/mount_darwin.c
++++ b/src/file/mount_darwin.c
+@@ -30,6 +30,7 @@
+ #define _DARWIN_C_SOURCE
+ #include <sys/stat.h>
+ 
++#if defined(HAVE_DISKARBITRATION_DADISK_H)
+ #include <DiskArbitration/DADisk.h>
+ 
+ static char *bsdname_get_mountpoint(const char *device_path)
+@@ -60,7 +61,7 @@ static char *bsdname_get_mountpoint(const char *device_path)
+ 
+     return result;
+ }
+-
++#endif
+ 
+ char *mount_get_mountpoint(const char *device_path)
+ {
+@@ -72,10 +73,11 @@ char *mount_get_mountpoint(const char *device_path)
+         }
+     }
+ 
++#if defined(HAVE_DISKARBITRATION_DADISK_H)
+     char *mountpoint = bsdname_get_mountpoint(device_path);
+     if (mountpoint) {
+         return mountpoint;
+     }
+-
++#endif
+     return str_dup(device_path);
+ }

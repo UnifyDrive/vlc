@@ -1,0 +1,22 @@
+diff --git a/src/libbluray/bluray.c b/src/libbluray/bluray.c
+index 845bd68..2553f67 100644
+--- a/src/libbluray/bluray.c
++++ b/src/libbluray/bluray.c
+@@ -1052,7 +1052,7 @@ static void _fill_disc_info(BLURAY *bd, BD_ENC_INFO *enc_info)
+ 
+         /* mark supported titles */
+ 
+-        _check_bdj(bd);
++        //_check_bdj(bd);
+ 
+         if (bd->disc_info.bdj_detected && !bd->disc_info.bdj_handled) {
+             bd->disc_info.num_unsupported_titles = bd->disc_info.num_bdj_titles;
+@@ -1120,7 +1120,7 @@ static void _fill_disc_info(BLURAY *bd, BD_ENC_INFO *enc_info)
+         }
+     }
+ 
+-    _check_bdj(bd);
++    //_check_bdj(bd);
+ }
+ 
+ const BLURAY_DISC_INFO *bd_get_disc_info(BLURAY *bd)

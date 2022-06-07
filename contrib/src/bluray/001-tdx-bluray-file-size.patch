@@ -1,0 +1,45 @@
+diff --git a/src/file/file.c b/src/file/file.c
+index 2f85248..6a67db8 100644
+--- a/src/file/file.c
++++ b/src/file/file.c
+@@ -33,16 +33,19 @@
+ 
+ int64_t file_size(BD_FILE_H *fp)
+ {
+-    int64_t pos    = file_tell(fp);
+-    int64_t res1   = file_seek(fp, 0, SEEK_END);
+-    int64_t length = file_tell(fp);
+-    int64_t res2   = file_seek(fp, pos, SEEK_SET);
+-
+-    if (res1 < 0 || res2 < 0 || pos < 0 || length < 0) {
+-        return -1;
++    if (fp->size) {
++        return (fp->size)(fp);
++    } else {
++        int64_t pos    = file_tell(fp);
++        int64_t res1   = file_seek(fp, 0, SEEK_END);
++        int64_t length = file_tell(fp);
++        int64_t res2   = file_seek(fp, pos, SEEK_SET);
++
++        if (res1 < 0 || res2 < 0 || pos < 0 || length < 0) {
++            return -1;
++        }
++        return length;
+     }
+-
+-    return length;
+ }
+ 
+ int file_mkdirs(const char *path)
+diff --git a/src/file/filesystem.h b/src/file/filesystem.h
+index 3fe54c8..df13cbf 100644
+--- a/src/file/filesystem.h
++++ b/src/file/filesystem.h
+@@ -38,6 +38,7 @@ struct bd_file_s
+     void    (*close) (BD_FILE_H *file);
+     int64_t (*seek)  (BD_FILE_H *file, int64_t offset, int32_t origin);
+     int64_t (*tell)  (BD_FILE_H *file);
++    int64_t (*size)  (BD_FILE_H *file);
+     int     (*eof)   (BD_FILE_H *file);
+     int64_t (*read)  (BD_FILE_H *file, uint8_t *buf, int64_t size);
+     int64_t (*write) (BD_FILE_H *file, const uint8_t *buf, int64_t size);

@@ -29,7 +29,7 @@ DEPS_bluray = libxml2 $(DEPS_libxml2) freetype2 $(DEPS_freetype2)
 BLURAY_CONF = --disable-examples  \
               --with-libxml2      \
               --enable-udf        \
-              --enable-bdjava
+              --disable-bdjava-jar
 
 ifneq ($(WITH_FONTCONFIG), 0)
 DEPS_bluray += fontconfig $(DEPS_fontconfig)
@@ -49,6 +49,9 @@ $(TARBALLS)/libbluray-$(BLURAY_VERSION).tar.bz2:
 bluray: libbluray-$(BLURAY_VERSION).tar.bz2 .sum-bluray
 	$(UNPACK)
 	$(APPLY) $(SRC)/bluray/0001-install-bdjo_data-header.patch
+	$(APPLY) $(SRC)/bluray/001-tdx-bluray-file-size.patch
+	$(APPLY) $(SRC)/bluray/002-tdx-disable-dadisk-call.patch
+	$(APPLY) $(SRC)/bluray/003-tdx-disable-bdjava.patch
 	$(call pkg_static,"src/libbluray.pc.in")
 	$(MOVE)
 
