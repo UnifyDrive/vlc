@@ -691,6 +691,10 @@ static int Open ( vlc_object_t *p_this )
         p_sys->i_length = p_sys->subtitles.p_array[p_sys->subtitles.i_count-1].i_stop;
 
     /* *** add subtitle ES *** */
+    if( p_sys->props.i_type == SUB_TYPE_SUBRIP ) {
+        msg_Dbg(p_demux, "Sort subtitles ######################");
+        Fix( p_demux );
+    }
     if( p_sys->props.i_type == SUB_TYPE_SSA1 ||
              p_sys->props.i_type == SUB_TYPE_SSA2_4 ||
              p_sys->props.i_type == SUB_TYPE_ASS )
