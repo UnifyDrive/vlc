@@ -511,7 +511,14 @@ int PlaylistManager::doDemux(int64_t increment)
         {
             demux.i_nzpcr = i_nzbarrier;
             mtime_t pcr = VLC_TS_0 + std::max(INT64_C(0), demux.i_nzpcr - CLOCK_FREQ / 10);
+            /*
+             * tdx: i_group = 1 defaults.
+             */
+#if 0
             es_out_Control(p_demux->out, ES_OUT_SET_GROUP_PCR, 0, pcr);
+#else
+            es_out_Control(p_demux->out, ES_OUT_SET_GROUP_PCR, 1, pcr);
+#endif
         }
         vlc_mutex_unlock(&demux.lock);
         break;

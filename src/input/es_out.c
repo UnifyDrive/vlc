@@ -2493,7 +2493,14 @@ static int EsOutControlLocked( es_out_t *out, int i_query, va_list args )
     case ES_OUT_SET_GROUP_PCR:
     {
         es_out_pgrm_t *p_pgrm = NULL;
+        /*
+         * tdx: i_group = 1 defaults;
+         */
+#if 0
         int            i_group = 0;
+#else
+        int            i_group = 1;
+#endif
         int64_t        i_pcr;
 
         /* Search program */

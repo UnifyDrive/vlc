@@ -226,7 +226,14 @@ FakeESOutID * FakeESOut::createNewID( const es_format_t *p_fmt )
     es_format_t fmtcopy;
     es_format_Init( &fmtcopy, p_fmt->i_cat, p_fmt->i_codec );
     es_format_Copy( &fmtcopy, p_fmt );
+    /*
+     * tdx: 默认的 i_group = 1.
+     */
+#if 0
     fmtcopy.i_group = 0; /* Always ignore group for adaptive */
+#else
+    fmtcopy.i_group = 1; /* Always ignore group for adaptive */
+#endif
     fmtcopy.i_id = -1;
 
     fmtcopy.i_priority = priority;
