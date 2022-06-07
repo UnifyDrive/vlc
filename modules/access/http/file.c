@@ -243,7 +243,7 @@ block_t *vlc_http_file_read(struct vlc_http_resource *res)
             block = vlc_http_res_read(res);
 
         if (block == vlc_http_error)
-            return NULL;
+            return block;
     }
 
     if (block == NULL)

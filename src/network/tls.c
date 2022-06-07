@@ -262,7 +262,56 @@ ssize_t vlc_tls_Read(vlc_tls_t *session, void *buf, size_t len, bool waitall)
                 return rcvd ? (ssize_t)rcvd : -1;
         }
 
-        vlc_poll_i11e(&ufd, 1, -1);
+        //vlc_poll_i11e(&ufd, 1, -1);
+    }
+}
+
+extern void vlc_http_err(void *ctx, const char *fmt, ...);
+ssize_t vlc_tls_Read_zs(vlc_tls_t *session, void *buf, size_t len, bool waitall, void *obj_tmp)
+{
+    struct pollfd ufd;
+    struct iovec iov;
+    int ret = 0;
+    int try_times = 0;
+
+    ufd.fd = vlc_tls_GetFD(session);
+    ufd.events = POLLIN;
+    iov.iov_base = buf;
+    iov.iov_len = len;
+
+    for (size_t rcvd = 0;;)
+    {
+        
+
+        do {
+            if (vlc_killed())
+            {
+                errno = EINTR;
+                return -1;
+            }
+            ret = vlc_poll_i11e(&ufd, 1, 1000);
+            try_times++;
+        } while (ret <=0 && try_times <= 10);
+        ssize_t val = session->readv(session, &iov, 1);
+        //vlc_http_err(obj_tmp, "session->readv(%d), ret=%d, val=%d, try_times=%d.", (int)len, ret, val, try_times);
+        if (val > 0)
+        {
+            if (!waitall)
+                return val;
+            iov.iov_base = (char *)iov.iov_base + val;
+            iov.iov_len -= val;
+            rcvd += val;
+        }
+        if (iov.iov_len == 0 || val == 0)
+            return rcvd;
+        if (val == -1)
+        {
+            if (vlc_killed())
+                return -1;
+            if ((errno != EINTR && errno != EAGAIN) || ret == 0)
+                return rcvd ? (ssize_t)rcvd : -1;
+        }
+
     }
 }
 

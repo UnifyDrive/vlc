@@ -247,7 +247,9 @@ static block_t *vlc_h1_stream_read(struct vlc_http_stream *stream)
     if (unlikely(block == NULL))
         return vlc_http_error;
 
-    ssize_t val = vlc_tls_Read(conn->conn.tls, block->p_buffer, size, false);
+    //vlc_http_err(CO(conn), "Want to read %d bytes.", (int)size);
+    //ssize_t val = vlc_tls_Read(conn->conn.tls, block->p_buffer, size, false);
+    ssize_t val = vlc_tls_Read_zs(conn->conn.tls, block->p_buffer, size, false, CO(conn));
     if (val <= 0)
     {
         block_Release(block);

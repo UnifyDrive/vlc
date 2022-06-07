@@ -44,13 +44,20 @@ struct access_sys_t
     struct vlc_http_resource *resource;
 };
 
+extern void *const vlc_http_error;
 static block_t *FileRead(stream_t *access, bool *restrict eof)
 {
     access_sys_t *sys = access->p_sys;
 
     block_t *b = vlc_http_file_read(sys->resource);
-    if (b == NULL)
+    if (b == NULL) {
         *eof = true;
+        msg_Warn(access, "Return eof by http file.");
+    }else if (b == vlc_http_error) {
+        *eof = true;
+        b = NULL;
+        msg_Warn(access, "Return eof by http file vlc_http_error.");
+    }
     return b;
 }
 
@@ -175,6 +182,7 @@ static int Open(vlc_object_t *obj)
     struct vlc_url_t crd_url;
     char *psz_realm = NULL;
 
+    msg_Warn(access, "psz_url=[%s]", access->psz_url);
     vlc_UrlParse(&crd_url, access->psz_url);
     vlc_credential_init(&crd, &crd_url);
 
@@ -185,6 +193,7 @@ static int Open(vlc_object_t *obj)
     char *ua = var_InheritString(obj, "http-user-agent");
     char *referer = var_InheritString(obj, "http-referrer");
     bool live = var_InheritBool(obj, "http-continuous");
+    msg_Warn(access, "live=[%s]", live?"True":"False");
 
     sys->resource = (live ? vlc_http_live_create : vlc_http_file_create)(
         sys->manager, access->psz_url, ua, referer);
@@ -226,6 +235,7 @@ static int Open(vlc_object_t *obj)
     if (status < 0)
     {
         msg_Err(access, "HTTP connection failure");
+        ret = VLC_EHTTPCONNECT;
         goto error;
     }
 
@@ -233,6 +243,7 @@ static int Open(vlc_object_t *obj)
     if (redir != NULL)
     {
         access->psz_url = redir;
+        msg_Err(access, "redirect psz_url=[%s]", access->psz_url);
         ret = VLC_ACCESS_REDIRECT;
         goto error;
     }

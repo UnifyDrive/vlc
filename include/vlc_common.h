@@ -362,6 +362,8 @@ struct vlc_list_t
 #define VLC_ENOVAR         (-6) /**< Variable not found */
 #define VLC_EBADVAR        (-7) /**< Bad variable value */
 #define VLC_ENOITEM        (-8) /**< Item not found */
+#define VLC_EHTTPCONNECT   (-9) /**< http connect error */
+
 
 /*****************************************************************************
  * Variable callbacks: called when the value is modified

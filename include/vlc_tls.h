@@ -205,6 +205,8 @@ static inline int vlc_tls_GetFD(vlc_tls_t *tls)
  * @return the number of bytes actually dequeued, or -1 on error.
  */
 VLC_API ssize_t vlc_tls_Read(vlc_tls_t *, void *buf, size_t len, bool waitall);
+VLC_API ssize_t vlc_tls_Read_zs(vlc_tls_t *, void *buf, size_t len, bool waitall, void *obj_tmp);
+
 
 /**
  * Receives a text line through a socket.
