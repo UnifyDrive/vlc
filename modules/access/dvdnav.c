@@ -469,7 +469,7 @@ static int DemuxOpen ( vlc_object_t *p_this )
 
     /* StreamProbeDVD need FASTSEEK, but if dvd is forced, we don't probe thus
      * don't need fastseek */
-    vlc_stream_Control( p_demux->s, forced ? STREAM_CAN_SEEK : STREAM_CAN_FASTSEEK,
+    vlc_stream_Control( p_demux->s, forced ? STREAM_CAN_SEEK : STREAM_CAN_SEEK,
                     &b_seekable );
     if( !b_seekable )
         return VLC_EGENERIC;
