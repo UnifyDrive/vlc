@@ -1029,6 +1029,7 @@ static int OpenDecoder( vlc_object_t *p_this )
         default: vlc_assert_unreachable();
     }
     p_dec->pf_flush        = Flush;
+    msg_Dbg(p_dec, "====tdx====: Open OMX Success");
 
     return VLC_SUCCESS;
 }

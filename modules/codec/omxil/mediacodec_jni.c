@@ -355,6 +355,7 @@ char* MediaCodec_GetName(vlc_object_t *p_obj, const char *psz_mime,
     jstring jmime;
     char *psz_name = NULL;
 
+    msg_Dbg(p_obj, "====tdx====: detect mediacodec for mimetype: %s, profile: %d", psz_mime, profile);
     if (!(env = android_getEnv(p_obj, THREAD_NAME)))
         return NULL;
 
@@ -456,15 +457,21 @@ char* MediaCodec_GetName(vlc_object_t *p_obj, const char *psz_mime,
                             {
                                 case 0x1: /* OMX_VIDEO_HEVCProfileMain */
                                     codec_profile = HEVC_PROFILE_MAIN;
+                                    msg_Dbg(p_obj, "====tdx====: %s decoder support profile \"Main\"", name_ptr);
                                     break;
                                 case 0x2:    /* OMX_VIDEO_HEVCProfileMain10 */
                                 case 0x1000: /* OMX_VIDEO_HEVCProfileMain10HDR10 */
                                     codec_profile = HEVC_PROFILE_MAIN_10;
+                                    msg_Dbg(p_obj, "====tdx====: %s decoder support profile \"Main 10\"", name_ptr);
                                     break;
                             }
                         }
-                        if (codec_profile != profile)
+                        if (codec_profile != profile) {
+                            msg_Dbg(p_obj, "====tdx====: codec profile *can't* match, get: %d, for : %d, decoder: \"%.*s\"", codec_profile, profile, name_len, name_ptr);
                             continue;
+                        }else {
+                            msg_Dbg(p_obj, "====tdx====: codec profile matched !!! get: %d, for %d, decoder: \"%.*s\"", codec_profile, profile, name_len, name_ptr);
+                        }
                         /* Some encoders set the level too high, thus we ignore it for the moment.
                            We could try to guess the actual profile based on the resolution. */
                         found = true;
@@ -477,7 +484,7 @@ char* MediaCodec_GetName(vlc_object_t *p_obj, const char *psz_mime,
         }
         if (found)
         {
-            msg_Dbg(p_obj, "using %.*s", name_len, name_ptr);
+            msg_Dbg(p_obj, "====tdx====: using decoder %.*s", name_len, name_ptr);
             psz_name = malloc(name_len + 1);
             if (psz_name)
             {
@@ -607,8 +614,11 @@ static int Start(mc_api *api, union mc_api_args *p_args)
 
     jmime = JNI_NEW_STRING(api->psz_mime);
     jcodec_name = JNI_NEW_STRING(api->psz_name);
-    if (!jmime || !jcodec_name)
+    if (!jmime || !jcodec_name) {
+        msg_Err(api->p_obj, "====tdx====: AMediaCodec.createCodecByName for [%s] [%s]failed",
+                api->psz_name, api->psz_mime);
         goto error;
+    }
 
     /* This method doesn't handle errors nicely, it crashes if the codec isn't
      * found.  (The same goes for createDecoderByType.) This is fixed in latest
@@ -618,7 +628,7 @@ static int Start(mc_api *api, union mc_api_args *p_args)
                                             jcodec_name);
     if (CHECK_EXCEPTION())
     {
-        msg_Warn(api->p_obj, "Exception occurred in MediaCodec.createByCodecName");
+        msg_Warn(api->p_obj, "====tdx====: Exception occurred in MediaCodec.createByCodecName");
         goto error;
     }
     p_sys->codec = (*env)->NewGlobalRef(env, jcodec);
@@ -667,7 +677,7 @@ static int Start(mc_api *api, union mc_api_args *p_args)
                                jformat, jsurface, NULL, 0);
         if (CHECK_EXCEPTION())
         {
-            msg_Warn(api->p_obj, "Exception occurred in MediaCodec.configure "
+            msg_Warn(api->p_obj, "====tdx====: Exception occurred in MediaCodec.configure "
                                  "with an output surface.");
             goto error;
         }
@@ -678,7 +688,7 @@ static int Start(mc_api *api, union mc_api_args *p_args)
                                jformat, NULL, NULL, 0);
         if (CHECK_EXCEPTION())
         {
-            msg_Warn(api->p_obj, "Exception occurred in MediaCodec.configure");
+            msg_Warn(api->p_obj, "====tdx====: Exception occurred in MediaCodec.configure");
             goto error;
         }
     }
@@ -686,7 +696,7 @@ static int Start(mc_api *api, union mc_api_args *p_args)
     (*env)->CallVoidMethod(env, p_sys->codec, jfields.start);
     if (CHECK_EXCEPTION())
     {
-        msg_Warn(api->p_obj, "Exception occurred in MediaCodec.start");
+        msg_Warn(api->p_obj, "====tdx====: Exception occurred in MediaCodec.start");
         goto error;
     }
     api->b_started = true;
@@ -698,7 +708,7 @@ static int Start(mc_api *api, union mc_api_args *p_args)
                                                   jfields.get_input_buffers);
         if (CHECK_EXCEPTION())
         {
-            msg_Err(api->p_obj, "Exception in MediaCodec.getInputBuffers");
+            msg_Err(api->p_obj, "====tdx====: Exception in MediaCodec.getInputBuffers");
             goto error;
         }
         p_sys->input_buffers = (*env)->NewGlobalRef(env, jinput_buffers);
@@ -707,7 +717,7 @@ static int Start(mc_api *api, union mc_api_args *p_args)
                                                    jfields.get_output_buffers);
         if (CHECK_EXCEPTION())
         {
-            msg_Err(api->p_obj, "Exception in MediaCodec.getOutputBuffers");
+            msg_Err(api->p_obj, "====tdx====: Exception in MediaCodec.getOutputBuffers");
             goto error;
         }
         p_sys->output_buffers = (*env)->NewGlobalRef(env, joutput_buffers);
@@ -718,7 +728,7 @@ static int Start(mc_api *api, union mc_api_args *p_args)
 
     api->b_direct_rendering = b_direct_rendering;
     i_ret = 0;
-    msg_Dbg(api->p_obj, "MediaCodec via JNI opened");
+    msg_Dbg(api->p_obj, "====tdx====: MediaCodec via JNI opened");
 
 error:
     if (jmime)
@@ -1050,8 +1060,11 @@ static int Configure(mc_api *api, int i_profile)
     api->i_quirks = 0;
     api->psz_name = MediaCodec_GetName(api->p_obj, api->psz_mime,
                                        i_profile, &api->i_quirks);
-    if (!api->psz_name)
+    if (!api->psz_name) {
+        msg_Err(api->p_obj, "====tdx====: Can't found decoder for mime:\"%s\", profile: \"%d\"", api->psz_mime, i_profile);
         return MC_API_ERROR;
+    }
+    msg_Dbg(api->p_obj, "====tdx====: Found decoder \"%s\" for mime:\"%s\", profile: \"%d\"", api->psz_name, api->psz_mime, i_profile);
     api->i_quirks |= OMXCodec_GetQuirks(api->i_cat, api->i_codec, api->psz_name,
                                         strlen(api->psz_name));
 
@@ -1070,6 +1083,7 @@ int MediaCodecJni_Init(mc_api *api)
 
     GET_ENV();
 
+    msg_Dbg(api->p_obj, "====tdx====: Try Open MediaCodec using JNI ...");
     if (!InitJNIFields(api->p_obj, env))
         return MC_API_ERROR;
 

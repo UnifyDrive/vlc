@@ -335,7 +335,7 @@ static int Start(mc_api *api, union mc_api_args *p_args)
     p_sys->p_codec = syms.AMediaCodec.createCodecByName(api->psz_name);
     if (!p_sys->p_codec)
     {
-        msg_Err(api->p_obj, "AMediaCodec.createCodecByName for %s failed",
+        msg_Err(api->p_obj, "====tdx====: AMediaCodec.createCodecByName for %s failed",
                 api->psz_name);
         goto error;
     }
@@ -343,7 +343,7 @@ static int Start(mc_api *api, union mc_api_args *p_args)
     p_sys->p_format = syms.AMediaFormat.new();
     if (!p_sys->p_format)
     {
-        msg_Err(api->p_obj, "AMediaFormat.new failed");
+        msg_Err(api->p_obj, "====tdx====: AMediaFormat.new failed");
         goto error;
     }
 
@@ -376,12 +376,12 @@ static int Start(mc_api *api, union mc_api_args *p_args)
     if (syms.AMediaCodec.configure(p_sys->p_codec, p_sys->p_format,
                                    p_anw, NULL, 0) != AMEDIA_OK)
     {
-        msg_Err(api->p_obj, "AMediaCodec.configure failed");
+        msg_Err(api->p_obj, "====tdx====: AMediaCodec.configure failed");
         goto error;
     }
     if (syms.AMediaCodec.start(p_sys->p_codec) != AMEDIA_OK)
     {
-        msg_Err(api->p_obj, "AMediaCodec.start failed");
+        msg_Err(api->p_obj, "====tdx====: AMediaCodec.start failed");
         goto error;
     }
 
@@ -389,7 +389,7 @@ static int Start(mc_api *api, union mc_api_args *p_args)
     api->b_direct_rendering = !!p_anw;
     i_ret = 0;
 
-    msg_Dbg(api->p_obj, "MediaCodec via NDK opened");
+    msg_Dbg(api->p_obj, "====tdx====: MediaCodec via NDK opened");
 error:
     if (i_ret != 0)
         Stop(api);
@@ -624,8 +624,11 @@ static int Configure(mc_api * api, int i_profile)
     api->i_quirks = 0;
     api->psz_name = MediaCodec_GetName(api->p_obj, api->psz_mime,
                                        i_profile, &api->i_quirks);
-    if (!api->psz_name)
+    if (!api->psz_name) {
+        msg_Err(api->p_obj, "====tdx====: Can't found decoder for mime:\"%s\", profile: \"%d\"", api->psz_mime, i_profile);
         return MC_API_ERROR;
+    }
+    msg_Dbg(api->p_obj, "====tdx====: Found decoder \"%s\" for mime:\"%s\", profile: \"%d\"", api->psz_name, api->psz_mime, i_profile);
     api->i_quirks |= OMXCodec_GetQuirks(api->i_cat, api->i_codec, api->psz_name,
                                         strlen(api->psz_name));
     /* Allow interlaced picture after API 21 */
@@ -638,6 +641,7 @@ static int Configure(mc_api * api, int i_profile)
  *****************************************************************************/
 int MediaCodecNdk_Init(mc_api *api)
 {
+    msg_Dbg(api->p_obj, "====tdx====: Try Open MediaCodec via NDK");
     if (!InitSymbols(api))
         return MC_API_ERROR;
 
