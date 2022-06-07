@@ -50,6 +50,13 @@
 #   include <vlc_charset.h>
 #endif
 
+#define ASS_USE_FONTCONFIG_TEXT N_("Using fontconfig")
+#define ASS_USE_FONTCONFIG_LONGTEXT N_("libass use fontconfig to render")
+#define ASS_FONTPATH_TEXT N_("ASS font file path")
+#define ASS_FONTPATH_LONGTEXT N_("ASS font file path")
+#define ASS_FONTFAMILY_TEXT N_("ASS font family")
+#define ASS_FONTFAMILY_LONGTEXT N_("ASS font family for font file")
+
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
@@ -64,6 +71,9 @@ vlc_module_begin ()
     set_capability( "spu decoder", 100 )
     set_category( CAT_INPUT )
     set_subcategory( SUBCAT_INPUT_SCODEC )
+    add_bool("ass-fontconfig", false, ASS_USE_FONTCONFIG_TEXT, ASS_USE_FONTCONFIG_LONGTEXT, false)
+    add_font("ass-fontpath", "/system/font/NotoSansCJK-Regular.ttc", ASS_FONTPATH_TEXT, ASS_FONTPATH_LONGTEXT, false)
+    add_font("ass-fontfamily", "Noto Sans", ASS_FONTFAMILY_TEXT, ASS_FONTFAMILY_LONGTEXT, false)
     set_callbacks( Create, Destroy )
     add_string("ssa-fontsdir", NULL, TEXT_SSA_FONTSDIR, NULL, false)
 vlc_module_end ()
@@ -232,16 +242,27 @@ static int Create( vlc_object_t *p_this )
     const char *psz_font_noto = "/system/fonts/NotoSansCJK-Regular.ttc";
     const char *psz_family_noto = "Noto Sans";
 
+    const char *psz_ass_fontpath = var_InheritString(p_dec, "ass-fontpath");
+    const char *psz_ass_fontfamily = var_InheritString(p_dec, "ass-fontfamily");
+
     // Workaround for Android 5.0+, since libass doesn't parse the XML yet
-    if( access( psz_font_noto, R_OK ) != -1 )
-    {
-        psz_font = psz_font_noto;
-        psz_family = psz_family_noto;
-    }
-    else
-    {
-        psz_font = psz_font_droid;
-        psz_family = psz_family_droid;
+    if (var_InheritBool(p_dec, "ass-fontconfig")) {
+        psz_font = NULL;
+        psz_family = strdup("sans-serif");
+    } else {
+        if (access(psz_ass_fontpath, R_OK) != -1) {
+            psz_font = strdup(psz_ass_fontpath);
+            psz_family = strdup(psz_ass_fontfamily);
+        } else if( access( psz_font_noto, R_OK ) != -1 )
+        {
+            psz_font = psz_font_noto;
+            psz_family = psz_family_noto;
+        }
+        else
+        {
+            psz_font = psz_font_droid;
+            psz_family = psz_family_droid;
+        }
     }
 
 #elif defined( __APPLE__ )
@@ -260,13 +281,28 @@ static int Create( vlc_object_t *p_this )
                                     _( "Please wait while your font cache is rebuilt.\n"
                                     "This should take less than a minute." ) );
 #endif
+#if defined(__ANDROID__)
+        if (var_InheritBool(p_dec, "ass-fontconfig")) {
+            ass_set_fonts( p_renderer, psz_font, psz_family, 3, NULL, 1 );  // setup default font/family
+        } else {
+            ass_set_fonts( p_renderer, psz_font, psz_family, 0, NULL, 0 );  // setup default font/family
+        }
+#else
     ass_set_fonts( p_renderer, psz_font, psz_family, ASS_FONTPROVIDER_AUTODETECT, NULL, 1 );  // setup default font/family
+#endif
 #if defined(_WIN32)
     if( p_dialog_id != 0 )
         vlc_dialog_release( p_dec, p_dialog_id );
 #endif
 #else
     ass_set_fonts( p_renderer, psz_font, psz_family, ASS_FONTPROVIDER_AUTODETECT, NULL, 0 );
+#endif
+
+#if defined(__ANDROID__)
+    free(psz_ass_fontpath);
+    free(psz_ass_fontfamily);
+    free(psz_font);
+    free(psz_family);
 #endif
 
     /* Anything else than NONE will break smooth img updating.
