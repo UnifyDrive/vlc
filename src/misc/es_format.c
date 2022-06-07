@@ -447,6 +447,7 @@ void es_format_Init( es_format_t *fmt,
     fmt->psz_description        = NULL;
     fmt->p_extra_languages      = NULL;
     fmt->psz_path               = NULL;
+    fmt->i_group                = 1;
 
     if (fmt->i_cat == VIDEO_ES)
         video_format_Init(&fmt->video, 0);
