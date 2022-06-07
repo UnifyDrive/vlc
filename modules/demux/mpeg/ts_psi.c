@@ -1756,6 +1756,11 @@ static void PMTCallBack( void *data, dvbpsi_pmt_t *p_dvbpsipmt )
                 {
                     /* Probe using ES */
                     p_sys->standard = ProbePMTStandard( p_dvbpsipmt );
+                    if (p_sys->standard == TS_STANDARD_AUTO) {
+                        msg_Dbg(p_demux, "==== PMTCallback default standard to TS_STANDARD_MPEG");
+                        registration_type = TS_PMT_REGISTRATION_BLURAY;
+                        TsChangeStandard(p_sys, TS_STANDARD_MPEG);
+                    }
                 }
                 break;
         }
