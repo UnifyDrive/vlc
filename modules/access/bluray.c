@@ -65,6 +65,14 @@
 #include <libbluray/overlay.h>
 #include <libbluray/clpi_data.h>
 
+#define TDX_BLURAY_STREAM
+#ifdef TDX_BLURAY_STREAM
+#include <libavformat/avformat.h>
+#include <libavformat/avio.h>
+#include <libavutil/avstring.h>
+#include <libbluray/filesystem.h>
+#endif
+
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
@@ -216,6 +224,9 @@ struct  demux_sys_t
 
     /* Used to store bluray disc path */
     char                *psz_bd_path;
+#ifdef TDX_BLURAY_STREAM
+    char                *psz_bd_url;
+#endif
 };
 
 /*
@@ -634,6 +645,52 @@ static int probeStream(demux_t *p_demux)
     return VLC_SUCCESS;
 }
 
+#ifdef TDX_BLURAY_STREAM
+static int http_exists_no_empty(char* url) {
+    AVIOContext* s;
+    int ret;
+    size_t size;
+
+    ret = avio_open(&s, url, AVIO_FLAG_READ | AVIO_FLAG_DIRECT);
+    if (ret < 0) {
+        return ret;
+    }
+
+    size = avio_size(s);
+    avio_closep(&s);
+
+    ret = size > 0 ? 0 : -1;
+    return ret;
+}
+
+static int probeDir(demux_t *p_demux) {
+    int len = strlen(p_demux->psz_access) + strlen(p_demux->psz_location) + strlen("://") + 1;
+    char* url = malloc(len);
+    int ret;
+    if (!url) {
+        ret = VLC_EGENERIC;
+        goto failed_malloc_url;
+    }
+    memset(url, 0, len);
+    snprintf(url, len, "%s://%s", p_demux->psz_access, p_demux->psz_location);
+    char* index_bdmv = av_append_path_component(url, "BDMV/index.bdmv");
+    if (!index_bdmv) {
+        ret = VLC_EGENERIC;
+        goto failed_bdmv_url;
+    }
+    if (http_exists_no_empty(index_bdmv) < 0) {
+        ret = VLC_EGENERIC;
+    } else {
+        ret = VLC_SUCCESS;
+    }
+    av_free(index_bdmv);
+failed_bdmv_url:
+    free(url);
+failed_malloc_url:
+    return ret;
+}
+#endif
+
 #ifdef BLURAY_DEMUX
 static int blurayReadBlock(void *object, void *buf, int lba, int num_blocks)
 {
@@ -663,6 +720,166 @@ static int blurayReadBlock(void *object, void *buf, int lba, int num_blocks)
 
     return result;
 }
+
+#ifdef TDX_BLURAY_STREAM
+static void bd_file_close_url(BD_FILE_H *file) {
+    AVIOContext* h = file->internal;
+    avio_close(h);
+    av_free(file);
+}
+
+static int64_t bd_file_size_url(BD_FILE_H* file) {
+    int64_t ret;
+    AVIOContext* h = file->internal;
+    ret = avio_size(h);
+    return ret;
+}
+
+static int64_t bd_file_seek_url(BD_FILE_H *file, int64_t offset, int32_t whence) {
+    int64_t ret;
+    AVIOContext* h = file->internal;
+    ret = avio_seek(h, offset, whence);
+    return ret;
+}
+
+static int64_t bd_file_read_url(BD_FILE_H *file, uint8_t *buf, int64_t size) {
+    int ret;
+    AVIOContext* h = file->internal;
+    ret = avio_read(h, buf, size);
+    if (ret < 0) {
+        if (ret == AVERROR_EOF) {
+            return 0;
+        }
+        av_log(NULL, AV_LOG_ERROR, "Error reading from input: %s.\n", av_err2str(ret));
+    }
+    return ret;
+};
+
+static int64_t bd_file_write_url(BD_FILE_H *file, const uint8_t *buf, int64_t size) {
+    int64_t ret = size;
+    AVIOContext* h = file->internal;
+    avio_write(h, buf, size);
+    return ret;
+};
+
+static int64_t bd_file_tell_url(BD_FILE_H *file) {
+    int64_t ret;
+    AVIOContext* h = file->internal;
+    ret = avio_tell(h);
+    return ret;
+}
+
+static BD_FILE_H* bd_file_open_url(const char* url, const char* cmode) {
+    BD_FILE_H* file;
+    AVIOContext *h;
+    AVIOInterruptCB int_cb;
+
+    int flags;
+    int ret;
+
+    file = av_mallocz(sizeof(BD_FILE_H));
+    if (!file) {
+        av_log(NULL, AV_LOG_ERROR, "can't create filesystem for bluray");
+        goto failed_file;
+    }
+
+    flags = AVIO_FLAG_READ;
+    if (strchr(cmode, 'w')) {
+        flags = AVIO_FLAG_READ_WRITE;
+    }
+
+    //flags |= AVIO_FLAG_DIRECT;
+
+    if ((ret = avio_open(&h, url, flags)) < 0) {
+        av_log(NULL, AV_LOG_ERROR, "can't open url: \"%s\" error code: \"%s\" ", url, av_err2str(ret));
+        goto failed_avio;
+    }
+
+    file->internal = h;
+    file->close = bd_file_close_url;
+    file->seek = bd_file_seek_url;
+    file->tell = bd_file_tell_url;
+    file->read = bd_file_read_url;
+    file->write = bd_file_write_url;
+    file->size = bd_file_size_url;
+    file->eof = NULL; // not support
+
+    return file;
+
+failed_avio:
+    av_free(file);
+failed_file:
+    return NULL;
+}
+
+static void bd_dir_close_url(BD_DIR_H* dir) {
+    //AVIODirContext* s = dir->internal;
+    //TODO: crash??
+    //avio_close_dir(&dir->internal);
+    av_free(dir);
+}
+
+static int bd_dir_read_url(BD_DIR_H* dir, BD_DIRENT* entry) {
+    //AVIODirContext* s = dir->internal;
+    AVIODirEntry* next;
+    int ret;
+
+    if ((ret = avio_read_dir(dir->internal, &next)) < 0) {
+        av_log(NULL, AV_LOG_ERROR, "Cannot list directory: %s.\n", av_err2str(ret));
+        return -1;
+    }
+    if (next == NULL) {
+        return 1;
+    }
+
+    strncpy(entry->d_name, next->name, sizeof(entry->d_name));
+    entry->d_name[sizeof(entry->d_name) -1] = 0;
+
+    avio_free_directory_entry(&next);
+    return 0;
+}
+
+static BD_DIR_H* bd_dir_open_url(const char* url) {
+    BD_DIR_H* dir;
+    int ret;
+
+    dir = av_mallocz(sizeof(BD_DIR_H));
+    if (!dir) {
+        av_log(NULL, AV_LOG_ERROR, "can't create dirsystem for bluray");
+        goto failed_dir;
+    }
+
+    if ((ret = avio_open_dir(&dir->internal, url, NULL)) < 0) {
+        av_log(NULL, AV_LOG_ERROR, "Cannot open directory: %s.\n", av_err2str(ret));
+        goto failed_avio;
+    }
+    dir->close = bd_dir_close_url;
+    dir->read = bd_dir_read_url;
+
+    return dir;
+
+failed_avio:
+    av_free(dir);
+failed_dir:
+    return NULL;
+}
+
+static BD_FILE_H* bdfs_file_open(void* ctx, const char* path) {
+    char* dir = (char*) ctx;
+    char* url = av_append_path_component(dir, path);
+    BD_FILE_H* file = bd_file_open_url(url, "rb");
+    av_free(url);
+    return file;
+}
+
+static BD_DIR_H* bdfs_dir_open(void* ctx, const char* path) {
+    char* dir = (char*) ctx;
+    char* url = av_append_path_component(dir, path);
+    BD_DIR_H* d = bd_dir_open_url(url);
+    av_free(url);
+    return d;
+}
+#endif /* TDX_BLURAY_STREAM */
 #endif
 
 /*****************************************************************************
@@ -748,10 +965,17 @@ static int blurayOpen(vlc_object_t *object)
     uint64_t i_init_pos = 0;
 
     const char *error_msg = NULL;
+#ifdef TDX_BLURAY_STREAM
+    int is_dir = 0;
+#endif
+
 #define BLURAY_ERROR(s) do { error_msg = s; goto error; } while(0)
 
     if (unlikely(!p_demux->p_input))
         return VLC_EGENERIC;
+#ifdef TDX_BLURAY_STREAM
+        avformat_network_init();
+#endif
 
     forced = !strcasecmp(p_demux->psz_access, "bluray");
 
@@ -762,15 +986,25 @@ static int blurayOpen(vlc_object_t *object)
         }
 
         if (probeStream(p_demux) != VLC_SUCCESS) {
+#ifdef TDX_BLURAY_STREAM
+            if (probeDir(p_demux) != VLC_SUCCESS) {
+                msg_Err(p_demux, "probe Bluray Dir failed");
+                return VLC_EGENERIC;
+            }
+            is_dir = 1;
+#else
             return VLC_EGENERIC;
+#endif
         }
 
     } else if (!forced) {
         if (!p_demux->psz_file) {
+            msg_Info(p_demux, "Bluray 3");
             return VLC_EGENERIC;
         }
 
         if (probeFile(p_demux->psz_file) != VLC_SUCCESS) {
+            msg_Info(p_demux, "Bluray 5");
             return VLC_EGENERIC;
         }
     }
@@ -814,12 +1048,32 @@ static int blurayOpen(vlc_object_t *object)
 #ifdef BLURAY_DEMUX
     if (p_demux->s) {
         i_init_pos = vlc_stream_Tell(p_demux->s);
+#ifdef TDX_BLURAY_STREAM
+        if (is_dir) {
+            p_sys->bluray = bd_init();
+            int len = strlen(p_demux->psz_access) + strlen(p_demux->psz_location) + strlen("://") + 1;
+            p_sys->psz_bd_url = malloc(len);
+            memset(p_sys->psz_bd_url, 0, len);
+            snprintf(p_sys->psz_bd_url, len, "%s://%s", p_demux->psz_access, p_demux->psz_location);
+            if (!bd_open_files(p_sys->bluray, p_sys->psz_bd_url, bdfs_dir_open, bdfs_file_open)) {
+                bd_close(p_sys->bluray);
+                p_sys->bluray = NULL;
+            }
+        } else {
+            p_sys->bluray = bd_init();
+            if (!bd_open_stream(p_sys->bluray, p_demux, blurayReadBlock)) {
+                bd_close(p_sys->bluray);
+                p_sys->bluray = NULL;
+            }
+        }
+#else
 
         p_sys->bluray = bd_init();
         if (!bd_open_stream(p_sys->bluray, p_demux, blurayReadBlock)) {
             bd_close(p_sys->bluray);
             p_sys->bluray = NULL;
         }
+#endif
     } else
 #endif
     {
@@ -1054,6 +1308,10 @@ static void blurayClose(vlc_object_t *object)
     vlc_mutex_destroy(&p_sys->read_block_lock);
 
     free(p_sys->psz_bd_path);
+#ifdef TDX_BLURAY_STREAM
+    free(p_sys->psz_bd_url);
+#endif
+
 }
 
 /*****************************************************************************
@@ -2108,8 +2366,10 @@ static void blurayInitTitles(demux_t *p_demux, uint32_t menu_titles)
 
         if (!p_sys->b_menu) {
             BLURAY_TITLE_INFO *title_info = bd_get_title_info(p_sys->bluray, i, 0);
-            blurayUpdateTitleInfo(t, title_info);
-            bd_free_title_info(title_info);
+            if (title_info) {
+                blurayUpdateTitleInfo(t, title_info);
+                bd_free_title_info(title_info);
+            }
 
         } else if (i == 0) {
             t->psz_name = strdup(_("Top Menu"));
