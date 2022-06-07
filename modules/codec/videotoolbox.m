@@ -80,6 +80,7 @@ static void CloseDecoder(vlc_object_t *);
 
 #define VT_ENABLE_TEXT "Enable hardware acceleration"
 #define VT_REQUIRE_HW_DEC N_("Use Hardware decoders only")
+#define VT_REQUIRE_ASYNC_DEC N_("Using async decoding")
 #define VT_FORCE_CVPX_CHROMA "Force the VT decoder CVPX chroma"
 #define VT_FORCE_CVPX_CHROMA_LONG "Values can be 'BGRA', 'y420', '420f', '420v', '2vuy'. \
     By Default, the best chroma is choosen by the VT decoder."
@@ -94,6 +95,7 @@ set_callbacks(OpenDecoder, CloseDecoder)
 add_obsolete_bool("videotoolbox-temporal-deinterlacing")
 add_bool("videotoolbox", true, VT_ENABLE_TEXT, NULL, false)
 add_bool("videotoolbox-hw-decoder-only", true, VT_REQUIRE_HW_DEC, VT_REQUIRE_HW_DEC, false)
+add_bool("videotoolbox-async-decode", true, VT_REQUIRE_ASYNC_DEC, VT_REQUIRE_ASYNC_DEC, false)
 add_string("videotoolbox-cvpx-chroma", "", VT_FORCE_CVPX_CHROMA, VT_FORCE_CVPX_CHROMA_LONG, true);
 vlc_module_end()
 
@@ -2015,7 +2017,10 @@ static int DecodeBlock(decoder_t *p_dec, block_t *p_block)
     }
 
     VTDecodeInfoFlags flagOut;
-    VTDecodeFrameFlags decoderFlags = kVTDecodeFrame_EnableAsynchronousDecompression;
+    VTDecodeFrameFlags decoderFlags = 0;
+    if (var_InheritBool(p_dec, "videotoolbox-async-decode")) {
+        decoderFlags = kVTDecodeFrame_EnableAsynchronousDecompression;
+    }
 
     OSStatus status =
         VTDecompressionSessionDecodeFrame(p_sys->session, sampleBuffer,
