@@ -1,0 +1,287 @@
+diff --git a/libavformat/bluray.c b/libavformat/bluray.c
+index 9282bf9..9b59fda 100644
+--- a/libavformat/bluray.c
++++ b/libavformat/bluray.c
+@@ -27,11 +27,20 @@
+ #include "libavformat/url.h"
+ #include "libavutil/opt.h"
+ 
++#define TDX_BLURAY_STREAM
++
++#ifdef TDX_BLURAY_STREAM
++#include <libbluray/filesystem.h>
++#endif
++
+ #define BLURAY_PROTO_PREFIX     "bluray:"
+ #define MIN_PLAYLIST_LENGTH     180     /* 3 min */
+ 
+ typedef struct {
+     const AVClass *class;
++#ifdef TDX_BLURAY_STREAM
++    AVIOContext *inner;
++#endif
+ 
+     BLURAY *bd;
+ 
+@@ -104,6 +113,12 @@ static int check_disc_info(URLContext *h)
+ static int bluray_close(URLContext *h)
+ {
+     BlurayContext *bd = h->priv_data;
++#ifdef TDX_BLURAY_STREAM
++    if (bd->inner) {
++        avio_close(bd->inner);
++        bd->inner = NULL;
++    }
++#endif
+     if (bd->bd) {
+         bd_close(bd->bd);
+     }
+@@ -111,6 +126,190 @@ static int bluray_close(URLContext *h)
+     return 0;
+ }
+ 
++#ifdef TDX_BLURAY_STREAM
++static int bluray_read_blocks(void* handle, void* buf, int lba, int num_blocks) {
++    int64_t offset;
++    int64_t size;
++    AVIOContext* c = (AVIOContext*) handle;
++    offset = lba * 2048;
++    size = num_blocks * 2048;
++
++    int64_t r;
++
++    r = avio_seek(c, offset, SEEK_SET);
++    if (r < 0) {
++        av_log(c, AV_LOG_ERROR, "Failed to perform internal seek");
++        return r;
++    }
++
++    r = avio_read(c, buf, size);
++    if (r < 0 ) {
++        return r;
++    }
++    return r / 2048;
++}
++
++static void bd_file_close_url(BD_FILE_H *file) {
++    AVIOContext* h = file->internal;
++    avio_close(h);
++    av_free(file);
++}
++
++static int64_t bd_file_size_url(BD_FILE_H* file) {
++    int64_t ret;
++    AVIOContext* h = file->internal;
++    ret = avio_size(h);
++    return ret;
++}
++
++static int64_t bd_file_seek_url(BD_FILE_H *file, int64_t offset, int32_t whence) {
++    int64_t ret;
++    AVIOContext* h = file->internal;
++    ret = avio_seek(h, offset, whence);
++    return ret;
++}
++
++static int64_t bd_file_read_url(BD_FILE_H *file, uint8_t *buf, int64_t size) {
++    int ret;
++    AVIOContext* h = file->internal;
++    ret = avio_read(h, buf, size);
++    if (ret < 0) {
++        if (ret == AVERROR_EOF) {
++            return 0;
++        }
++        av_log(NULL, AV_LOG_ERROR, "Error reading from input: %s.\n", av_err2str(ret));
++    }
++    return ret;
++};
++
++static int64_t bd_file_write_url(BD_FILE_H *file, const uint8_t *buf, int64_t size) {
++    int64_t ret = size;
++    AVIOContext* h = file->internal;
++    avio_write(h, buf, size);
++    return ret;
++};
++
++static int64_t bd_file_tell_url(BD_FILE_H *file) {
++    int64_t ret;
++    AVIOContext* h = file->internal;
++    ret = avio_tell(h);
++    return ret;
++}
++
++static BD_FILE_H* bd_file_open_url(const char* url, const char* cmode) {
++    BD_FILE_H* file;
++    AVIOContext *h;
++    AVIOInterruptCB int_cb;
++
++    int flags;
++    int ret;
++
++    av_log(NULL, AV_LOG_DEBUG, "bd_file_openurl: %s", url);
++
++    file = av_mallocz(sizeof(BD_FILE_H));
++    if (!file) {
++        av_log(NULL, AV_LOG_ERROR, "can't create filesystem for bluray");
++        goto failed_file;
++    }
++
++    flags = AVIO_FLAG_READ;
++    if (strchr(cmode, 'w')) {
++        flags = AVIO_FLAG_READ_WRITE;
++    }
++
++    //flags |= AVIO_FLAG_DIRECT;
++
++    if ((ret = avio_open(&h, url, flags)) < 0) {
++        av_log(NULL, AV_LOG_ERROR, "can't open url: \"%s\" error code: \"%s\" ", url, av_err2str(ret));
++        goto failed_avio;
++    }
++
++    file->internal = h;
++    file->close = bd_file_close_url;
++    file->seek = bd_file_seek_url;
++    file->tell = bd_file_tell_url;
++    file->read = bd_file_read_url;
++    file->write = bd_file_write_url;
++    file->size = bd_file_size_url;
++    file->eof = NULL; // not support
++
++    return file;
++
++failed_avio:
++    av_free(file);
++failed_file:
++    return NULL;
++}
++
++static void bd_dir_close_url(BD_DIR_H* dir) {
++    avio_close_dir(&dir->internal);
++    av_free(dir);
++}
++
++static int bd_dir_read_url(BD_DIR_H* dir, BD_DIRENT* entry) {
++    //AVIODirContext* s = dir->internal;
++    AVIODirEntry* next;
++    int ret;
++
++    if ((ret = avio_read_dir(dir->internal, &next)) < 0) {
++        av_log(NULL, AV_LOG_ERROR, "Cannot list directory: %s.\n", av_err2str(ret));
++        return -1;
++    }
++    if (next == NULL) {
++        return 1;
++    }
++
++    strncpy(entry->d_name, next->name, sizeof(entry->d_name));
++    entry->d_name[sizeof(entry->d_name) -1] = 0;
++
++    avio_free_directory_entry(&next);
++    return 0;
++}
++
++static BD_DIR_H* bd_dir_open_url(const char* url) {
++    BD_DIR_H* dir;
++    int ret;
++
++    av_log(NULL, AV_LOG_DEBUG, "bd_dir_openurl: %s", url);
++
++    dir = av_mallocz(sizeof(BD_DIR_H));
++    if (!dir) {
++        av_log(NULL, AV_LOG_ERROR, "can't create dirsystem for bluray");
++        goto failed_dir;
++    }
++
++    if ((ret = avio_open_dir(&dir->internal, url, NULL)) < 0) {
++        av_log(NULL, AV_LOG_ERROR, "Cannot open directory: %s.\n", av_err2str(ret));
++        goto failed_avio;
++    }
++    dir->close = bd_dir_close_url;
++    dir->read = bd_dir_read_url;
++
++    return dir;
++
++failed_avio:
++    av_free(dir);
++failed_dir:
++    return NULL;
++}
++
++static BD_FILE_H* bdfs_file_open(void* ctx, const char* path) {
++    char* dir = (char*) ctx;
++    char* url = av_append_path_component(dir, path);
++    BD_FILE_H* f = bd_file_open_url(url, "rb");
++    av_free(url);
++    return f;
++}
++
++static BD_DIR_H* bdfs_dir_open(void* ctx, const char* path) {
++    char* dir = (char*) ctx;
++    char* url = av_append_path_component(dir, path);
++    BD_DIR_H* d = bd_dir_open_url(url);
++    av_free(url);
++    return d;
++}
++#endif /* TDX_BLURAY_STREAM */
++
+ static int bluray_open(URLContext *h, const char *path, int flags)
+ {
+     BlurayContext *bd = h->priv_data;
+@@ -119,11 +318,57 @@ static int bluray_open(URLContext *h, const char *path, int flags)
+ 
+     av_strstart(path, BLURAY_PROTO_PREFIX, &diskname);
+ 
++#ifdef TDX_BLURAY_STREAM
++    {
++        /**
++         * TODO:
++         * 顺序, 先本地 open, 再网络 open, 先 dir open , 再 stream open.
++         * bluray:./path/to/disk
++         * bluray:http://path/to/disk
++         * bluray:file://path/to/disk
++         */
++        int ret;
++        bd->bd = bd_open(diskname, NULL);
++        if (bd->bd) {
++            goto open_success;
++        }
++        av_log(h, AV_LOG_ERROR, "bd_open() failed try other way\n");
++
++        bd->bd = bd_init();
++        ret = avio_open2(&bd->inner, diskname, flags, &h->interrupt_callback, NULL);
++        if (ret == 0) {
++            ret = bd_open_stream(bd->bd, bd->inner, bluray_read_blocks);
++            if (ret) {
++                goto open_success;
++            }  else {
++                avio_closep(&bd->inner);
++                bd_close(bd->bd);
++                av_log(h, AV_LOG_ERROR, "bd_open_stream() failed");
++            }
++        } else {
++            av_log(h, AV_LOG_ERROR, "ffurl_open failed: %s, %s\n", av_err2str(ret), diskname);
++        }
++
++        bd->bd = bd_init();
++        ret = bd_open_files(bd->bd, diskname, bdfs_dir_open, bdfs_file_open);
++        if (ret) {
++            goto open_success;
++        } else {
++            av_log(h, AV_LOG_ERROR, "bd_penfile failed: %s, %s\n", av_err2str(ret), diskname);
++        }
++    }
++
++open_failed:
++    return AVERROR(EIO);
++
++open_success:
++#else /* !TDX_STREAM */
+     bd->bd = bd_open(diskname, NULL);
+     if (!bd->bd) {
+         av_log(h, AV_LOG_ERROR, "bd_open() failed\n");
+         return AVERROR(EIO);
+     }
++#endif /* TDX_STREAM */
+ 
+     /* check if disc can be played */
+     if (check_disc_info(h) < 0) {
