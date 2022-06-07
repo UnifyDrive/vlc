@@ -227,6 +227,8 @@ struct  demux_sys_t
 #ifdef TDX_BLURAY_STREAM
     char                *psz_bd_url;
 #endif
+    bool                b_reset_dts_offset;
+    mtime_t             i_pcr_offset;
 };
 
 /*
@@ -238,6 +240,7 @@ typedef struct
     es_out_id_t *p_es;
     int i_next_block_flags;
     bool b_recyling;
+    mtime_t i_dts_offset;
 } es_pair_t;
 
 static bool es_pair_Add(vlc_array_t *p_array, const es_format_t *p_fmt,
@@ -249,6 +252,7 @@ static bool es_pair_Add(vlc_array_t *p_array, const es_format_t *p_fmt,
         p_pair->p_es = p_es;
         p_pair->i_next_block_flags = 0;
         p_pair->b_recyling = false;
+        p_pair->i_dts_offset = VLC_TS_INVALID;
         if(vlc_array_append(p_array, p_pair) != VLC_SUCCESS)
         {
             free(p_pair);
@@ -1015,6 +1019,8 @@ static int blurayOpen(vlc_object_t *object)
         return VLC_ENOMEM;
 
     p_sys->i_still_end_time = STILL_IMAGE_NOT_SET;
+    p_sys->b_reset_dts_offset = true;
+    p_sys->i_pcr_offset = VLC_TS_INVALID;
 
     /* init demux info fields */
     p_demux->info.i_update    = 0;
@@ -1535,6 +1541,28 @@ static int bluray_esOutSend(es_out_t *p_out, es_out_id_t *p_es, block_t *p_block
     bluray_esOutDeleteNonReusedESUnlocked(p_out);
 
     es_pair_t *p_pair = getEsPairByES(&esout_sys->es, p_es);
+
+    demux_t *p_demux = esout_sys->priv;
+    demux_sys_t *p_sys = p_demux->p_sys;
+    mtime_t i_offset = VLC_TS_INVALID;
+    if ( p_sys->i_pcr_offset > VLC_TS_INVALID )
+    {
+        i_offset = p_sys->i_pcr_offset;
+    }
+    else
+    {
+        if ( p_sys->b_reset_dts_offset )
+        {
+            mtime_t i_time = FROM_TICKS( bd_tell_time( p_sys->bluray ) );
+            p_pair->i_dts_offset = p_block->i_dts - i_time;
+            i_offset = p_pair->i_dts_offset;
+            p_sys->b_reset_dts_offset = false;
+        }
+    }
+
+    p_block->i_dts -= i_offset;
+    p_block->i_pts -= i_offset;
+
     if(p_pair && p_pair->i_next_block_flags)
     {
         p_block->i_flags |= p_pair->i_next_block_flags;
@@ -1656,7 +1684,30 @@ static int bluray_esOutControl(es_out_t *p_out, int i_query, va_list args)
             *va_arg(args, bool *) = true;
             i_ret = VLC_SUCCESS;
             break;
+        case ES_OUT_RESET_PCR:
+        {
+            demux_t *p_demux = esout_sys->priv;
+            demux_sys_t *p_sys = p_demux->p_sys;
+            p_sys->i_pcr_offset = VLC_TS_INVALID;
+            i_ret = es_out_Control( esout_sys->p_dst_out, i_query, args );
+        }
+        break;
 
+        case ES_OUT_SET_GROUP_PCR:
+        {
+            int i_group = va_arg( args, int );
+            mtime_t i_pcr = va_arg( args, int64_t );
+            demux_t *p_demux = esout_sys->priv;
+            demux_sys_t *p_sys = p_demux->p_sys;
+            if ( p_sys->i_pcr_offset <= VLC_TS_INVALID )
+            {
+                mtime_t i_time = FROM_TICKS(bd_tell_time(p_sys->bluray));
+                p_sys->i_pcr_offset = i_pcr - i_time;
+            }
+            i_pcr -= p_sys->i_pcr_offset;
+            i_ret = es_out_Control( esout_sys->p_dst_out, i_query, i_group, i_pcr );
+        }
+        break;
         default:
             i_ret = es_out_vaControl(esout_sys->p_dst_out, i_query, args);
             break;
@@ -2635,6 +2686,8 @@ static int blurayControl(demux_t *p_demux, int query, va_list args)
         blurayRestartParser(p_demux, true, true);
         notifyDiscontinuityToParser(p_sys);
         p_sys->b_draining = false;
+        p_sys->b_reset_dts_offset = true;
+        p_sys->i_pcr_offset = VLC_TS_INVALID;
         es_out_Control(p_sys->p_out, BLURAY_ES_OUT_CONTROL_FLAG_DISCONTINUITY);
         return VLC_SUCCESS;
     }
@@ -2665,6 +2718,8 @@ static int blurayControl(demux_t *p_demux, int query, va_list args)
         blurayRestartParser(p_demux, true, true);
         notifyDiscontinuityToParser(p_sys);
         p_sys->b_draining = false;
+        p_sys->b_reset_dts_offset = true;
+        p_sys->i_pcr_offset = VLC_TS_INVALID;
         es_out_Control(p_sys->p_out, BLURAY_ES_OUT_CONTROL_FLAG_DISCONTINUITY);
         return VLC_SUCCESS;
     }
