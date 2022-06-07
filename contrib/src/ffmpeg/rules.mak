@@ -29,9 +29,9 @@ FFMPEGCONF = \
 	--disable-encoder=vorbis \
 	--disable-decoder=opus \
 	--enable-libgsm \
-	--disable-decoder=mlp \
-	--disable-demuxer=mlp \
-	--disable-parser=mlp \
+	--enable-decoder=mlp \
+	--enable-demuxer=mlp \
+	--enable-parser=mlp \
 	--disable-debug \
 	--disable-avdevice \
 	--disable-devices \
@@ -174,6 +174,10 @@ FFMPEGCONF +=  --disable-mmx --disable-mmxext --disable-inline-asm
 endif
 endif
 
+# bluray remote
+DEPS_ffmpeg += libxml2
+FFMPEGCONF += --enable-libxml2
+
 # Windows
 ifdef HAVE_WIN32
 ifndef HAVE_VISUALSTUDIO
@@ -245,6 +249,7 @@ ifdef USE_FFMPEG
 	$(APPLY) $(SRC)/ffmpeg/0001-fix-MediaFoundation-compilation-if-WINVER-was-forced.patch
 	$(APPLY) $(SRC)/ffmpeg/0001-bring-back-XP-support.patch
 	$(APPLY) $(SRC)/ffmpeg/0001-avcodec-vp9-Do-not-destroy-uninitialized-mutexes-con.patch
+	$(APPLY) $(SRC)/ffmpeg/001-tdx-ffmpeg-webdav.patch
 endif
 ifdef USE_LIBAV
 	$(APPLY) $(SRC)/ffmpeg/libav_gsm.patch

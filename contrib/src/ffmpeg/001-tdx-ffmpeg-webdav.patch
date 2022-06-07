@@ -1,0 +1,392 @@
+diff --git a/libavformat/http.c b/libavformat/http.c
+index cf86adc..180ce75 100644
+--- a/libavformat/http.c
++++ b/libavformat/http.c
+@@ -25,6 +25,11 @@
+ #include <zlib.h>
+ #endif /* CONFIG_ZLIB */
+
++#define TDX_BLURAY_STREAM
++#ifdef TDX_BLURAY_STREAM
++#include <libxml/parser.h>
++#endif
++
+ #include "libavutil/avassert.h"
+ #include "libavutil/avstring.h"
+ #include "libavutil/opt.h"
+@@ -58,6 +63,184 @@ typedef enum {
+     FINISH
+ }HandshakeState;
+
++#ifdef TDX_BLURAY_STREAM
++#define MAX_ENTRYNAME (1024*4-1)
++
++typedef enum {
++    WebDavEntryTypeFile = 0,
++    WebDavEntryTypeCollection = 1,
++} WebDavEntryType;
++
++typedef struct {
++    char name[MAX_ENTRYNAME + 1];
++    WebDavEntryType type;
++} WebDavEntry;
++
++typedef struct WebDavEntryList {
++    WebDavEntry entry;
++    struct WebDavEntryList* next;
++} WebDavEntryList, *WebDavEntryListPtr;
++
++typedef struct {
++    WebDavEntryListPtr head;
++    WebDavEntryListPtr tail;
++    void (*free_entry)(WebDavEntryListPtr e);
++    int nb_entries;
++} WebDavEntryQueue;
++
++static void webdav_entry_dispose(WebDavEntryListPtr e) {
++    av_freep(&e);
++}
++
++static int webdav_entry_queue_init(WebDavEntryQueue* queue, void (*free_entry)(WebDavEntryListPtr e)) {
++    queue->head = NULL;
++    queue->tail = NULL;
++    queue->nb_entries = 0;
++    if (free_entry == NULL) {
++        queue->free_entry = webdav_entry_dispose;
++    } else {
++        queue->free_entry = free_entry;
++    }
++    return 0;
++}
++
++static int webdav_entry_queue_dispose(WebDavEntryQueue* queue) {
++    WebDavEntryListPtr ptr;
++    while (queue->head) {
++        ptr = queue->head;
++        queue->head = queue->head->next;
++        queue->free_entry(ptr);
++    }
++    queue->tail = NULL;
++    queue->nb_entries = 0;
++    return 0;
++}
++
++static int webdav_entry_queue_put(WebDavEntryQueue* queue, WebDavEntryListPtr e) {
++    if (e == NULL) return queue->nb_entries;
++
++    if (queue->tail == NULL) {
++        queue->tail = e;
++        queue->head = e;
++    } else {
++        queue->tail->next = e;
++        queue->tail = e;
++    }
++
++    queue->nb_entries = queue->nb_entries + 1;
++    return queue->nb_entries;
++}
++
++static WebDavEntryListPtr webdav_entry_queue_get(WebDavEntryQueue* queue) {
++    WebDavEntryListPtr ptr;
++    if (queue->head == NULL) return NULL;
++    ptr = queue->head;
++    queue->head = queue->head->next;
++    queue->nb_entries = queue->nb_entries - 1;
++    if (queue->tail == ptr) {
++        queue->tail = NULL;
++    }
++    return ptr;
++}
++
++static WebDavEntryListPtr webdav_entry_queue_peek(WebDavEntryQueue* queue) {
++    return queue->head;
++}
++
++static int webdav_entry_queue_is_empty(WebDavEntryQueue* queue) {
++    return queue->head == NULL ? 1 : 0;
++}
++
++typedef struct WebDavPropfindContext {
++    WebDavEntryQueue entryQueue;
++    WebDavEntryListPtr entry;
++    xmlSAXHandler saxHandler;
++    xmlParserCtxtPtr xmlCtxt;
++    char xmlInputBuffer[1024];
++    int href;
++} WebDavPropfindContext;
++
++static void sax_startElementNS(void * ctx,
++                               const xmlChar * localname,
++                               const xmlChar * prefix,
++                               const xmlChar * URI,
++                               int nb_namespaces,
++                               const xmlChar ** namespaces,
++                               int nb_attributes,
++                               int nb_defaulted,
++                               const xmlChar ** attributes) {
++    WebDavPropfindContext* context = (WebDavPropfindContext*) ctx;
++    if (!strcmp((const char*)localname, "response")) {
++        if (context->entry != NULL) {
++            av_log(NULL, AV_LOG_FATAL, "the last webdav entry not complete");
++            av_freep(context->entry);
++        }
++
++        context->entry = av_mallocz(sizeof(WebDavEntryList));
++        if (context->entry == NULL) {
++            av_log(NULL, AV_LOG_FATAL, "can't alloc new webdav entry");
++        }
++    } else if (!strcmp((const char*)localname, "href")) {
++        context->href = 1;
++    } else {
++    }
++    return;
++}
++
++static void sax_endElementNS( void * ctx,
++                             const xmlChar * localname,
++                             const xmlChar * prefix,
++                             const xmlChar * URI) {
++    WebDavPropfindContext* context = (WebDavPropfindContext*) ctx;
++    fprintf(stderr, "</%s>\n", localname);
++    if (!strcmp((const char*)localname, "href")) {
++        context->href = 0;
++    } else if (!strcmp((const char*)localname, "response")) {
++        webdav_entry_queue_put(&context->entryQueue, context->entry);
++        context->entry = NULL;
++    }
++    return;
++}
++
++static void sax_onCharacters(void *ctx, const xmlChar *ch, int len) {
++    WebDavPropfindContext* context = (WebDavPropfindContext*) ctx;
++    if (context->href && context->entry) {
++        char name[MAX_ENTRYNAME + 1];
++        int cplen = len > MAX_ENTRYNAME ? MAX_ENTRYNAME : len;
++
++        strncpy(name, (const char*) ch, cplen);
++        name[cplen] = '\0';
++        if (cplen > 0 && (name[cplen - 1] == '/' || name [cplen - 1] == '\\')) {
++            name[cplen - 1] = '\0';
++        }
++        const char* basename = av_basename(name);
++        strncpy(context->entry->entry.name, basename, MAX_ENTRYNAME);
++    }
++}
++
++static void sax_error(void * ctx,
++                      const char * msg,
++                      ...) {
++    WebDavPropfindContext* context = (WebDavPropfindContext*) ctx;
++    fprintf(stderr, "error ...");
++    va_list args;
++    va_start(args, msg);
++    vprintf(msg, args);
++    va_end(args);
++}
++
++static void sax_warning(void * ctx,
++                        const char * msg,
++                        ...) {
++    WebDavPropfindContext* context = (WebDavPropfindContext*) ctx;
++    fprintf(stderr, "warining ...");
++    va_list args;
++    va_start(args, msg);
++    vprintf(msg, args);
++    va_end(args);
++}
++#endif /* TDX_BLURAY_STREAM */
++
+ typedef struct HTTPContext {
+     const AVClass *class;
+     URLContext *hd;
+@@ -124,6 +307,9 @@ typedef struct HTTPContext {
+     int is_multi_client;
+     HandshakeState handshake_step;
+     int is_connected_server;
++#ifdef TDX_BLURAY_STREAM
++    WebDavPropfindContext webdavPropfindCtxt;
++#endif
+ } HTTPContext;
+
+ #define OFFSET(x) offsetof(HTTPContext, x)
+@@ -1660,6 +1846,144 @@ static int http_get_short_seek(URLContext *h)
+     return ffurl_get_short_seek(s->hd);
+ }
+
++#ifdef TDX_BLURAY_STREAM
++static int http_webdav_opendir(URLContext *h) {
++    HTTPContext *s = h->priv_data;
++
++    WebDavPropfindContext* context = &s->webdavPropfindCtxt;
++    AVDictionary* options = NULL;
++    int res;
++    s->method = av_strdup("PROPFIND");
++    s->headers = av_strdup("Depth: 1\r\n");
++    if (h->filename == NULL) {
++        goto failed;
++    }
++    res = http_open(h, h->filename, AVIO_FLAG_READ, &options);
++    if (res < 0) {
++        av_log(h, AV_LOG_ERROR, "cant' connect! \"%s\"", av_err2str(res));
++        goto failed;
++    }
++
++    char buf[4];
++    webdav_entry_queue_init(&context->entryQueue, NULL);
++
++    memset(&context->saxHandler, 0, sizeof(xmlSAXHandler));
++    context->saxHandler.initialized = XML_SAX2_MAGIC;
++    context->saxHandler.startElementNs = sax_startElementNS;
++    context->saxHandler.endElementNs = sax_endElementNS;
++    context->saxHandler.characters = sax_onCharacters;
++    context->saxHandler.warning = sax_warning;
++    context->saxHandler.error = sax_error;
++
++    res = http_read(h, buf, 4);
++    if (res < 0) {
++        av_log(h, AV_LOG_ERROR, "cant' connect! \"%s\"", av_err2str(res));
++        goto failed;
++    }
++
++    context->xmlCtxt = xmlCreatePushParserCtxt(&context->saxHandler, context, buf, res, "");
++    if (context->xmlCtxt == NULL) {
++        av_log(NULL, AV_LOG_ERROR, "cant alloc xml parser");
++        res = AVERROR(ENOMEM);
++        goto failed;
++    }
++
++    return 0;
++
++failed:
++    http_close(h);
++    av_dict_free(&options);
++    return res;
++}
++
++static int http_webdav_readdir(URLContext* h, AVIODirEntry **next) {
++    HTTPContext *s = h->priv_data;
++    WebDavPropfindContext* context = &s->webdavPropfindCtxt;
++    int res;
++    WebDavEntryListPtr ptr;
++    AVIODirEntry *entry;
++
++    while ((ptr = webdav_entry_queue_peek(&context->entryQueue)) == NULL) {
++        res = http_read(h, context->xmlInputBuffer, 1024);
++        if (res < 0) {
++            if (res == AVERROR_EOF) {
++                av_log(NULL, AV_LOG_ERROR, "read end: %s", av_err2str(res));
++                break;
++            } else {
++                av_log(NULL, AV_LOG_ERROR, "cant read packet: %s", av_err2str(res));
++                return res;
++            }
++            // TODO: eof??
++        } else if (res == 0) {
++            break;
++        } else {
++            if (xmlParseChunk(context->xmlCtxt, context->xmlInputBuffer, res, 0)) {
++                xmlParserError(context->xmlCtxt, "xml parser error");
++                av_log(NULL, AV_LOG_ERROR, "xml parser error");
++                return -1;
++            }
++        }
++    }
++
++    ptr = webdav_entry_queue_get(&context->entryQueue);
++
++    if (!ptr) {
++        *next = NULL;
++        return 0;
++    }
++
++    fprintf(stderr, "get ptr: \"%s\"\n", ptr->entry.name);
++    // TODO: copy entry
++    *next = entry = ff_alloc_dir_entry();
++    if (!entry) {
++        goto failed_alloc_entry;
++    }
++
++    entry->name = strdup(ptr->entry.name);
++    if (!entry->name) {
++        goto failed_alloc_name;
++    }
++
++    switch (ptr->entry.type) {
++    case WebDavEntryTypeFile:
++        entry->type = AVIO_ENTRY_FILE;
++        break;
++    case WebDavEntryTypeCollection:
++        entry->type = AVIO_ENTRY_DIRECTORY;
++        break;
++    default:
++        entry->type = AVIO_ENTRY_UNKNOWN;
++    }
++    return 0;
++
++success_no_read:
++    webdav_entry_dispose(ptr);
++    return 0;
++
++failed_alloc_name:
++    av_freep(next);
++failed_alloc_entry:
++    webdav_entry_dispose(ptr);
++    return AVERROR(ENOMEM);
++}
++
++static int http_webdav_closedir(URLContext* h) {
++    HTTPContext *s = h->priv_data;
++    WebDavPropfindContext* context = &s->webdavPropfindCtxt;
++    if (context->xmlCtxt) {
++        if (xmlParseChunk(context->xmlCtxt, context->xmlInputBuffer, 0, 1)) {
++            xmlParserError(context->xmlCtxt, "xmlParseChunk error");
++            av_log(NULL, AV_LOG_ERROR, "xml parse last chunk error");
++        }
++        xmlFreeParserCtxt(context->xmlCtxt);
++        context->xmlCtxt = NULL;
++    }
++    http_close(h);
++    webdav_entry_queue_dispose(&context->entryQueue);
++    return 0;
++}
++#endif /*TDX_BLURAY_STREAM */
++
+ #define HTTP_CLASS(flavor)                          \
+ static const AVClass flavor ## _context_class = {   \
+     .class_name = # flavor,                         \
+@@ -1680,6 +2004,11 @@ const URLProtocol ff_http_protocol = {
+     .url_write           = http_write,
+     .url_seek            = http_seek,
+     .url_close           = http_close,
++#ifdef TDX_BLURAY_STREAM
++    .url_open_dir        = http_webdav_opendir,
++    .url_read_dir        = http_webdav_readdir,
++    .url_close_dir       = http_webdav_closedir,
++#endif
+     .url_get_file_handle = http_get_file_handle,
+     .url_get_short_seek  = http_get_short_seek,
+     .url_shutdown        = http_shutdown,
+@@ -1700,6 +2029,11 @@ const URLProtocol ff_https_protocol = {
+     .url_write           = http_write,
+     .url_seek            = http_seek,
+     .url_close           = http_close,
++#ifdef TDX_BLURAY_STREAM
++    .url_open_dir        = http_webdav_opendir,
++    .url_read_dir        = http_webdav_readdir,
++    .url_close_dir       = http_webdav_closedir,
++#endif
+     .url_get_file_handle = http_get_file_handle,
+     .url_get_short_seek  = http_get_short_seek,
+     .url_shutdown        = http_shutdown,
+@@ -1815,6 +2149,11 @@ const URLProtocol ff_httpproxy_protocol = {
+     .url_read            = http_buf_read,
+     .url_write           = http_proxy_write,
+     .url_close           = http_proxy_close,
++#ifdef TDX_BLURAY_STREAM
++    .url_open_dir        = http_webdav_opendir,
++    .url_read_dir        = http_webdav_readdir,
++    .url_close_dir       = http_webdav_closedir,
++#endif
+     .url_get_file_handle = http_get_file_handle,
+     .priv_data_size      = sizeof(HTTPContext),
+     .flags               = URL_PROTOCOL_FLAG_NETWORK,
