@@ -646,3 +646,62 @@ float libvlc_audio_equalizer_get_amp_at_index( libvlc_equalizer_t *p_equalizer, 
 
     return p_equalizer->f_amp[ u_band ];
 }
+
+libvlc_track_description_t * libvlc_audio_get_channel_list(libvlc_media_player_t *p_mi)
+{
+    audio_output_t *p_aout = GetAOut( p_mi );
+    vlc_value_t val_list;
+    vlc_value_t text_list;
+    libvlc_track_description_t *p_track_description = NULL, *p_a, *p_r;
+
+    if( !p_aout )
+        return NULL;
+
+    if(var_Change( p_aout, "stereo-mode", VLC_VAR_GETCHOICES, &val_list, &text_list) < 0)
+    return NULL;
+    
+    int nCount = val_list.p_list->i_count;
+    if(nCount == 0)
+    {
+        goto end;
+    }
+
+    p_track_description = malloc (sizeof *p_track_description);
+    if(!p_track_description)
+    {
+    libvlc_printerr("Not enough memory get_channel_list");
+        goto end;
+    }
+
+    p_a = p_track_description;
+    p_r = NULL;
+
+    for( int i = 0; i < val_list.p_list->i_count; i++ )
+    {
+    if(!p_a)
+    {
+        p_a = malloc (sizeof *p_a);
+        if(!p_a)
+            {
+        libvlc_track_description_list_release (p_track_description);
+            libvlc_printerr("Not enough memory get_channel_list");
+        p_track_description = NULL;
+            goto end;
+            }
+    }
+    
+    p_a->i_id =  val_list.p_list->p_values[i].i_int;
+    p_a->psz_name =strdup( text_list.p_list->p_values[i].psz_string);
+    p_a->p_next = NULL;
+    if(p_r)
+        p_r->p_next = p_a;
+    p_r = p_a;
+    p_a = NULL;
+    }
+    
+end:
+    var_FreeList( &val_list, &text_list );
+    vlc_object_release( p_aout );
+    return p_track_description;
+}
+

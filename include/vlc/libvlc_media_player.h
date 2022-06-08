@@ -2152,6 +2152,7 @@ LIBVLC_API int libvlc_media_player_record(libvlc_media_player_t *p_mi,
                                           bool enable,
                                           const char *path);
 
+LIBVLC_API libvlc_track_description_t *libvlc_audio_get_channel_list(libvlc_media_player_t *p_mi);
 /** @} audio */
 
 /** @} media_player */
