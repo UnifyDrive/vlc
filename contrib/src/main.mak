@@ -463,6 +463,16 @@ fetch: $(PKGS:%=.sum-%)
 fetch-all: $(PKGS_ALL:%=.sum-%)
 install: $(PKGS:%=.%)
 
+cleanffmpeg:
+	-$(RM) "./.ffmpeg"
+	-$(RM) "./.sum-ffmpeg"
+	-$(RM) "./.dep-ffmpeg"
+	# -$(RM) toolchain.cmake
+	-$(RM) -R "$(PREFIX)/include/ffmpeg/*.*"
+	-$(RM) -R "$(PREFIX)/share/doc/ffmpeg/*.*"
+	-$(RM) "$(PREFIX)/lib/libffmpeg.*"
+	-$(RM) "$(PREFIX)/lib/pkgconfig/ffmpeg.*"
+
 mostlyclean:
 	-$(RM) $(foreach p,$(PKGS_ALL),.$(p) .sum-$(p) .dep-$(p))
 	-$(RM) toolchain.cmake

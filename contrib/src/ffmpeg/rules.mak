@@ -226,6 +226,8 @@ endif
 
 FFMPEGCONF += --nm="$(NM)" --ar="$(AR)" --ranlib="$(RANLIB)"
 
+#ifeq ($(wildcard $(TARBALLS)/ffmpeg-$(FFMPEG_BASENAME).tar.xz),)
+
 $(TARBALLS)/ffmpeg-$(FFMPEG_BASENAME).tar.xz:
 	$(call download_git,$(FFMPEG_GITURL),$(FFMPEG_BRANCH),$(FFMPEG_HASH))
 
@@ -257,6 +259,7 @@ ifdef USE_LIBAV
 endif
 	$(APPLY) $(SRC)/ffmpeg/patch-as-patch-can.patch
 	$(MOVE)
+#endif
 
 .ffmpeg: ffmpeg
 	cd $< && $(HOSTVARS) ./configure \
