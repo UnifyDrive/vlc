@@ -473,6 +473,16 @@ cleanffmpeg:
 	-$(RM) "$(PREFIX)/lib/libffmpeg.*"
 	-$(RM) "$(PREFIX)/lib/pkgconfig/ffmpeg.*"
 
+cleanlua:
+	-$(RM) "./.lua"
+	-$(RM) "./.sum-lua"
+	-$(RM) "./.dep-lua"
+	# -$(RM) toolchain.cmake
+	-$(RM) -R "$(PREFIX)/include/lua/*.*"
+	-$(RM) -R "$(PREFIX)/share/doc/lua/*.*"
+	-$(RM) "$(PREFIX)/lib/liblua.*"
+	-$(RM) "$(PREFIX)/lib/pkgconfig/lua.*"
+
 mostlyclean:
 	-$(RM) $(foreach p,$(PKGS_ALL),.$(p) .sum-$(p) .dep-$(p))
 	-$(RM) toolchain.cmake
