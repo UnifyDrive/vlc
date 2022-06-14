@@ -65,6 +65,7 @@ static int FileSeek(stream_t *access, uint64_t pos)
 {
     access_sys_t *sys = access->p_sys;
 
+    msg_Dbg(access, "[%s:%s:%d]=zspace=: seek pos=%ld.", __FILE__ , __FUNCTION__, __LINE__, pos);
     if (vlc_http_file_seek(sys->resource, pos))
         return VLC_EGENERIC;
     return VLC_SUCCESS;
@@ -170,6 +171,7 @@ static int Open(vlc_object_t *obj)
 
     if (unlikely(sys == NULL))
         return VLC_ENOMEM;
+    //vlc_http_file_setPrintObj((void *) access);
 
     sys->manager = NULL;
     sys->resource = NULL;
@@ -292,6 +294,7 @@ static void Close(vlc_object_t *obj)
     stream_t *access = (stream_t *)obj;
     access_sys_t *sys = access->p_sys;
 
+    vlc_http_file_setPrintObj((void *) NULL);
     vlc_http_res_destroy(sys->resource);
     vlc_http_mgr_destroy(sys->manager);
     free(sys);

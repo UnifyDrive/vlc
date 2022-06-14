@@ -72,6 +72,8 @@ bool vlc_http_file_can_seek(struct vlc_http_resource *);
  */
 int vlc_http_file_seek(struct vlc_http_resource *, uintmax_t offset);
 
+void vlc_http_file_setPrintObj(void *);
+
 /**
  * Reads data.
  *

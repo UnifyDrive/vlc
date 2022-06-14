@@ -36,8 +36,12 @@
 #include "message.h"
 #include "resource.h"
 #include "file.h"
+#include <vlc_stream.h>
+
 
 #pragma GCC visibility push(default)
+
+static void *mPrintObj = NULL;
 
 struct vlc_http_file
 {
@@ -126,6 +130,9 @@ struct vlc_http_resource *vlc_http_file_create(struct vlc_http_mgr *mgr,
     }
 
     file->offset = 0;
+    if (mPrintObj) {
+        msg_Dbg((stream_t *)mPrintObj, "[%s:%s:%d]=zspace=: set file->offset=%ld.", __FILE__ , __FUNCTION__, __LINE__, file->offset);
+    }
     return &file->resource;
 }
 
@@ -203,6 +210,9 @@ bool vlc_http_file_can_seek(struct vlc_http_resource *res)
 
 int vlc_http_file_seek(struct vlc_http_resource *res, uintmax_t offset)
 {
+    if (mPrintObj) {
+        msg_Dbg((stream_t *)mPrintObj, "[%s:%s:%d]=zspace=: seek offset=%ld.", __FILE__ , __FUNCTION__, __LINE__, offset);
+    }
     struct vlc_http_msg *resp = vlc_http_res_open(res, &offset);
     if (resp == NULL)
         return -1;
@@ -252,3 +262,10 @@ block_t *vlc_http_file_read(struct vlc_http_resource *res)
     file->offset += block->i_buffer;
     return block;
 }
+
+void vlc_http_file_setPrintObj(void *tmp)
+{
+    mPrintObj = tmp;
+    vlc_http_res_setPrintObj(tmp);
+}
+

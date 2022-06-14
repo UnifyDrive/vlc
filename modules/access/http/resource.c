@@ -35,11 +35,23 @@
 #include "message.h"
 #include "connmgr.h"
 #include "resource.h"
+#include <vlc_stream.h>
+
+static void *mPrintObj = NULL;
+
+void vlc_http_res_setPrintObj(void *tmp)
+{
+    mPrintObj = tmp;
+}
+
 
 static struct vlc_http_msg *
 vlc_http_res_req(const struct vlc_http_resource *res, void *opaque)
 {
     struct vlc_http_msg *req;
+    if(mPrintObj) {
+        msg_Dbg((stream_t *)mPrintObj, "[%s:%s:%d]=zspace=: opaque=%ld.", __FILE__ , __FUNCTION__, __LINE__, *((uintmax_t *)opaque));
+    }
 
     req = vlc_http_req_create("GET", res->secure ? "https" : "http",
                               res->authority, res->path);
@@ -88,6 +100,9 @@ struct vlc_http_msg *vlc_http_res_open(struct vlc_http_resource *res,
 {
     struct vlc_http_msg *req;
 retry:
+    if (mPrintObj) {
+        msg_Dbg((stream_t *)mPrintObj, "[%s:%s:%d]=zspace=: open offset=%ld.", __FILE__ , __FUNCTION__, __LINE__, *((uintmax_t *)opaque));
+    }
     req = vlc_http_res_req(res, opaque);
     if (unlikely(req == NULL))
         return NULL;
@@ -136,7 +151,9 @@ int vlc_http_res_get_status(struct vlc_http_resource *res)
     {
         if (res->failure)
             return -1;
-
+        if (mPrintObj) {
+            msg_Dbg((stream_t *)mPrintObj, "[%s:%s:%d]=zspace=: open offset=%ld.", __FILE__ , __FUNCTION__, __LINE__, *((uintmax_t *)(res + 1)));
+        }
         res->response = vlc_http_res_open(res, res + 1);
         if (res->response == NULL)
         {
