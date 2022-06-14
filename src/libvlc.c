@@ -128,6 +128,9 @@ int libvlc_InternalInit( libvlc_int_t *p_libvlc, int i_argc,
      * options) */
     module_InitBank ();
 
+    for(int i = 0; i < i_argc; i++) {
+        msg_Dbg( p_libvlc, "[%s:%s:%d]=zspace=: Options[%d][%s]", __FILE__ , __FUNCTION__, __LINE__, i, ppsz_argv[i]);
+    }
     /* Get command line options that affect module loading. */
     if( config_LoadCmdLine( p_libvlc, i_argc, ppsz_argv, NULL ) )
     {
