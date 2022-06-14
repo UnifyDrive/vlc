@@ -213,6 +213,7 @@ static int Open(vlc_object_t *obj)
 
     ret = VLC_EGENERIC;
 
+    *((uintmax_t *)(sys->resource + 1)) = 0;
     int status = vlc_http_res_get_status(sys->resource);
 
     while (status == 401) /* authentication */
