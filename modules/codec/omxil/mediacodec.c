@@ -540,27 +540,30 @@ static int OpenDecoder(vlc_object_t *p_this, pf_MediaCodecApi_init pf_init)
     int i_profile = p_dec->fmt_in.i_profile;
     const char *mime = NULL;
 
-    msg_Dbg(p_dec, "====tdx====: Try Open MediaCodec ...!");
-    msg_Dbg(p_dec, "====tdx====: MediaCodec %d", __LINE__);
+    msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Begin now.", __FILE__ , __FUNCTION__, __LINE__);
     /* Video or Audio if "mediacodec-audio" bool is true */
     if (p_dec->fmt_in.i_cat != VIDEO_ES && (p_dec->fmt_in.i_cat != AUDIO_ES
-     || !var_InheritBool(p_dec, CFG_PREFIX "audio")))
+     || !var_InheritBool(p_dec, CFG_PREFIX "audio"))) {
+        msg_Warn(p_dec, "[%s:%s:%d]=zspace=: %d not video or v4l2-audio stream, return directly.", __FILE__ , __FUNCTION__, __LINE__, p_dec->fmt_in.i_cat);
         return VLC_EGENERIC;
+    }
 
-    msg_Dbg(p_dec, "====tdx====: MediaCodec %d", __LINE__);
     /* Fail if this module already failed to decode this ES */
-    if (var_Type(p_dec, "mediacodec-failed") != 0)
+    if (var_Type(p_dec, "mediacodec-failed") != 0) {
+        msg_Warn(p_dec, "[%s:%s:%d]=zspace=: This module already failed to decode this ES[%d].", __FILE__ , __FUNCTION__, __LINE__, p_dec->fmt_in.i_cat);
         return VLC_EGENERIC;
+    }
 
-    msg_Dbg(p_dec, "====tdx====: MediaCodec %d", __LINE__);
     if (p_dec->fmt_in.i_cat == VIDEO_ES)
     {
-        msg_Dbg(p_dec, "====tdx====: MediaCodec %d", __LINE__);
+        msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: It is VIDEO_ES.", __FILE__ , __FUNCTION__, __LINE__);
         /* Not all mediacodec versions can handle a size of 0. Hopefully, the
          * packetizer will trigger a decoder restart when a new video size is
          * found. */
-        if (!p_dec->fmt_in.video.i_width || !p_dec->fmt_in.video.i_height)
+        if (!p_dec->fmt_in.video.i_width || !p_dec->fmt_in.video.i_height) {
+            msg_Warn(p_dec, "[%s:%s:%d]=zspace=: p_dec->fmt_in.video.i_width=%d, p_dec->fmt_in.video.i_height=%d, return directly!", __FILE__ , __FUNCTION__, __LINE__, p_dec->fmt_in.video.i_width, p_dec->fmt_in.video.i_height);
             return VLC_EGENERIC;
+        }
 
         switch (p_dec->fmt_in.i_codec) {
         case VLC_CODEC_HEVC:
@@ -592,10 +595,11 @@ static int OpenDecoder(vlc_object_t *p_this, pf_MediaCodecApi_init pf_init)
         case VLC_CODEC_VP8:  mime = "video/x-vnd.on2.vp8"; break;
         case VLC_CODEC_VP9:  mime = "video/x-vnd.on2.vp9"; break;
         }
+        msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: It is VIDEO_ES, mime=[%s].", __FILE__ , __FUNCTION__, __LINE__, mime?mime:"unkown");
     }
     else
     {
-        msg_Dbg(p_dec, "====tdx====: MediaCodec %d", __LINE__);
+        msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: It is AUDIO_ES.", __FILE__ , __FUNCTION__, __LINE__);
         switch (p_dec->fmt_in.i_codec) {
         case VLC_CODEC_AMR_NB: mime = "audio/3gpp"; break;
         case VLC_CODEC_AMR_WB: mime = "audio/amr-wb"; break;
@@ -617,23 +621,21 @@ static int OpenDecoder(vlc_object_t *p_this, pf_MediaCodecApi_init pf_init)
         /* case VLC_CODEC_: mime = "audio/mpeg-L1"; break; */
         /* case VLC_CODEC_: mime = "audio/aac-adts"; break; */
         }
+        msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: It is AUDIO_ES, mime=[%s].", __FILE__ , __FUNCTION__, __LINE__, mime?mime:"unkown");
     }
-    msg_Dbg(p_dec, "====tdx====: MediaCodec %d", __LINE__);
+
     if (!mime)
     {
-        msg_Dbg(p_dec, "====tdx====: MediaCodec %d", __LINE__);
-        msg_Dbg(p_dec, "====tdx====: %4.4s not supported", (char *)&p_dec->fmt_in.i_codec);
-        msg_Dbg(p_dec, "codec %4.4s not supported",
-                (char *)&p_dec->fmt_in.i_codec);
+        msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: codec %4.4s not supported.", __FILE__ , __FUNCTION__, __LINE__, (char *)&p_dec->fmt_in.i_codec);
         return VLC_EGENERIC;
     }
 
-    msg_Dbg(p_dec, "====tdx====: MediaCodec %d", __LINE__);
     /* Allocate the memory needed to store the decoder's structure */
-    if ((p_sys = calloc(1, sizeof(*p_sys))) == NULL)
+    if ((p_sys = calloc(1, sizeof(*p_sys))) == NULL) {
+        msg_Warn(p_dec, "[%s:%s:%d]=zspace=: calloc decoder_sys_t failed!", __FILE__ , __FUNCTION__, __LINE__);
         return VLC_ENOMEM;
+    }
 
-    msg_Dbg(p_dec, "====tdx====: MediaCodec %d", __LINE__);
     p_sys->api.p_obj = p_this;
     p_sys->api.i_codec = p_dec->fmt_in.i_codec;
     p_sys->api.i_cat = p_dec->fmt_in.i_cat;
@@ -641,24 +643,28 @@ static int OpenDecoder(vlc_object_t *p_this, pf_MediaCodecApi_init pf_init)
     p_sys->video.i_mpeg_dar_num = 0;
     p_sys->video.i_mpeg_dar_den = 0;
 
-    msg_Dbg(p_dec, "====tdx====: MediaCodec %d", __LINE__);
     if (pf_init(&p_sys->api) != 0)
     {
+        msg_Warn(p_dec, "[%s:%s:%d]=zspace=: pf_init p_sys->api failed!", __FILE__ , __FUNCTION__, __LINE__);
         free(p_sys);
         return VLC_EGENERIC;
     }
-    msg_Dbg(p_dec, "====tdx====: MediaCodec %d", __LINE__);
+
+    msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Run p_sys->api.configure(), profile=%d.", __FILE__ , __FUNCTION__, __LINE__, i_profile);
     if (p_sys->api.configure(&p_sys->api, i_profile) != 0)
     {
+        msg_Warn(p_dec, "[%s:%s:%d]=zspace=: p_sys->api.configure failed!", __FILE__ , __FUNCTION__, __LINE__);
         /* If the device can't handle video/wvc1,
          * it can probably handle video/x-ms-wmv */
         if (!strcmp(mime, "video/wvc1") && p_dec->fmt_in.i_codec == VLC_CODEC_VC1)
         {
+            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: p_sys->api.psz_mime set to [video/x-ms-wmv]", __FILE__ , __FUNCTION__, __LINE__);
             p_sys->api.psz_mime = "video/x-ms-wmv";
             if (p_sys->api.configure(&p_sys->api, i_profile) != 0)
             {
                 p_sys->api.clean(&p_sys->api);
                 free(p_sys);
+                msg_Warn(p_dec, "[%s:%s:%d]=zspace=: p_sys->api.configure [video/x-ms-wmv] failed!", __FILE__ , __FUNCTION__, __LINE__);
                 return (VLC_EGENERIC);
             }
         }
@@ -666,18 +672,17 @@ static int OpenDecoder(vlc_object_t *p_this, pf_MediaCodecApi_init pf_init)
         {
             p_sys->api.clean(&p_sys->api);
             free(p_sys);
+            msg_Warn(p_dec, "[%s:%s:%d]=zspace=: p_sys->api.configure failed, return directly!", __FILE__ , __FUNCTION__, __LINE__);
             return VLC_EGENERIC;
         }
     }
 
-    msg_Dbg(p_dec, "====tdx====: MediaCodec %d", __LINE__);
     p_dec->p_sys = p_sys;
 
     vlc_mutex_init(&p_sys->lock);
     vlc_cond_init(&p_sys->cond);
     vlc_cond_init(&p_sys->dec_cond);
 
-    msg_Dbg(p_dec, "====tdx====: MediaCodec %d", __LINE__);
     if (p_dec->fmt_in.i_cat == VIDEO_ES)
     {
         /*
@@ -690,9 +695,9 @@ static int OpenDecoder(vlc_object_t *p_this, pf_MediaCodecApi_init pf_init)
         if (!p_dec->fmt_in.video.i_width || !p_dec->fmt_in.video.i_height)
             return VLC_EGENERIC;
 #else
-        msg_Dbg(p_dec, "====tdx====: MediaCodec video size %d x %d", p_dec->fmt_in.video.i_width, p_dec->fmt_in.video.i_height);
+        msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: MediaCodec video input size %d x %d", __FILE__ , __FUNCTION__, __LINE__, p_dec->fmt_in.video.i_width, p_dec->fmt_in.video.i_height);
         if (!p_dec->fmt_in.video.i_width || !p_dec->fmt_in.video.i_height) {
-            msg_Dbg(p_dec, "====tdx====: MediaCodec video size 0 x 0, using \"640x320\" to open mediacodec.");
+            msg_Warn(p_dec, "[%s:%s:%d]=zspace=: MediaCodec video size 0 x 0, using \"640x320\" to open mediacodec.", __FILE__ , __FUNCTION__, __LINE__);
             p_dec->fmt_in.video.i_width = 640;
             p_dec->fmt_in.video.i_height = 320;
         }
@@ -701,34 +706,33 @@ static int OpenDecoder(vlc_object_t *p_this, pf_MediaCodecApi_init pf_init)
         {
         case VLC_CODEC_H264:
         case VLC_CODEC_HEVC:
-            msg_Dbg(p_dec, "====tdx====: MediaCodec %d", __LINE__);
+            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: codec %4.4s run hxxx_helper_init().", __FILE__ , __FUNCTION__, __LINE__, (char *)&p_dec->fmt_in.i_codec);
             hxxx_helper_init(&p_sys->video.hh, VLC_OBJECT(p_dec),
                              p_dec->fmt_in.i_codec, false);
             break;
         }
-        msg_Dbg(p_dec, "====tdx====: MediaCodec %d", __LINE__);
+        msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: codec %4.4s set callback funs.", __FILE__ , __FUNCTION__, __LINE__, (char *)&p_dec->fmt_in.i_codec);
         p_sys->pf_on_new_block = Video_OnNewBlock;
         p_sys->pf_on_flush = Video_OnFlush;
         p_sys->pf_process_output = Video_ProcessOutput;
 
         p_sys->video.timestamp_fifo = timestamp_FifoNew(32);
-        if (!p_sys->video.timestamp_fifo)
+        if (!p_sys->video.timestamp_fifo) {
+            msg_Warn(p_dec, "[%s:%s:%d]=zspace=: Not timestamp_fifo, goto bailout.", __FILE__ , __FUNCTION__, __LINE__);
             goto bailout;
+        }
 
-        msg_Dbg(p_dec, "====tdx====: MediaCodec %d", __LINE__);
         TAB_INIT(p_sys->video.i_inflight_pictures,
                  p_sys->video.pp_inflight_pictures);
 
-        msg_Dbg(p_dec, "====tdx====: MediaCodec %d", __LINE__);
         if (var_InheritBool(p_dec, CFG_PREFIX "dr"))
         {
             /* Direct rendering: Request a valid OPAQUE Vout in order to get
              * the surface attached to it */
             p_dec->fmt_out.i_codec = VLC_CODEC_ANDROID_OPAQUE;
-            msg_Dbg(p_dec, "====tdx====: MediaCodec %d", __LINE__);
+            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: fmt_out set to %4.4s .", __FILE__ , __FUNCTION__, __LINE__, (char *)&p_dec->fmt_out.i_codec);
             if (p_sys->api.b_support_rotation)
             {
-                msg_Dbg(p_dec, "====tdx====: MediaCodec %d", __LINE__);
                 switch (p_dec->fmt_in.video.orientation)
                 {
                     case ORIENT_ROTATED_90:
@@ -744,34 +748,39 @@ static int OpenDecoder(vlc_object_t *p_this, pf_MediaCodecApi_init pf_init)
                         p_sys->video.i_angle = 0;
                         break;
                 }
+                msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Support_rotation, angle=%d .", __FILE__ , __FUNCTION__, __LINE__, p_sys->video.i_angle);
             }
-            else
+            else {
                 p_sys->video.i_angle = 0;
+                msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Do not support_rotation, angle=%d .", __FILE__ , __FUNCTION__, __LINE__, p_sys->video.i_angle);
+            }
 
-            msg_Dbg(p_dec, "====tdx====: MediaCodec %d", __LINE__);
             p_dec->fmt_out.video = p_dec->fmt_in.video;
             if (p_dec->fmt_out.video.i_sar_num * p_dec->fmt_out.video.i_sar_den == 0)
             {
                 p_dec->fmt_out.video.i_sar_num = 1;
                 p_dec->fmt_out.video.i_sar_den = 1;
             }
+            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: p_dec->fmt_out.video.i_sar_num=%d, p_dec->fmt_out.video.i_sar_den=%d.", __FILE__ , __FUNCTION__, __LINE__, 
+                p_dec->fmt_out.video.i_sar_num, p_dec->fmt_out.video.i_sar_den);
 
             p_sys->video.i_input_width =
             p_dec->fmt_out.video.i_visible_width = p_dec->fmt_out.video.i_width;
             p_sys->video.i_input_height =
             p_dec->fmt_out.video.i_visible_height = p_dec->fmt_out.video.i_height;
+            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: MediaCodec video output size %d x %d", __FILE__ , __FUNCTION__, __LINE__, 
+                p_dec->fmt_out.video.i_width, p_dec->fmt_out.video.i_height);
 
             if (UpdateVout(p_dec) != VLC_SUCCESS)
             {
-                msg_Dbg(p_dec, "====tdx====: MediaCodec %d", __LINE__);
-                msg_Err(p_dec, "Opaque Vout request failed");
+                msg_Err(p_dec, "[%s:%s:%d]=zspace=: Opaque Vout request failed!", __FILE__ , __FUNCTION__, __LINE__);
                 goto bailout;
             }
         }
     }
     else
     {
-        msg_Dbg(p_dec, "====tdx====: MediaCodec %d", __LINE__);
+        msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: AUDIO_ES set callback funcs.", __FILE__ , __FUNCTION__, __LINE__);
         p_sys->pf_on_new_block = Audio_OnNewBlock;
         p_sys->pf_on_flush = Audio_OnFlush;
         p_sys->pf_process_output = Audio_ProcessOutput;
@@ -780,20 +789,20 @@ static int OpenDecoder(vlc_object_t *p_this, pf_MediaCodecApi_init pf_init)
         if ((p_sys->api.i_quirks & MC_API_AUDIO_QUIRKS_NEED_CHANNELS)
          && !p_sys->audio.i_channels)
         {
-            msg_Dbg(p_dec, "====tdx====: MediaCodec %d", __LINE__);
-            msg_Warn(p_dec, "codec need a valid channel count");
+            msg_Warn(p_dec, "[%s:%s:%d]=zspace=: codec need a valid channel count, goto bailout!", __FILE__ , __FUNCTION__, __LINE__);
             goto bailout;
         }
 
         p_dec->fmt_out.audio = p_dec->fmt_in.audio;
     }
 
-    msg_Dbg(p_dec, "====tdx====: MediaCodec %d", __LINE__);
+    msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Run ParseExtra().", __FILE__ , __FUNCTION__, __LINE__);
     /* Try first to configure CSD */
-    if (ParseExtra(p_dec) != VLC_SUCCESS)
+    if (ParseExtra(p_dec) != VLC_SUCCESS) {
+        msg_Warn(p_dec, "[%s:%s:%d]=zspace=: Run ParseExtra() failed, goto bailout!", __FILE__ , __FUNCTION__, __LINE__);
         goto bailout;
+    }
 
-    msg_Dbg(p_dec, "====tdx====: MediaCodec %d", __LINE__);
     if ((p_sys->api.i_quirks & MC_API_QUIRKS_NEED_CSD) && !p_sys->i_csd_count
      && !p_sys->b_adaptive)
     {
@@ -803,39 +812,36 @@ static int OpenDecoder(vlc_object_t *p_this, pf_MediaCodecApi_init pf_init)
         case VLC_CODEC_HEVC:
             break; /* CSDs will come from hxxx_helper */
         default:
-            msg_Dbg(p_dec, "====tdx====: MediaCodec %d", __LINE__);
-            msg_Warn(p_dec, "Not CSD found for %4.4s",
-                     (const char *) &p_dec->fmt_in.i_codec);
+            msg_Warn(p_dec, "[%s:%s:%d]=zspace=: Not CSD found for %4.4s, goto bailout!", __FILE__ , __FUNCTION__, __LINE__, (const char *) &p_dec->fmt_in.i_codec);
             goto bailout;
         }
     }
 
-    msg_Dbg(p_dec, "====tdx====: MediaCodec %d", __LINE__);
+    msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Run StartMediaCodec().", __FILE__ , __FUNCTION__, __LINE__);
     i_ret = StartMediaCodec(p_dec);
     if (i_ret != VLC_SUCCESS)
     {
-        msg_Dbg(p_dec, "====tdx====: MediaCodec %d", __LINE__);
-        msg_Err(p_dec, "StartMediaCodec failed");
+        msg_Err(p_dec, "[%s:%s:%d]=zspace=: StartMediaCodec failed, goto bailout!", __FILE__ , __FUNCTION__, __LINE__);
         goto bailout;
     }
 
-    msg_Dbg(p_dec, "====tdx====: MediaCodec %d", __LINE__);
+    msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Clone OutThread() now.", __FILE__ , __FUNCTION__, __LINE__);
     if (vlc_clone(&p_sys->out_thread, OutThread, p_dec,
                   VLC_THREAD_PRIORITY_LOW))
     {
-        msg_Dbg(p_dec, "====tdx====: MediaCodec %d", __LINE__);
-        msg_Err(p_dec, "vlc_clone failed");
+        msg_Err(p_dec, "[%s:%s:%d]=zspace=: vlc_clone OutThread() failed, goto bailout!", __FILE__ , __FUNCTION__, __LINE__);
         vlc_mutex_unlock(&p_sys->lock);
         goto bailout;
     }
 
     p_dec->pf_decode = DecodeBlock;
     p_dec->pf_flush  = DecodeFlush;
-    msg_Dbg(p_dec, "====tdx====: Open MediaCodec Success!");
+    msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Open MediaCodec Success!", __FILE__ , __FUNCTION__, __LINE__);
 
     return VLC_SUCCESS;
 
 bailout:
+    msg_Err(p_dec, "[%s:%s:%d]=zspace=: Doing bailout!", __FILE__ , __FUNCTION__, __LINE__);
     CleanDecoder(p_dec);
     return VLC_EGENERIC;
 }
