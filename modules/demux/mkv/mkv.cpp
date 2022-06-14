@@ -103,12 +103,23 @@ static int Open( vlc_object_t * p_this )
     std::string         s_path, s_filename;
     bool                b_need_preload = false;
 
-    /* peek the begining */
-    if( vlc_stream_Peek( p_demux->s, &p_peek, 4 ) < 4 ) return VLC_EGENERIC;
+    msg_Dbg(p_demux, "[%s:%s:%d]=zspace=: BeginXXXXXXXXXXXXXX.", __FILE__ , __FUNCTION__, __LINE__);
 
+    /* peek the begining */
+    if( vlc_stream_Peek( p_demux->s, &p_peek, 4 ) < 4 ) {
+        msg_Warn(p_demux, "[%s:%s:%d]=zspace=: vlc_stream_Peek < 4, return directly.", __FILE__ , __FUNCTION__, __LINE__);
+        return VLC_EGENERIC;
+    }
+
+    msg_Dbg(p_demux, "[%s:%s:%d]=zspace=: p_peek[%02x, %02x, %02x, %02x].", __FILE__ , __FUNCTION__, __LINE__,
+            p_peek[0], p_peek[1], p_peek[2], p_peek[3]);
     /* is a valid file */
     if( p_peek[0] != 0x1a || p_peek[1] != 0x45 ||
-        p_peek[2] != 0xdf || p_peek[3] != 0xa3 ) return VLC_EGENERIC;
+        p_peek[2] != 0xdf || p_peek[3] != 0xa3 ) {
+        msg_Warn(p_demux, "[%s:%s:%d]=zspace=: p_peek[%02x, %02x, %02x, %02x], return VLC_EGENERIC.", __FILE__ , __FUNCTION__, __LINE__,
+            p_peek[0], p_peek[1], p_peek[2], p_peek[3]);
+        return VLC_EGENERIC;
+    }
 
     /* Set the demux function */
     p_demux->pf_demux   = Demux;
@@ -118,7 +129,7 @@ static int Open( vlc_object_t * p_this )
     p_stream = new matroska_stream_c( p_demux->s, false );
     if ( unlikely(p_stream == NULL) )
     {
-        msg_Err( p_demux, "failed to create matroska_stream_c" );
+        msg_Err(p_demux, "[%s:%s:%d]=zspace=: failed to create matroska_stream_c.", __FILE__ , __FUNCTION__, __LINE__);
         delete p_sys;
         return VLC_ENOMEM;
     }
@@ -126,7 +137,7 @@ static int Open( vlc_object_t * p_this )
 
     if( !p_sys->AnalyseAllSegmentsFound( p_demux, p_stream, true ) )
     {
-        msg_Err( p_demux, "cannot find KaxSegment or missing mandatory KaxInfo" );
+        msg_Err(p_demux, "[%s:%s:%d]=zspace=: cannot find KaxSegment or missing mandatory KaxInfo.", __FILE__ , __FUNCTION__, __LINE__);
         goto error;
     }
 
@@ -143,13 +154,13 @@ static int Open( vlc_object_t * p_this )
     p_segment = p_stream->segments[0];
     if( p_segment->cluster == NULL && p_segment->stored_editions.size() == 0 )
     {
-        msg_Err( p_demux, "cannot find any cluster or chapter, damaged file ?" );
+        msg_Err(p_demux, "[%s:%s:%d]=zspace=: cannot find any cluster or chapter, damaged file ?", __FILE__ , __FUNCTION__, __LINE__);
         goto error;
     }
 
     if (b_need_preload && var_InheritBool( p_demux, "mkv-preload-local-dir" ))
     {
-        msg_Dbg( p_demux, "Preloading local dir" );
+        msg_Dbg(p_demux, "[%s:%s:%d]=zspace=: Preloading local dir.", __FILE__ , __FUNCTION__, __LINE__);
         /* get the files from the same dir from the same family (based on p_demux->psz_path) */
         if ( p_demux->psz_file && !strcmp( p_demux->psz_access, "file" ) )
         {
@@ -210,7 +221,7 @@ static int Open( vlc_object_t * p_this )
 
                                 if ( !p_sys->AnalyseAllSegmentsFound( p_demux, p_stream ) )
                                 {
-                                    msg_Dbg( p_demux, "the file '%s' will not be used", s_filename.c_str() );
+                                    msg_Dbg(p_demux, "[%s:%s:%d]=zspace=: the file '%s' will not be used.", __FILE__ , __FUNCTION__, __LINE__, s_filename.c_str());
                                     delete p_stream;
                                 }
                                 else
@@ -223,7 +234,7 @@ static int Open( vlc_object_t * p_this )
                                 if( p_file_stream ) {
                                     vlc_stream_Delete( p_file_stream );
                                 }
-                                msg_Dbg( p_demux, "the file '%s' cannot be opened", s_filename.c_str() );
+                                msg_Dbg(p_demux, "[%s:%s:%d]=zspace=: the file '%s' cannot be opened.", __FILE__ , __FUNCTION__, __LINE__, s_filename.c_str());
                             }
                             free( psz_url );
                         }
@@ -236,26 +247,28 @@ static int Open( vlc_object_t * p_this )
         p_sys->PreloadFamily( *p_segment );
     }
     else if (b_need_preload)
-        msg_Warn( p_demux, "This file references other files, you may want to enable the preload of local directory");
+        msg_Warn(p_demux, "[%s:%s:%d]=zspace=: This file references other files, you may want to enable the preload of local directory.", __FILE__ , __FUNCTION__, __LINE__);
 
     if ( !p_sys->PreloadLinked() ||
          !p_sys->PreparePlayback( *p_sys->p_current_vsegment, 0 ) )
     {
-        msg_Err( p_demux, "cannot use the segment" );
+        msg_Err(p_demux, "[%s:%s:%d]=zspace=: cannot use the segment.", __FILE__ , __FUNCTION__, __LINE__);
         goto error;
     }
 
     if (!p_sys->FreeUnused())
     {
-        msg_Err( p_demux, "no usable segment" );
+        msg_Err(p_demux, "[%s:%s:%d]=zspace=: no usable segment.", __FILE__ , __FUNCTION__, __LINE__);
         goto error;
     }
 
     p_sys->InitUi();
+    msg_Dbg(p_demux, "[%s:%s:%d]=zspace=: End VLC_SUCCESS XXXXXXXXXXXXXX.", __FILE__ , __FUNCTION__, __LINE__);
 
     return VLC_SUCCESS;
 
 error:
+    msg_Dbg(p_demux, "[%s:%s:%d]=zspace=: End VLC_EGENERIC XXXXXXXXXXXXXX.", __FILE__ , __FUNCTION__, __LINE__);
     delete p_sys;
     return VLC_EGENERIC;
 }

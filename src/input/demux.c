@@ -249,9 +249,11 @@ demux_t *demux_NewAdvanced( vlc_object_t *p_obj, input_thread_t *p_parent_input,
     if( s != NULL )
     {
         const char *psz_module = NULL;
+        msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: stream_t .", __FILE__ , __FUNCTION__, __LINE__);
 
         if( !strcmp( p_demux->psz_demux, "any" ) && p_demux->psz_file )
         {
+            msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: stream_t p_demux->psz_file[%s] .", __FILE__ , __FUNCTION__, __LINE__, p_demux->psz_file);
             char const* psz_ext = strrchr( p_demux->psz_file, '.' );
 
             if( psz_ext )
@@ -261,17 +263,22 @@ demux_t *demux_NewAdvanced( vlc_object_t *p_obj, input_thread_t *p_parent_input,
         if( psz_module == NULL )
             psz_module = p_demux->psz_demux;
 
+        msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: stream_t psz_module[%s], p_demux->psz_demux[%s] .", __FILE__ , __FUNCTION__, __LINE__, 
+            psz_module, p_demux->psz_demux);
         p_demux->p_module = vlc_module_load(p_demux, "demux", psz_module,
              !strcmp(psz_module, p_demux->psz_demux), demux_Probe, p_demux);
     }
     else
     {
+        msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: stream_t is NULL.", __FILE__ , __FUNCTION__, __LINE__);
         p_demux->p_module =
             module_need( p_demux, "access_demux", p_demux->psz_access, true );
     }
 
-    if( p_demux->p_module == NULL )
+    if( p_demux->p_module == NULL ) {
+        msg_Warn(p_obj, "[%s:%s:%d]=zspace=: p_demux->p_module == NULL goto error .", __FILE__ , __FUNCTION__, __LINE__);
         goto error;
+    }
 
     return p_demux;
 error:
