@@ -254,6 +254,8 @@ mkdir -p contrib-$HOST_TRIPLET && cd contrib-$HOST_TRIPLET
 if [ "$REBUILD" = "yes" ]; then
     make clean
 fi
+#make cleanffmpeg
+#make cleanlibxml2
 if [ "$CONTRIBFROMSOURCE" = "yes" ]; then
     make fetch
     make -j$JOBS .gettext

@@ -483,6 +483,16 @@ cleanlua:
 	-$(RM) "$(PREFIX)/lib/liblua.*"
 	-$(RM) "$(PREFIX)/lib/pkgconfig/lua.*"
 
+cleanlibxml2:
+	-$(RM) "./.libxml2"
+	-$(RM) "./.sum-libxml2"
+	-$(RM) "./.dep-libxml2"
+	# -$(RM) toolchain.cmake
+	-$(RM) -R "$(PREFIX)/include/libxml2/*.*"
+	-$(RM) -R "$(PREFIX)/share/doc/libxml2*"
+	-$(RM) "$(PREFIX)/lib/libxml2.*"
+	-$(RM) "$(PREFIX)/lib/pkgconfig/libxml-2.0*"
+
 mostlyclean:
 	-$(RM) $(foreach p,$(PKGS_ALL),.$(p) .sum-$(p) .dep-$(p))
 	-$(RM) toolchain.cmake
