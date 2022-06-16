@@ -442,6 +442,7 @@ vlc_tls_ClientSessionCreate
 vlc_tls_ServerSessionCreate
 vlc_tls_SessionDelete
 vlc_tls_Read
+vlc_tls_Read_zs
 vlc_tls_Write
 vlc_tls_GetLine
 vlc_tls_SocketOpen
