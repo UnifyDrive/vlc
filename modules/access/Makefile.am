@@ -253,9 +253,9 @@ access_LTLIBRARIES += $(LTLIBdvdread)
 EXTRA_LTLIBRARIES += libdvdread_plugin.la
 
 liblibbluray_plugin_la_SOURCES = access/bluray.c
-liblibbluray_plugin_la_CFLAGS = $(AM_CFLAGS) $(BLURAY_CFLAGS)
-liblibbluray_plugin_la_LIBADD = $(BLURAY_LIBS)
-liblibbluray_plugin_la_LDFLAGS = $(AM_LDFLAGS) -rpath '$(accessdir)'
+liblibbluray_plugin_la_CFLAGS = $(AM_CFLAGS) $(BLURAY_CFLAGS) $(AVFORMAT_CFLAGS) $(AVUTIL_CFLAGS)
+liblibbluray_plugin_la_LIBADD = $(BLURAY_LIBS) $(AVFORMAT_LIBS) $(AVUTIL_LIBS) $(LIBM) libavcodec_common.la
+liblibbluray_plugin_la_LDFLAGS = $(AM_LDFLAGS) $(SYMBOLIC_LDFLAGS) -rpath '$(accessdir)'
 access_LTLIBRARIES += $(LTLIBlibbluray)
 EXTRA_LTLIBRARIES += liblibbluray_plugin.la
 
