@@ -179,6 +179,9 @@ struct es_out_sys_t
 
     /* Used only to limit debugging output */
     int         i_prev_stream_level;
+
+    /* tdx */
+    int         playerState;
 };
 
 static es_out_id_t *EsOutAdd    ( es_out_t *, const es_format_t * );
@@ -337,6 +340,8 @@ es_out_t *input_EsOutNew( input_thread_t *p_input, int i_rate )
     p_sys->i_preroll_end = -1;
     p_sys->i_prev_stream_level = -1;
 
+    //tdx  add
+    p_sys->playerState = true;
     return out;
 }
 
@@ -660,24 +665,47 @@ static void EsOutDecodersStopBuffering( es_out_t *out, bool b_forced )
                                          i_preroll_duration +
                                          p_sys->i_buffering_extra_stream - p_sys->i_buffering_extra_initial;
 
-    if( i_stream_duration <= i_buffering_duration && !b_forced )
-    {
-        double f_level;
-        if (i_buffering_duration == 0)
-            f_level = 0;
-        else
-            f_level = __MAX( (double)i_stream_duration / i_buffering_duration, 0 );
-        input_SendEventCache( p_sys->p_input, f_level );
-
-        int i_level = (int)(100 * f_level);
-        if( p_sys->i_prev_stream_level != i_level )
+    // tdx  add
+    if(p_sys->playerState == false ){
+        if( i_stream_duration <= i_buffering_duration && !b_forced )
         {
-            msg_Dbg( p_sys->p_input, "Buffering %d%%", i_level );
-            p_sys->i_prev_stream_level = i_level;
-        }
+            double f_level;
+            if (i_buffering_duration == 0)
+                f_level = 0;
+            else
+                f_level = __MAX( (double)i_stream_duration / i_buffering_duration, 0 );
+            input_SendEventCache( p_sys->p_input, f_level );
 
-        return;
+            int i_level = (int)(100 * f_level);
+            if( p_sys->i_prev_stream_level != i_level )
+            {
+                msg_Dbg( p_sys->p_input, "Buffering %d%%", i_level );
+                p_sys->i_prev_stream_level = i_level;
+            }
+
+            return;
+        }
+    }else {
+        if( i_stream_duration <= i_buffering_duration/10 && !b_forced )
+        {
+            double f_level;
+            if (i_buffering_duration == 0)
+            f_level = 0;
+            else
+            f_level = __MAX( (double)i_stream_duration / i_buffering_duration, 0 );
+            input_SendEventCache( p_sys->p_input, f_level );
+
+            int i_level = (int)(100 * f_level);
+            if( p_sys->i_prev_stream_level != i_level )
+            {
+                msg_Dbg( p_sys->p_input, "Buffering %d%%", i_level );
+                p_sys->i_prev_stream_level = i_level;
+            }
+
+            return;
+        }
     }
+    p_sys->playerState = false;
     input_SendEventCache( p_sys->p_input, 1.0 );
 
     msg_Dbg( p_sys->p_input, "Stream buffering done (%d ms in %d ms)",
@@ -2810,7 +2838,8 @@ static int EsOutControlLocked( es_out_t *out, int i_query, va_list args )
     case ES_OUT_SET_TIME:
     {
         const mtime_t i_date = va_arg( args, mtime_t );
-
+        // tdx add
+        p_sys->playerState = true;
         assert( i_date == -1 );
         EsOutChangePosition( out );
 
