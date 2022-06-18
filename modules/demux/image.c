@@ -91,7 +91,7 @@ vlc_module_begin()
         change_safe()
     add_bool("image-realtime", false, RT_TEXT, RT_LONGTEXT, true)
         change_safe()
-    set_capability("demux", 10)
+    set_capability("demux", 0)
     set_callbacks(Open, Close)
 vlc_module_end()
 
