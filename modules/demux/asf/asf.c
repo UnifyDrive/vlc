@@ -1181,8 +1181,10 @@ static int DemuxInit( demux_t *p_demux )
 
             if ( i_stream <= INT_MAX )
                 fmt.i_id = i_stream;
-            else
+            else {
                 msg_Warn( p_demux, "Can't set fmt.i_id to match stream id %u", i_stream );
+                fmt.i_id = -1;
+            }
 
             if ( fmt.i_cat == VIDEO_ES )
             {
@@ -1192,7 +1194,7 @@ static int DemuxInit( demux_t *p_demux )
                     es_format_Copy( tk->p_fmt, &fmt );
             }
 
-            fmt.i_id = tk->info.p_sp->i_stream_number;
+            //fmt.i_id = tk->info.p_sp->i_stream_number;
 
             tk->p_es = es_out_Add( p_demux->out, &fmt );
 
