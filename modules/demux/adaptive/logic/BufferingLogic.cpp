@@ -37,8 +37,8 @@ using namespace adaptive;
 using namespace adaptive::playlist;
 using namespace adaptive::logic;
 
-const mtime_t AbstractBufferingLogic::BUFFERING_LOWEST_LIMIT = CLOCK_FREQ * 2;
-const mtime_t AbstractBufferingLogic::DEFAULT_MIN_BUFFERING = CLOCK_FREQ * 6;
+const mtime_t AbstractBufferingLogic::BUFFERING_LOWEST_LIMIT = CLOCK_FREQ * 1;
+const mtime_t AbstractBufferingLogic::DEFAULT_MIN_BUFFERING = CLOCK_FREQ * 1;
 const mtime_t AbstractBufferingLogic::DEFAULT_MAX_BUFFERING = CLOCK_FREQ * 30;
 const mtime_t AbstractBufferingLogic::DEFAULT_LIVE_BUFFERING = CLOCK_FREQ * 15;
 
