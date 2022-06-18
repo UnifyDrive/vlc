@@ -590,7 +590,7 @@ static subpicture_t *spu_new_buffer( decoder_t *p_dec,
 
     if( !p_vout )
     {
-        msg_Warn( p_dec, "no vout found, dropping subpicture" );
+        msg_Warn( p_dec, "[%s:%s:%d]=zspace=: no vout found, dropping subpicture", __FILE__ , __FUNCTION__, __LINE__ );
         return NULL;
     }
 
@@ -679,7 +679,7 @@ subpicture_t *decoder_NewSubpicture( decoder_t *p_decoder,
 {
     subpicture_t *p_subpicture = p_decoder->pf_spu_buffer_new( p_decoder, p_dyn );
     if( !p_subpicture )
-        msg_Warn( p_decoder, "can't get output subpicture" );
+        msg_Warn( p_decoder, "[%s:%s:%d]=zspace=: can't get output subpicture", __FILE__ , __FUNCTION__, __LINE__);
     return p_subpicture;
 }
 

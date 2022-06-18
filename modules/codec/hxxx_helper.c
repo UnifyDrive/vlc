@@ -323,7 +323,7 @@ hevc_helper_parse_nal(struct hxxx_helper *hh, const uint8_t *p_buf, size_t i_buf
                      hevc_video_parameter_set_t,
                      hevc_decode_vps,
                      hevc_rbsp_release_vps);
-            msg_Dbg(hh->p_obj, "new VPS parsed: %u", i_id);
+            msg_Dbg(hh->p_obj, "[%s:%s:%d]=zspace=: new VPS parsed: %u", __FILE__ , __FUNCTION__, __LINE__, i_id);
         }
         else if (i_nal_type == HEVC_NAL_SPS)
         {
@@ -335,7 +335,7 @@ hevc_helper_parse_nal(struct hxxx_helper *hh, const uint8_t *p_buf, size_t i_buf
                      hevc_sequence_parameter_set_t,
                      hevc_decode_sps,
                      hevc_rbsp_release_sps);
-            msg_Dbg(hh->p_obj, "new SPS parsed: %u", i_id);
+            msg_Dbg(hh->p_obj, "[%s:%s:%d]=zspace=: new SPS parsed: %u", __FILE__ , __FUNCTION__, __LINE__, i_id);
         }
         else if (i_nal_type == HEVC_NAL_PPS)
         {
@@ -347,7 +347,7 @@ hevc_helper_parse_nal(struct hxxx_helper *hh, const uint8_t *p_buf, size_t i_buf
                      hevc_picture_parameter_set_t,
                      hevc_decode_pps,
                      hevc_rbsp_release_pps);
-            msg_Dbg(hh->p_obj, "new PPS parsed: %u", i_id);
+            msg_Dbg(hh->p_obj, "[%s:%s:%d]=zspace=: new PPS parsed: %u", __FILE__ , __FUNCTION__, __LINE__, i_id);
         }
         else if (i_nal_type <= HEVC_NAL_IRAP_VCL23)
         {
@@ -970,14 +970,23 @@ hxxx_helper_get_chroma_chroma(const struct hxxx_helper *hh, uint8_t *pi_chroma_f
         case VLC_CODEC_HEVC:
         {
             const struct hxxx_helper_nal *hsps = &hh->hevc.sps_list[hh->hevc.i_current_sps];
-            if (hsps == NULL || hsps->hevc_sps == NULL)
+            if (hsps == NULL || hsps->hevc_sps == NULL) {
+                if (hh->p_obj) {
+                    msg_Warn(hh->p_obj, "[%s:%s:%d]=zspace=: VLC_CODEC_HEVC hsps=%p, can not get sps return VLC_EGENERIC!", __FILE__ , __FUNCTION__, __LINE__, hsps);
+                }
                 return VLC_EGENERIC;
-
+            }
+            if (hh->p_obj) {
+                msg_Dbg(hh->p_obj, "[%s:%s:%d]=zspace=: VLC_CODEC_HEVC find sps, now parse it.", __FILE__ , __FUNCTION__, __LINE__);
+            }
             return hevc_get_chroma_luma(hsps->hevc_sps, pi_chroma_format, pi_depth_luma,
                                         pi_depth_chroma)
                 == true ? VLC_SUCCESS : VLC_EGENERIC;
         }
         default:
+            if (hh->p_obj) {
+                msg_Warn(hh->p_obj, "[%s:%s:%d]=zspace=: Not VLC_CODEC_HEVC or VLC_CODEC_H264 return VLC_EGENERIC!", __FILE__ , __FUNCTION__, __LINE__);
+            }
             vlc_assert_unreachable();
     }
 }

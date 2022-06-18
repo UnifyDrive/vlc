@@ -211,18 +211,22 @@ static void pic_holder_update_reorder_max(struct pic_holder *, uint8_t, uint8_t)
 
 /* Codec Specific */
 
-static void HXXXGetBestChroma(decoder_t *p_dec)
+static bool HXXXGetBestChroma(decoder_t *p_dec)
 {
     decoder_sys_t *p_sys = p_dec->p_sys;
 
     if (p_sys->i_cvpx_format != 0 || p_sys->b_cvpx_format_forced)
-        return;
+        return true;
 
     uint8_t i_chroma_format, i_depth_luma, i_depth_chroma;
     if (hxxx_helper_get_chroma_chroma(&p_sys->hh, &i_chroma_format, &i_depth_luma,
-                                      &i_depth_chroma) != VLC_SUCCESS)
-        return;
+                                      &i_depth_chroma) != VLC_SUCCESS) {
+        msg_Warn(p_dec, "[%s:%s:%d]=zspace=: hxxx_helper_get_chroma_chroma() failed!", __FILE__ , __FUNCTION__, __LINE__);
+        return false;
+    }
 
+	msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: i_chroma_format=%d,i_depth_luma=%d,i_depth_chroma=%d.", __FILE__ , __FUNCTION__, __LINE__,
+		i_chroma_format, i_depth_luma, i_depth_chroma);
     if (i_chroma_format == 1 /* YUV 4:2:0 */)
     {
         if (i_depth_luma == 8 && i_depth_chroma == 8)
@@ -245,8 +249,14 @@ static void HXXXGetBestChroma(decoder_t *p_dec)
             /* XXX: The apple openGL implementation doesn't support 12 or 16
              * bit rendering */
             p_sys->i_cvpx_format = kCVPixelFormatType_32BGRA;
+        }else {
+			return false;
         }
+    }else {
+		return false;
     }
+
+	return true;
 }
 
 static void GetxPSH264(uint8_t i_pps_id, void *priv,
@@ -479,7 +489,7 @@ static bool CodecSupportedH264(decoder_t *p_dec)
         return false;
     }
 
-    HXXXGetBestChroma(p_dec);
+    return HXXXGetBestChroma(p_dec);
 
     return true;
 }
@@ -800,7 +810,7 @@ static bool LateStartHEVC(decoder_t *p_dec)
 
 static bool CodecSupportedHEVC(decoder_t *p_dec)
 {
-    HXXXGetBestChroma(p_dec);
+    return HXXXGetBestChroma(p_dec);
 
     return true;
 }
@@ -1221,17 +1231,22 @@ static int StartVideoToolbox(decoder_t *p_dec)
     if(p_sys->pf_late_start && p_sys->pf_late_start(p_dec))
     {
         assert(p_sys->session == NULL);
+        msg_Warn(p_dec, "[%s:%s:%d]=zspace=: p_sys->pf_late_start() failed.", __FILE__ , __FUNCTION__, __LINE__);
         return VLC_SUCCESS;
     }
 
     /* Fills fmt_out (from extradata if any) */
-    if(ConfigureVout(p_dec) != VLC_SUCCESS)
+    if(ConfigureVout(p_dec) != VLC_SUCCESS) {
+        msg_Warn(p_dec, "[%s:%s:%d]=zspace=: ConfigureVout() failed.", __FILE__ , __FUNCTION__, __LINE__);
         return VLC_EGENERIC;
+    }
 
     /* destination pixel buffer attributes */
     CFMutableDictionaryRef destinationPixelBufferAttributes = cfdict_create(0);
-    if(destinationPixelBufferAttributes == nil)
+    if(destinationPixelBufferAttributes == nil) {
+        msg_Warn(p_dec, "[%s:%s:%d]=zspace=: cfdict_create() failed.", __FILE__ , __FUNCTION__, __LINE__);
         return VLC_EGENERIC;
+    }
 
     CFMutableDictionaryRef decoderConfiguration =
         CreateSessionDescriptionFormat(p_dec,
@@ -1240,6 +1255,7 @@ static int StartVideoToolbox(decoder_t *p_dec)
     if(decoderConfiguration == nil)
     {
         CFRelease(destinationPixelBufferAttributes);
+        msg_Warn(p_dec, "[%s:%s:%d]=zspace=: CreateSessionDescriptionFormat() failed.", __FILE__ , __FUNCTION__, __LINE__);
         return VLC_EGENERIC;
     }
 
@@ -1255,7 +1271,7 @@ static int StartVideoToolbox(decoder_t *p_dec)
     {
         CFRelease(destinationPixelBufferAttributes);
         CFRelease(decoderConfiguration);
-        msg_Err(p_dec, "video format description creation failed (%i)", (int)status);
+        msg_Err(p_dec, "[%s:%s:%d]=zspace=: video format description creation failed (%i)", __FILE__ , __FUNCTION__, __LINE__, (int)status);
         return VLC_EGENERIC;
     }
 
@@ -1277,7 +1293,7 @@ static int StartVideoToolbox(decoder_t *p_dec)
     if (p_sys->i_cvpx_format != 0)
     {
         int chroma = htonl(p_sys->i_cvpx_format);
-        msg_Warn(p_dec, "forcing CVPX format: %4.4s", (const char *) &chroma);
+        msg_Warn(p_dec, "[%s:%s:%d]=zspace=: forcing CVPX format: %4.4s", __FILE__ , __FUNCTION__, __LINE__, (const char *) &chroma);
         cfdict_set_int32(destinationPixelBufferAttributes,
                          kCVPixelBufferPixelFormatTypeKey,
                          p_sys->i_cvpx_format);
@@ -1300,9 +1316,12 @@ static int StartVideoToolbox(decoder_t *p_dec)
     CFRelease(decoderConfiguration);
     CFRelease(destinationPixelBufferAttributes);
 
-    if (HandleVTStatus(p_dec, status, NULL) != VLC_SUCCESS)
+    if (HandleVTStatus(p_dec, status, NULL) != VLC_SUCCESS) {
+        msg_Warn(p_dec, "[%s:%s:%d]=zspace=: HandleVTStatus() failed.", __FILE__ , __FUNCTION__, __LINE__);
         return VLC_EGENERIC;
+    }
 
+    msg_Warn(p_dec, "[%s:%s:%d]=zspace=: Return VLC_SUCCESS.", __FILE__ , __FUNCTION__, __LINE__);
     return VLC_SUCCESS;
 }
 
@@ -1354,8 +1373,11 @@ static int OpenDecoder(vlc_object_t *p_this)
 {
     decoder_t *p_dec = (decoder_t *)p_this;
 
-    if (!var_InheritBool(p_dec, "videotoolbox"))
+    msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Begin now for es_format %d.", __FILE__ , __FUNCTION__, __LINE__, p_dec->fmt_in.i_cat);
+    if (!var_InheritBool(p_dec, "videotoolbox")) {
+        msg_Warn(p_dec, "[%s:%s:%d]=zspace=: %d not video of videotoolbox, return directly.", __FILE__ , __FUNCTION__, __LINE__, p_dec->fmt_in.i_cat);
         return VLC_EGENERIC;
+    }
 
 #if TARGET_OS_IPHONE
     if (unlikely([[UIDevice currentDevice].systemVersion floatValue] < 8.0)) {
@@ -1365,15 +1387,19 @@ static int OpenDecoder(vlc_object_t *p_this)
 #endif
 
     /* Fail if this module already failed to decode this ES */
-    if (var_Type(p_dec, "videotoolbox-failed") != 0)
+    if (var_Type(p_dec, "videotoolbox-failed") != 0) {
+        msg_Warn(p_dec, "[%s:%s:%d]=zspace=: This module already failed to decode this ES[%d].", __FILE__ , __FUNCTION__, __LINE__, p_dec->fmt_in.i_cat);
         return VLC_EGENERIC;
+    }
 
     /* check quickly if we can digest the offered data */
     CMVideoCodecType codec;
 
     codec = CodecPrecheck(p_dec);
-    if (codec == -1)
+    if (codec == -1) {
+        msg_Warn(p_dec, "[%s:%s:%d]=zspace=: CodecPrecheck() failed!", __FILE__ , __FUNCTION__, __LINE__);
         return VLC_EGENERIC;
+    }
 
     /* now that we see a chance to decode anything, allocate the
      * internals and start the decoding session */
@@ -1392,9 +1418,10 @@ static int OpenDecoder(vlc_object_t *p_this)
     char *cvpx_chroma = var_InheritString(p_dec, "videotoolbox-cvpx-chroma");
     if (cvpx_chroma != NULL)
     {
+        msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: cvpx_chroma=[%s].", __FILE__ , __FUNCTION__, __LINE__, cvpx_chroma);
         if (strlen(cvpx_chroma) != 4)
         {
-            msg_Err(p_dec, "invalid videotoolbox-cvpx-chroma option");
+            msg_Err(p_dec, "[%s:%s:%d]=zspace=: invalid videotoolbox-cvpx-chroma option", __FILE__ , __FUNCTION__, __LINE__);
             free(cvpx_chroma);
             free(p_sys);
             return VLC_EGENERIC;
@@ -1403,6 +1430,8 @@ static int OpenDecoder(vlc_object_t *p_this)
         p_sys->i_cvpx_format = ntohl(p_sys->i_cvpx_format);
         p_sys->b_cvpx_format_forced = true;
         free(cvpx_chroma);
+    }else {
+        msg_Warn(p_dec, "[%s:%s:%d]=zspace=: cvpx_chroma not get!", __FILE__ , __FUNCTION__, __LINE__);
     }
 
     p_sys->pic_holder = malloc(sizeof(struct pic_holder));
@@ -1438,6 +1467,7 @@ static int OpenDecoder(vlc_object_t *p_this)
             p_sys->pf_fill_reorder_info = FillReorderInfoH264;
             p_sys->b_poc_based_reorder = true;
             p_sys->b_vt_need_keyframe = true;
+            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: kCMVideoCodecType_H264.", __FILE__ , __FUNCTION__, __LINE__);
             break;
 
         case kCMVideoCodecType_HEVC:
@@ -1452,35 +1482,42 @@ static int OpenDecoder(vlc_object_t *p_this)
             p_sys->pf_fill_reorder_info = FillReorderInfoHEVC;
             p_sys->b_poc_based_reorder = true;
             p_sys->b_vt_need_keyframe = true;
+            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: kCMVideoCodecType_HEVC.", __FILE__ , __FUNCTION__, __LINE__);
             break;
 
         case kCMVideoCodecType_MPEG4Video:
             p_sys->pf_get_extradata = GetDecoderExtradataMPEG4;
+            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: kCMVideoCodecType_MPEG4Video.", __FILE__ , __FUNCTION__, __LINE__);
             break;
 
         default:
             p_sys->pf_get_extradata = GetDecoderExtradataDefault;
+            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: GetDecoderExtradataDefault.", __FILE__ , __FUNCTION__, __LINE__);
             break;
     }
 
     if (p_sys->pf_codec_init && !p_sys->pf_codec_init(p_dec))
     {
         CloseDecoder(p_this);
+        msg_Warn(p_dec, "[%s:%s:%d]=zspace=: p_sys->pf_codec_init() failed!", __FILE__ , __FUNCTION__, __LINE__);
         return VLC_EGENERIC;
     }
     if (p_sys->pf_codec_supported && !p_sys->pf_codec_supported(p_dec))
     {
         CloseDecoder(p_this);
+        msg_Warn(p_dec, "[%s:%s:%d]=zspace=: p_sys->pf_codec_supported() failed!", __FILE__ , __FUNCTION__, __LINE__);
         return VLC_EGENERIC;
     }
 
     int i_ret = StartVideoToolbox(p_dec);
     if (i_ret == VLC_SUCCESS) {
         PtsInit(p_dec);
-        msg_Info(p_dec, "Using Video Toolbox to decode '%4.4s'",
+        msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Using Video Toolbox to decode '%4.4s'", __FILE__ , __FUNCTION__, __LINE__,
                         (char *)&p_dec->fmt_in.i_codec);
     } else {
         CloseDecoder(p_this);
+        msg_Warn(p_dec, "[%s:%s:%d]=zspace=: Can not using Video Toolbox to decode '%4.4s'", __FILE__ , __FUNCTION__, __LINE__,
+                        (char *)&p_dec->fmt_in.i_codec);
     }
 
     return i_ret;
