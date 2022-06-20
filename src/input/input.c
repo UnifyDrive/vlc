@@ -1996,6 +1996,7 @@ static bool Control( input_thread_t *p_input,
     if( !p_input )
         return b_force_update;
 
+    msg_Dbg(p_input, "[%s:%s:%d]=zspace=: Begin, i_type=%d.", __FILE__ , __FUNCTION__, __LINE__, i_type);
     switch( i_type )
     {
         case INPUT_CONTROL_SET_POSITION:
@@ -2007,6 +2008,7 @@ static bool Control( input_thread_t *p_input,
             }
 
             float f_pos = val.f_float;
+            msg_Dbg(p_input, "[%s:%s:%d]=zspace=: INPUT_CONTROL_SET_POSITION f_pos=%f.", __FILE__ , __FUNCTION__, __LINE__, f_pos);
             if( f_pos < 0.f )
                 f_pos = 0.f;
             else if( f_pos > 1.f )
@@ -2042,6 +2044,7 @@ static bool Control( input_thread_t *p_input,
             }
 
             i_time = val.i_int;
+            msg_Dbg(p_input, "[%s:%s:%d]=zspace=: INPUT_CONTROL_SET_TIME i_time=%lld(us).", __FILE__ , __FUNCTION__, __LINE__, i_time);
             if( i_time < 0 )
                 i_time = 0;
 

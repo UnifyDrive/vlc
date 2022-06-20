@@ -1581,6 +1581,7 @@ void libvlc_media_player_set_time( libvlc_media_player_t *p_mi,
     if( !p_input_thread )
         return;
 
+    msg_Dbg(p_input_thread, "[%s:%s:%d]=zspace=: Now set time=%lld(ms), b_fast=%s.", __FILE__ , __FUNCTION__, __LINE__, i_time, b_fast?"True":"False");
     var_SetBool( p_input_thread, "input-fast-seek", b_fast );
     var_SetInteger( p_input_thread, "time", to_mtime(i_time) );
     vlc_object_release( p_input_thread );
@@ -1595,6 +1596,7 @@ void libvlc_media_player_set_position( libvlc_media_player_t *p_mi,
     if( !p_input_thread )
         return;
 
+    msg_Dbg(p_input_thread, "[%s:%s:%d]=zspace=: Now set position=%f, b_fast=%s.", __FILE__ , __FUNCTION__, __LINE__, position, b_fast?"True":"False");
     var_SetBool( p_input_thread, "input-fast-seek", b_fast );
     var_SetFloat( p_input_thread, "position", position );
     vlc_object_release( p_input_thread );
