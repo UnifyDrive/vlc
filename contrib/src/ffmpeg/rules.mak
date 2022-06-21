@@ -42,7 +42,12 @@ FFMPEGCONF = \
 	--disable-bzlib \
 	--disable-libvpx \
 	--disable-avresample \
-	--enable-bsf=vp9_superframe
+	--enable-bsf=vp9_superframe \
+	--enable-decoder=dsd_lsbf \
+	--enable-decoder=dsd_lsbf_planar \
+	--enable-decoder=dsd_msbf \
+	--enable-decoder=dsd_msbf_planar \
+	--enable-demuxer=dsf
 
 ifdef USE_FFMPEG
 FFMPEGCONF += \

@@ -466,6 +466,11 @@ static const struct vlc_avcodec_fourcc audio_codecs[] =
     /* ffmpeg only: AV_CODEC_ID_PAF_AUDIO */
     /* ffmpeg only: AV_CODEC_ID_EVRC */
     /* ffmpeg only: AV_CODEC_ID_SMV */
+
+    { VLC_CODEC_DSD_LSBF, AV_CODEC_ID_DSD_LSBF },
+    { VLC_CODEC_DSD_MSBF, AV_CODEC_ID_DSD_MSBF },
+    { VLC_CODEC_DSD_LSBF_PLANAR, AV_CODEC_ID_DSD_LSBF_PLANAR },
+    { VLC_CODEC_DSD_MSBF_PLANAR, AV_CODEC_ID_DSD_MSBF_PLANAR },
 };
 
 /* Subtitle streams */
