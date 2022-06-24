@@ -128,6 +128,7 @@ int libvlc_InternalInit( libvlc_int_t *p_libvlc, int i_argc,
      * options) */
     module_InitBank ();
 
+    msg_Warn(p_libvlc, "[%s:%s:%d]=zspace=: enter Release Time: (%s-%s)", __FILE__ , __FUNCTION__, __LINE__, __DATE__, __TIME__);
     for(int i = 0; i < i_argc; i++) {
         msg_Dbg( p_libvlc, "[%s:%s:%d]=zspace=: Options[%d][%s]", __FILE__ , __FUNCTION__, __LINE__, i, ppsz_argv[i]);
     }
