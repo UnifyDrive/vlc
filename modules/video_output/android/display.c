@@ -181,6 +181,9 @@ static int UpdateVideoSize(vout_display_sys_t *sys, video_format_t *p_fmt,
         i_height = rot_fmt.i_height;
     }
 
+    if (sys && sys->embed) {
+        msg_Dbg(sys->embed, "[%s:%s:%d]=zspace=: Run AWindowHandler_setVideoLayout().", __FILE__ , __FUNCTION__, __LINE__);
+    }
     AWindowHandler_setVideoLayout(sys->p_awh, i_width, i_height,
                                   rot_fmt.i_visible_width,
                                   rot_fmt.i_visible_height,
@@ -277,6 +280,9 @@ static void FixSubtitleFormat(vout_display_sys_t *sys)
         i_height = i_video_height;
     }
 
+    if (sys->embed) {
+        msg_Dbg(sys->embed, "[%s:%s:%d]=zspace=: Subtitle [%4.4s] i_width=%d, i_height=%d", __FILE__ , __FUNCTION__, __LINE__, (char *)&p_subfmt->i_chroma, i_width, i_height);
+    }
     p_subfmt->i_width =
     p_subfmt->i_visible_width = i_width;
     p_subfmt->i_height =
@@ -687,11 +693,13 @@ static int OpenCommon(vout_display_t *vd)
 #ifdef USE_ANWP
     sys->b_has_anwp = android_loadNativeWindowPrivApi(&sys->anwp) == 0;
     if (!sys->b_has_anwp)
-        msg_Warn(vd, "Could not initialize NativeWindow Priv API.");
+        msg_Warn(vd, "[%s:%s:%d]=zspace=: Could not initialize NativeWindow Priv API.", __FILE__ , __FUNCTION__, __LINE__);
 #endif
 
     sys->i_display_width = vd->cfg->display.width;
     sys->i_display_height = vd->cfg->display.height;
+    msg_Dbg(vd, "[%s:%s:%d]=zspace=: set sys->i_display_width=%d, sys->i_display_height=%d from vd.", __FILE__ , __FUNCTION__, __LINE__, 
+        sys->i_display_width, sys->i_display_height);
 
     if (vd->fmt.i_chroma != VLC_CODEC_ANDROID_OPAQUE) {
         /* Setup chroma */
@@ -731,7 +739,7 @@ static int OpenCommon(vout_display_t *vd)
     if (!sys->p_window->b_opaque && !sys->p_window->b_use_priv)
         video_format_TransformTo(&vd->fmt, ORIENT_NORMAL);
 
-    msg_Dbg(vd, "using %s", sys->p_window->b_opaque ? "opaque" :
+    msg_Dbg(vd, "[%s:%s:%d]=zspace=: using %s", __FILE__ , __FUNCTION__, __LINE__, sys->p_window->b_opaque ? "opaque" :
             (sys->p_window->b_use_priv ? "ANWP" : "ANW"));
 
     video_format_ApplyRotation(&sub_fmt, &vd->fmt);
@@ -921,13 +929,14 @@ static picture_pool_t *PoolAlloc(vout_display_t *vd, unsigned requested_count)
     picture_t **pp_pics = NULL;
     unsigned int i = 0;
 
-    msg_Dbg(vd, "PoolAlloc: request %d frames", requested_count);
+    msg_Dbg(vd, "[%s:%s:%d]=zspace=: PoolAlloc: request %d frames", __FILE__ , __FUNCTION__, __LINE__, requested_count);
     if (AndroidWindow_Setup(sys, sys->p_window, requested_count) != 0)
         goto error;
 
     requested_count = sys->p_window->i_pic_count;
-    msg_Dbg(vd, "PoolAlloc: got %d frames", requested_count);
+    msg_Dbg(vd, "[%s:%s:%d]=zspace=: PoolAlloc: got %d frames", __FILE__ , __FUNCTION__, __LINE__, requested_count);
 
+    msg_Dbg(vd, "[%s:%s:%d]=zspace=: Run UpdateVideoSize()", __FILE__ , __FUNCTION__, __LINE__);
     UpdateVideoSize(sys, &sys->p_window->fmt, sys->p_window->b_use_priv);
 
     pp_pics = calloc(requested_count, sizeof(picture_t));
@@ -1072,13 +1081,18 @@ static void SubpicturePrepare(vout_display_t *vd, subpicture_t *subpicture)
 
         sys->i_sub_last_order = subpicture->i_order;
         sys->sub_last_region = memset_bounds;
+        msg_Dbg(vd, "[%s:%s:%d]=zspace=: memset_bounds [%d,%d,  %d,%d],sys->i_sub_last_order=%d", __FILE__ , __FUNCTION__, __LINE__, 
+            memset_bounds.left, memset_bounds.top, memset_bounds.right, memset_bounds.bottom, sys->i_sub_last_order);
     }
 
-    if (AndroidWindow_LockPicture(sys, sys->p_sub_window, sys->p_sub_pic) != 0)
+    if (AndroidWindow_LockPicture(sys, sys->p_sub_window, sys->p_sub_pic) != 0) {
+        msg_Dbg(vd, "[%s:%s:%d]=zspace=: AndroidWindow_LockPicture() failed!", __FILE__ , __FUNCTION__, __LINE__);
         return;
+    }
 
     /* Clear the subtitles surface. */
     SubtitleGetDirtyBounds(vd, subpicture, &memset_bounds);
+    msg_Dbg(vd, "[%s:%s:%d]=zspace=: Subtitle dirty bounds [%d,%d,  %d,%d]", __FILE__ , __FUNCTION__, __LINE__, memset_bounds.left, memset_bounds.top, memset_bounds.right, memset_bounds.bottom);
     const int x_pixels_offset = memset_bounds.left
                                 * sys->p_sub_pic->p[0].i_pixel_pitch;
     const int i_line_size = (memset_bounds.right - memset_bounds.left)
@@ -1124,12 +1138,16 @@ static void Prepare(vout_display_t *vd, picture_t *picture,
         if (!sys->p_sub_pic
          && AndroidWindow_Setup(sys, sys->p_sub_window, 1) == 0)
             sys->p_sub_pic = PictureAlloc(sys, &sys->p_sub_window->fmt, false);
-        if (!sys->p_spu_blend && sys->p_sub_pic)
+        if (!sys->p_spu_blend && sys->p_sub_pic) {
             sys->p_spu_blend = filter_NewBlend(VLC_OBJECT(vd),
                                                &sys->p_sub_pic->format);
+            msg_Dbg(vd, "[%s:%s:%d]=zspace=: Run filter_NewBlend(), retrun=%p ", __FILE__ , __FUNCTION__, __LINE__, sys->p_spu_blend);
+        }
 
-        if (sys->p_sub_pic && sys->p_spu_blend)
+        if (sys->p_sub_pic && sys->p_spu_blend) {
             sys->b_has_subpictures = true;
+            //msg_Dbg(vd, "[%s:%s:%d]=zspace=: sys->b_has_subpictures = true ", __FILE__ , __FUNCTION__, __LINE__);
+        }
     }
     /* As long as no subpicture was received, do not call
        SubpictureDisplay since JNI calls and clearing the subtitles
@@ -1196,7 +1214,7 @@ static int Control(vout_display_t *vd, int query, va_list args)
     case VOUT_DISPLAY_CHANGE_SOURCE_CROP:
     case VOUT_DISPLAY_CHANGE_SOURCE_ASPECT:
     {
-        msg_Dbg(vd, "change source crop/aspect");
+        msg_Dbg(vd, "[%s:%s:%d]=zspace=: change source crop/aspect", __FILE__ , __FUNCTION__, __LINE__);
 
         if (query == VOUT_DISPLAY_CHANGE_SOURCE_CROP) {
             video_format_CopyCrop(&sys->p_window->fmt, &vd->source);
@@ -1214,7 +1232,7 @@ static int Control(vout_display_t *vd, int query, va_list args)
 
         sys->i_display_width = cfg->display.width;
         sys->i_display_height = cfg->display.height;
-        msg_Dbg(vd, "change display size: %dx%d", sys->i_display_width,
+        msg_Dbg(vd, "[%s:%s:%d]=zspace=: change display size: %dx%d", __FILE__ , __FUNCTION__, __LINE__, sys->i_display_width,
                                                   sys->i_display_height);
         FixSubtitleFormat(sys);
         return VLC_SUCCESS;

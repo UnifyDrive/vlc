@@ -634,7 +634,7 @@ static void VoutDisplayEvent(vout_display_t *vd, int event, va_list args)
     case VOUT_DISPLAY_EVENT_DISPLAY_SIZE: {
         const int width  = (int)va_arg(args, int);
         const int height = (int)va_arg(args, int);
-        msg_Dbg(vd, "VoutDisplayEvent 'resize' %dx%d", width, height);
+        msg_Dbg(vd, "[%s:%s:%d]=zspace=: VoutDisplayEvent 'resize' %dx%d", __FILE__ , __FUNCTION__, __LINE__, width, height);
 
         /* */
         vlc_mutex_lock(&osys->lock);
@@ -1208,8 +1208,14 @@ static vout_display_t *DisplayNew(vout_thread_t *vout,
 
     /* Setup delayed request */
     if (osys->sar.num != source->i_sar_num ||
-        osys->sar.den != source->i_sar_den)
+        osys->sar.den != source->i_sar_den) {
         osys->ch_sar = true;
+        msg_Dbg(vout, "[%s:%s:%d]=zspace=: osys->ch_sar=true, osys->sar[%d,%d] source->i_sar[%d,%d]", __FILE__ , __FUNCTION__, __LINE__, 
+            osys->sar.num, osys->sar.den, source->i_sar_num, source->i_sar_den);
+    }else {
+        msg_Dbg(vout, "[%s:%s:%d]=zspace=: osys->ch_sar=false, osys->sar[%d,%d] source->i_sar[%d,%d]", __FILE__ , __FUNCTION__, __LINE__, 
+            osys->sar.num, osys->sar.den, source->i_sar_num, source->i_sar_den);
+    }
 
     vout_SendEventViewpointChangeable(osys->vout,
         p_display->fmt.projection_mode != PROJECTION_MODE_RECTANGULAR);

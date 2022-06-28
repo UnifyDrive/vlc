@@ -625,6 +625,9 @@ WindowHandler_NewSurfaceEnv(AWindowHandler *p_awh, JNIEnv *p_env,
 {
     jobject jsurface;
 
+    if (p_awh && p_awh->wnd) {
+        msg_Dbg(p_awh->wnd, "[%s:%s:%d]=zspace=: AWindow_ID = %d", __FILE__ , __FUNCTION__, __LINE__, id);
+    }
     switch (id)
     {
         case AWindow_Video:
@@ -751,6 +754,10 @@ AWindowHandler_setVideoLayout(AWindowHandler *p_awh,
     if (!p_env)
         return VLC_EGENERIC;
 
+    if (p_awh && p_awh->wnd) {
+        msg_Dbg(p_awh->wnd, "[%s:%s:%d]=zspace=: w=%d,h=%d,vw=%d,wh=%d,sar_num=%d,sar_den=%d.", __FILE__ , __FUNCTION__, __LINE__,
+            i_width, i_height, i_visible_width, i_visible_height, i_sar_num, i_sar_den);
+    }
     JNI_ANWCALL(CallVoidMethod, setVideoLayout, i_width, i_height,
                 i_visible_width,i_visible_height, i_sar_num, i_sar_den);
     return VLC_SUCCESS;
