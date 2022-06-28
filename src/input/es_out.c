@@ -666,7 +666,7 @@ static void EsOutDecodersStopBuffering( es_out_t *out, bool b_forced )
                                          p_sys->i_buffering_extra_stream - p_sys->i_buffering_extra_initial;
 
     // tdx  add
-    if(p_sys->playerState == false ){
+    if(p_sys->playerState == false || 1){
         if( i_stream_duration <= i_buffering_duration && !b_forced )
         {
             double f_level;
@@ -679,7 +679,7 @@ static void EsOutDecodersStopBuffering( es_out_t *out, bool b_forced )
             int i_level = (int)(100 * f_level);
             if( p_sys->i_prev_stream_level != i_level )
             {
-                msg_Dbg( p_sys->p_input, "Buffering %d%%", i_level );
+                msg_Dbg( p_sys->p_input, "[%s:%s:%d]=zspace=: Buffering %d%%", __FILE__ , __FUNCTION__, __LINE__, i_level );
                 p_sys->i_prev_stream_level = i_level;
             }
 
@@ -698,7 +698,7 @@ static void EsOutDecodersStopBuffering( es_out_t *out, bool b_forced )
             int i_level = (int)(100 * f_level);
             if( p_sys->i_prev_stream_level != i_level )
             {
-                msg_Dbg( p_sys->p_input, "Buffering %d%%", i_level );
+                msg_Dbg( p_sys->p_input, "[%s:%s:%d]=zspace=: Buffering %d%%", __FILE__ , __FUNCTION__, __LINE__, i_level );
                 p_sys->i_prev_stream_level = i_level;
             }
 
@@ -708,7 +708,7 @@ static void EsOutDecodersStopBuffering( es_out_t *out, bool b_forced )
     p_sys->playerState = false;
     input_SendEventCache( p_sys->p_input, 1.0 );
 
-    msg_Dbg( p_sys->p_input, "Stream buffering done (%d ms in %d ms)",
+    msg_Dbg( p_sys->p_input, "[%s:%s:%d]=zspace=: Stream buffering done (%d ms in %d ms)", __FILE__ , __FUNCTION__, __LINE__,
               (int)(i_stream_duration/1000), (int)(i_system_duration/1000) );
     p_sys->b_buffering = false;
     p_sys->i_preroll_end = -1;
@@ -732,7 +732,7 @@ static void EsOutDecodersStopBuffering( es_out_t *out, bool b_forced )
             input_DecoderWait( p_es->p_dec_record );
     }
 
-    msg_Dbg( p_sys->p_input, "Decoder wait done in %d ms",
+    msg_Dbg( p_sys->p_input, "[%s:%s:%d]=zspace=: Decoder first frame wait done in %d ms", __FILE__ , __FUNCTION__, __LINE__,
               (int)(mdate() - i_decoder_buffering_start)/1000 );
 
     /* Here is a good place to destroy unused vout with every demuxer */
