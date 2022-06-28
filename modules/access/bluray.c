@@ -871,6 +871,15 @@ failed_dir:
 static BD_FILE_H* bdfs_file_open(void* ctx, const char* path) {
     char* dir = (char*) ctx;
     char* url = av_append_path_component(dir, path);
+#ifdef _WIN32
+    for (int i = 0; i < strlen(url); i++)
+    {
+        if ('\\' == url[i])
+        {
+            url[i] = '/';
+        }
+    }
+#endif
     BD_FILE_H* file = bd_file_open_url(url, "rb");
     av_free(url);
     return file;
