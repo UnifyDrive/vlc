@@ -355,7 +355,7 @@ char* MediaCodec_GetName(vlc_object_t *p_obj, const char *psz_mime,
     jstring jmime;
     char *psz_name = NULL;
 
-    msg_Dbg(p_obj, "====tdx====: detect mediacodec for mimetype: %s, profile: %d", psz_mime, profile);
+    msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: detect mediacodec for mimetype: %s, profile: %d", __FILE__ , __FUNCTION__, __LINE__, psz_mime, profile);
     if (!(env = android_getEnv(p_obj, THREAD_NAME)))
         return NULL;
 
@@ -401,7 +401,7 @@ char* MediaCodec_GetName(vlc_object_t *p_obj, const char *psz_mime,
                                                       jmime);
         if (CHECK_EXCEPTION())
         {
-            msg_Warn(p_obj, "Exception occurred in MediaCodecInfo.getCapabilitiesForType");
+            msg_Warn(p_obj, "[%s:%s:%d]=zspace=: Exception occurred in MediaCodecInfo.getCapabilitiesForType", __FILE__ , __FUNCTION__, __LINE__);
             goto loopclean;
         }
         else if (codec_capabilities)
@@ -420,7 +420,7 @@ char* MediaCodec_GetName(vlc_object_t *p_obj, const char *psz_mime,
                 (*env)->DeleteLocalRef(env, jfeature);
             }
         }
-        msg_Dbg(p_obj, "Number of profile levels: %d", profile_levels_len);
+        msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: Number of profile levels: %d", __FILE__ , __FUNCTION__, __LINE__, profile_levels_len);
 
         types = (*env)->CallObjectMethod(env, info, jfields.get_supported_types);
         num_types = (*env)->GetArrayLength(env, types);
@@ -457,20 +457,20 @@ char* MediaCodec_GetName(vlc_object_t *p_obj, const char *psz_mime,
                             {
                                 case 0x1: /* OMX_VIDEO_HEVCProfileMain */
                                     codec_profile = HEVC_PROFILE_MAIN;
-                                    msg_Dbg(p_obj, "====tdx====: %s decoder support profile \"Main\"", name_ptr);
+                                    msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: %s decoder support profile \"Main\"", __FILE__ , __FUNCTION__, __LINE__, name_ptr);
                                     break;
                                 case 0x2:    /* OMX_VIDEO_HEVCProfileMain10 */
                                 case 0x1000: /* OMX_VIDEO_HEVCProfileMain10HDR10 */
                                     codec_profile = HEVC_PROFILE_MAIN_10;
-                                    msg_Dbg(p_obj, "====tdx====: %s decoder support profile \"Main 10\"", name_ptr);
+                                    msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: %s decoder support profile \"Main 10\"", __FILE__ , __FUNCTION__, __LINE__, name_ptr);
                                     break;
                             }
                         }
                         if (codec_profile != profile) {
-                            msg_Dbg(p_obj, "====tdx====: codec profile *can't* match, get: %d, for : %d, decoder: \"%.*s\"", codec_profile, profile, name_len, name_ptr);
+                            msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: codec profile *can't* match, get: %d, for : %d, decoder: \"%.*s\"", __FILE__ , __FUNCTION__, __LINE__, codec_profile, profile, name_len, name_ptr);
                             continue;
                         }else {
-                            msg_Dbg(p_obj, "====tdx====: codec profile matched !!! get: %d, for %d, decoder: \"%.*s\"", codec_profile, profile, name_len, name_ptr);
+                            msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: codec profile matched !!! get: %d, for %d, decoder: \"%.*s\"", __FILE__ , __FUNCTION__, __LINE__, codec_profile, profile, name_len, name_ptr);
                         }
                         /* Some encoders set the level too high, thus we ignore it for the moment.
                            We could try to guess the actual profile based on the resolution. */
@@ -484,7 +484,7 @@ char* MediaCodec_GetName(vlc_object_t *p_obj, const char *psz_mime,
         }
         if (found)
         {
-            msg_Dbg(p_obj, "====tdx====: using decoder %.*s", name_len, name_ptr);
+            msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: using decoder %.*s", __FILE__ , __FUNCTION__, __LINE__, name_len, name_ptr);
             psz_name = malloc(name_len + 1);
             if (psz_name)
             {
@@ -1061,10 +1061,10 @@ static int Configure(mc_api *api, int i_profile)
     api->psz_name = MediaCodec_GetName(api->p_obj, api->psz_mime,
                                        i_profile, &api->i_quirks);
     if (!api->psz_name) {
-        msg_Err(api->p_obj, "====tdx====: Can't found decoder for mime:\"%s\", profile: \"%d\"", api->psz_mime, i_profile);
+        msg_Err(api->p_obj, "[%s:%s:%d]=zspace=: Can't found decoder for mime:\"%s\", profile: \"%d\"", __FILE__ , __FUNCTION__, __LINE__, api->psz_mime, i_profile);
         return MC_API_ERROR;
     }
-    msg_Dbg(api->p_obj, "====tdx====: Found decoder \"%s\" for mime:\"%s\", profile: \"%d\"", api->psz_name, api->psz_mime, i_profile);
+    msg_Dbg(api->p_obj, "[%s:%s:%d]=zspace=: Found decoder \"%s\" for mime:\"%s\", profile: \"%d\"", __FILE__ , __FUNCTION__, __LINE__, api->psz_name, api->psz_mime, i_profile);
     api->i_quirks |= OMXCodec_GetQuirks(api->i_cat, api->i_codec, api->psz_name,
                                         strlen(api->psz_name));
 
@@ -1083,7 +1083,7 @@ int MediaCodecJni_Init(mc_api *api)
 
     GET_ENV();
 
-    msg_Dbg(api->p_obj, "====tdx====: Try Open MediaCodec using JNI ...");
+    msg_Dbg(api->p_obj, "[%s:%s:%d]=zspace=: Begin.", __FILE__ , __FUNCTION__, __LINE__);
     if (!InitJNIFields(api->p_obj, env))
         return MC_API_ERROR;
 
@@ -1107,5 +1107,6 @@ int MediaCodecJni_Init(mc_api *api)
     /* Allow rotation only after API 21 */
     if (jfields.get_input_buffer && jfields.get_output_buffer)
         api->b_support_rotation = true;
+    msg_Dbg(api->p_obj, "[%s:%s:%d]=zspace=: End.", __FILE__ , __FUNCTION__, __LINE__);
     return 0;
 }

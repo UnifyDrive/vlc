@@ -625,10 +625,10 @@ static int Configure(mc_api * api, int i_profile)
     api->psz_name = MediaCodec_GetName(api->p_obj, api->psz_mime,
                                        i_profile, &api->i_quirks);
     if (!api->psz_name) {
-        msg_Err(api->p_obj, "====tdx====: Can't found decoder for mime:\"%s\", profile: \"%d\"", api->psz_mime, i_profile);
+        msg_Err(api->p_obj, "[%s:%s:%d]=zspace=: Can't found decoder for mime:\"%s\", profile: \"%d\"", __FILE__ , __FUNCTION__, __LINE__, api->psz_mime, i_profile);
         return MC_API_ERROR;
     }
-    msg_Dbg(api->p_obj, "====tdx====: Found decoder \"%s\" for mime:\"%s\", profile: \"%d\"", api->psz_name, api->psz_mime, i_profile);
+    msg_Dbg(api->p_obj, "[%s:%s:%d]=zspace=: Found decoder \"%s\" for mime:\"%s\", profile: \"%d\"", __FILE__ , __FUNCTION__, __LINE__, api->psz_name, api->psz_mime, i_profile);
     api->i_quirks |= OMXCodec_GetQuirks(api->i_cat, api->i_codec, api->psz_name,
                                         strlen(api->psz_name));
     /* Allow interlaced picture after API 21 */
@@ -641,7 +641,7 @@ static int Configure(mc_api * api, int i_profile)
  *****************************************************************************/
 int MediaCodecNdk_Init(mc_api *api)
 {
-    msg_Dbg(api->p_obj, "====tdx====: Try Open MediaCodec via NDK");
+    msg_Dbg(api->p_obj, "[%s:%s:%d]=zspace=: Begin.", __FILE__ , __FUNCTION__, __LINE__);
     if (!InitSymbols(api))
         return MC_API_ERROR;
 
@@ -663,5 +663,6 @@ int MediaCodecNdk_Init(mc_api *api)
     api->set_output_surface = SetOutputSurface;
 
     api->b_support_rotation = true;
+    msg_Dbg(api->p_obj, "[%s:%s:%d]=zspace=: End.", __FILE__ , __FUNCTION__, __LINE__);
     return 0;
 }
