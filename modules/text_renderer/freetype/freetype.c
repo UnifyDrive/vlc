@@ -992,14 +992,14 @@ static void UpdateDefaultLiveStyles( filter_t *p_filter )
     }
     text_style_Merge( p_sys->p_default_style, p_sys->p_forced_style, true );
 
-#ifndef NDEBUG
+//#ifndef NDEBUG
     msg_Dbg(p_filter, "%s: def rel font size: %f, rel font size %f, %lli; color %i, font: %s", __func__,
                 p_filter->p_sys->p_default_style->f_font_relsize,
                 p_filter->p_sys->p_forced_style->f_font_relsize,
                 var_InheritInteger( p_filter, "freetype-rel-fontsize" ),
                 p_filter->p_sys->p_default_style->i_font_color,
                 p_filter->p_sys->p_default_style->psz_fontname);
-#endif
+//#endif
 }
 
 static void FillDefaultStyles( filter_t *p_filter )

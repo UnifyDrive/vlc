@@ -2153,6 +2153,29 @@ LIBVLC_API int libvlc_media_player_record(libvlc_media_player_t *p_mi,
                                           const char *path);
 
 LIBVLC_API libvlc_track_description_t *libvlc_audio_get_channel_list(libvlc_media_player_t *p_mi);
+
+typedef enum libvlc_media_player_spu_option {
+    libvlc_spu_None = 0, /**< none */
+    libvlc_spu_font_size,   /**< subtitle font size */
+    libvlc_spu_font_color, /**< subtitle font color */
+    libvlc_spu_position /**< subtitle position */
+} libvlc_media_player_spu_option_t;
+
+/**
+ * set subtitle option
+ *
+ *
+ * \param p_mi media player
+ * \param type subtitle setting type,ref libvlc_media_player_spu_option_t
+ * \param value according to param type
+ *     if type is libvlc_spu_font_size, the value represent font size number.
+ *     if type is libvlc_spu_font_color, the value represent color value,eg,red 0xFF0000, green 0x00FF00,blue 0x0000FF
+ *     if type is libvlc_spu_position,the value represent the distance from the bottom, units are pixel
+ * \return 0 on success, -1 on error
+ */
+LIBVLC_API int libvlc_media_player_set_spu_option( libvlc_media_player_t *p_mi,
+                                 int type,
+                                 int value);
 /** @} audio */
 
 /** @} media_player */

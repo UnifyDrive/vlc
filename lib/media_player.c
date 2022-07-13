@@ -2306,3 +2306,35 @@ int libvlc_media_player_record( libvlc_media_player_t *p_mi,
     vlc_object_release( p_input_thread );
     return VLC_SUCCESS;
 }
+
+int libvlc_media_player_set_spu_option( libvlc_media_player_t *p_mi,
+                                int type,
+                                int value)
+{
+    int ret = VLC_SUCCESS;
+    vout_thread_t *p_vout = NULL;
+    input_thread_t *p_input_thread = libvlc_get_input_thread ( p_mi );
+    if (p_input_thread == NULL) {
+        return VLC_EGENERIC;
+    }
+
+    switch (type) {
+        case libvlc_spu_font_size:
+            var_SetInteger( p_mi, "freetype-rel-fontsize", value );
+            break;
+        case libvlc_spu_font_color:
+            var_SetInteger( p_mi, "freetype-color", value );
+            break;
+        case libvlc_spu_position:
+            p_vout = input_GetVout( p_input_thread );
+            if (p_vout != NULL) {
+                var_SetInteger(p_vout , "sub-margin", value );
+            }
+            break;
+        default:
+            ret = VLC_EGENERIC;
+            break;
+    }
+
+    return ret;
+}

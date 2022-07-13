@@ -338,3 +338,4 @@ libvlc_picture_list_count
 libvlc_picture_list_destroy
 libvlc_tdx_init_fontconfig
 libvlc_audio_get_channel_list
+libvlc_media_player_set_spu_option
