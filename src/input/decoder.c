@@ -1578,11 +1578,11 @@ static void *DecoderThread( void *p_data )
             vlc_fifo_Unlock( p_owner->p_fifo );
 
             /* NOTE: Only the audio and video outputs care about pause. */
-            msg_Dbg( p_dec, "toggling %s", paused ? "resume" : "pause" );
-            if( p_owner->p_vout != NULL )
-                vout_ChangePause( p_owner->p_vout, paused, date );
-            if( p_owner->p_aout != NULL )
-                aout_DecChangePause( p_owner->p_aout, paused, date );
+        //    msg_Dbg( p_dec, "toggling %s", paused ? "resume" : "pause" );
+        //     if( p_owner->p_vout != NULL )
+        //         vout_ChangePause( p_owner->p_vout, paused, date );
+        //     if( p_owner->p_aout != NULL )
+        //         aout_DecChangePause( p_owner->p_aout, paused, date );
 
             vlc_restorecancel( canc );
             vlc_fifo_Lock( p_owner->p_fifo );
@@ -2273,6 +2273,10 @@ void input_DecoderChangePause( decoder_t *p_dec, bool b_paused, mtime_t i_date )
     p_owner->frames_countdown = 0;
     vlc_fifo_Signal( p_owner->p_fifo );
     vlc_fifo_Unlock( p_owner->p_fifo );
+    if(p_owner->p_vout != NULL)
+	vout_ChangePause(p_owner->p_vout, b_paused,p_owner->pause_date);
+    if (p_owner->p_aout != NULL)
+	aout_DecChangePause(p_owner->p_aout, b_paused, p_owner->pause_date);
 }
 
 void input_DecoderChangeDelay( decoder_t *p_dec, mtime_t i_delay )

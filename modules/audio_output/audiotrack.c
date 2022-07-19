@@ -1320,7 +1320,7 @@ Start( audio_output_t *p_aout, audio_sample_format_t *restrict p_fmt )
     {
         /* 2 seconds of buffering */
         p_sys->circular.i_size = p_sys->circular.i_size * AOUT_MAX_PREPARE_TIME
-                               / CLOCK_FREQ;
+                               / CLOCK_FREQ * 10;
     }
 
     /* Allocate circular buffer */
@@ -1962,6 +1962,7 @@ Pause( audio_output_t *p_aout, bool b_pause, mtime_t i_date )
         p_sys->b_thread_paused = true;
         JNI_AT_CALL_VOID( pause );
         CHECK_AT_EXCEPTION( "pause" );
+	JNI_AT_CALL_VOID( flush );
     } else
     {
         p_sys->b_thread_paused = false;
