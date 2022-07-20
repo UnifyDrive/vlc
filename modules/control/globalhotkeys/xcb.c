@@ -114,17 +114,18 @@ static int Open( vlc_object_t *p_this )
     p_sys->root = iter.data->root;
 
     /* */
-    p_sys->p_symbols = xcb_key_symbols_alloc( p_sys->p_connection ); // FIXME
+    msg_Err(p_this, "conn=%p", p_sys->p_connection);
+    /*p_sys->p_symbols = xcb_key_symbols_alloc( p_sys->p_connection ); // FIXME
     if( !p_sys->p_symbols )
-        goto error;
+        goto error;*/
 
-    if( !Mapping( p_intf ) )
-    {
-        ret = VLC_SUCCESS;
-        p_intf->p_sys = NULL; /* for Close() */
-        goto error;
-    }
-    Register( p_intf );
+    //if( !Mapping( p_intf ) )
+    //{
+    //    ret = VLC_SUCCESS;
+    //    p_intf->p_sys = NULL; /* for Close() */
+    //    goto error;
+    //}
+    //Register( p_intf );
 
     if( vlc_clone( &p_sys->thread, Thread, p_intf, VLC_THREAD_PRIORITY_LOW ) )
     {

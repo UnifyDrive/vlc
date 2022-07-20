@@ -61,7 +61,7 @@ key_handler_t *XCB_keyHandler_Create (vlc_object_t *obj,
         return NULL;
 
     ctx->obj = obj;
-    ctx->syms = xcb_key_symbols_alloc (conn);
+    //ctx->syms = xcb_key_symbols_alloc (conn);
     return ctx;
 }
 
