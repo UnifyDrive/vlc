@@ -1,4 +1,6 @@
+if !HAVE_WIN32
 LIBTOOL=@LIBTOOL@ --tag=CC
+endif
 
 neondir = $(pluginsdir)/arm_neon
 
