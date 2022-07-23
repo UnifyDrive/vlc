@@ -141,6 +141,8 @@ struct decoder_owner_sys_t
 
     /* Delay */
     mtime_t i_ts_delay;
+
+    bool b_first_frame;
 };
 
 /* Pictures which are DECODER_BOGUS_VIDEO_DELAY or more in advance probably have
@@ -1464,6 +1466,17 @@ static void DecoderProcess( decoder_t *p_dec, block_t *p_block )
     }
     else
         DecoderDecode( p_dec, p_block );
+    /*if demux format is dvdnav, then directly into video playback*/
+    if (!p_owner->b_first_frame && p_dec->fmt_out.i_cat == VIDEO_ES) {
+        input_thread_private_t *priv = input_priv(p_owner->p_input);
+        char * module_name = module_get_object (priv->master->p_demux->p_module);
+        msg_Dbg( p_dec, "demux module_name = %s",module_name);
+
+        if (!strcmp(module_name, "dvdnav")) {
+            input_Control( p_owner->p_input, INPUT_NAV_ACTIVATE );
+        }
+        p_owner->b_first_frame = true;
+    }
     return;
 
 error:
