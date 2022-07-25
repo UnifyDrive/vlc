@@ -1466,17 +1466,6 @@ static void DecoderProcess( decoder_t *p_dec, block_t *p_block )
     }
     else
         DecoderDecode( p_dec, p_block );
-    /*if demux format is dvdnav, then directly into video playback*/
-    if (!p_owner->b_first_frame && p_dec->fmt_out.i_cat == VIDEO_ES) {
-        input_thread_private_t *priv = input_priv(p_owner->p_input);
-        char * module_name = module_get_object (priv->master->p_demux->p_module);
-        msg_Dbg( p_dec, "demux module_name = %s",module_name);
-
-        if (!strcmp(module_name, "dvdnav")) {
-            input_Control( p_owner->p_input, INPUT_NAV_ACTIVATE );
-        }
-        p_owner->b_first_frame = true;
-    }
     return;
 
 error:
@@ -1652,6 +1641,17 @@ static void *DecoderThread( void *p_data )
         vlc_fifo_Lock( p_owner->p_fifo );
         vlc_cond_signal( &p_owner->wait_acknowledge );
         vlc_mutex_unlock( &p_owner->lock );
+        /*if demux format is dvdnav, then directly into video playback*/
+        if (!p_owner->b_first_frame && p_dec->fmt_out.i_cat == VIDEO_ES) {
+            input_thread_private_t *priv = input_priv(p_owner->p_input);
+            char * module_name = module_get_object (priv->master->p_demux->p_module);
+            msg_Dbg( p_dec, "demux module_name = %s",module_name);
+
+            if (!strcmp(module_name, "dvdnav")) {
+                input_Control( p_owner->p_input, INPUT_NAV_ACTIVATE );
+            }
+            p_owner->b_first_frame = true;
+        }
     }
     vlc_cleanup_pop();
     vlc_assert_unreachable();
@@ -1716,6 +1716,7 @@ static decoder_t * CreateDecoder( vlc_object_t *p_parent,
     p_owner->drained = false;
     atomic_init( &p_owner->reload, RELOAD_NO_REQUEST );
     p_owner->b_idle = false;
+    p_owner->b_first_frame = false;
 
     es_format_Init( &p_owner->fmt, fmt->i_cat, 0 );
 
