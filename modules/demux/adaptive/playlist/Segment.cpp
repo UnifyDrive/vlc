@@ -144,6 +144,7 @@ size_t ISegment::getOffset() const
 
 void ISegment::debug(vlc_object_t *obj, int indent) const
 {
+    return;
     std::stringstream ss;
     ss.imbue(std::locale("C"));
     ss << std::string(indent, ' ') << debugName << " #" << getSequenceNumber();
