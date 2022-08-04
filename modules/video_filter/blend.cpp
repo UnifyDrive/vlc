@@ -309,7 +309,13 @@ public:
             // the RGB components should be copied as is and
             // alpha set to 'a'. If the existing alpha is 255,
             // this should behave just as the non-alpha case below.
-
+//Optimize subtitle blend by tzj
+#if defined(__ANDROID__)
+            dst[offset_r] = spx.i;
+            dst[offset_g] = spx.j;
+            dst[offset_b] = spx.k;
+            dst[offset_a] = spx.a;
+#else
             // First blend the existing color based on its
             // alpha with the incoming color.
             ::merge(&dst[offset_r], spx.i, 255 - dst[offset_a]);
@@ -321,6 +327,7 @@ public:
             ::merge(&dst[offset_b], spx.k, a);
             // Finally set dst_a = (255 * src_a + prev_a * (255 - src_a))/255.
             ::merge(&dst[offset_a], 255, a);
+#endif
         } else {
             ::merge(&dst[offset_r], spx.i, a);
             ::merge(&dst[offset_g], spx.j, a);
@@ -654,7 +661,7 @@ static void Blend(filter_t *filter,
 
     video_format_FixRgb(&filter->fmt_out.video);
     video_format_FixRgb(&filter->fmt_in.video);
-
+    msg_Err( filter, "sys->blend begin" );
     sys->blend(CPicture(dst, &filter->fmt_out.video,
                         filter->fmt_out.video.i_x_offset + x_offset,
                         filter->fmt_out.video.i_y_offset + y_offset),
@@ -662,6 +669,7 @@ static void Blend(filter_t *filter,
                         filter->fmt_in.video.i_x_offset,
                         filter->fmt_in.video.i_y_offset),
                width, height, alpha);
+    msg_Err( filter, "sys->blend end" );
 }
 
 static int Open(vlc_object_t *object)
