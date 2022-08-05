@@ -45,8 +45,10 @@
 #include "../xiph.h"
 #include "../vobsub.h"
 
+#include <libavutil/opt.h>
 #include <libavformat/avformat.h>
 #include <libavutil/display.h>
+
 
 //#define AVFORMAT_DEBUG 1
 
@@ -350,7 +352,12 @@ int avformat_OpenDemux( vlc_object_t *p_this )
         free(psz_opts);
     }
     vlc_avcodec_lock(); /* avformat calls avcodec behind our back!!! */
-    error = avformat_find_stream_info( p_sys->ic, options );
+    // TDX  ...
+//    error = avformat_find_stream_info( p_sys->ic, options );
+    av_opt_set_int(p_sys->ic, "analyzeduration", 500000, 0);
+    av_opt_set_int(p_sys->ic, "probesize", 4096, 0);
+
+    error = avformat_find_stream_info( p_sys->ic, NULL );
     vlc_avcodec_unlock();
     AVDictionaryEntry *t = NULL;
     while ((t = av_dict_get(options[0], "", t, AV_DICT_IGNORE_SUFFIX))) {

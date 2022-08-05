@@ -476,11 +476,18 @@ static const struct vlc_avcodec_fourcc audio_codecs[] =
 /* Subtitle streams */
 static const struct vlc_avcodec_fourcc spu_codecs[] =
 {
+    // TDX  ...
     { VLC_CODEC_SPU, AV_CODEC_ID_DVD_SUBTITLE },
     { VLC_CODEC_DVBS, AV_CODEC_ID_DVB_SUBTITLE },
     { VLC_CODEC_SUBT, AV_CODEC_ID_TEXT },
+    { VLC_CODEC_SUBT, AV_CODEC_ID_SUBRIP},
     { VLC_CODEC_XSUB, AV_CODEC_ID_XSUB },
+    { VLC_CODEC_SSA, AV_CODEC_ID_ASS},
     { VLC_CODEC_SSA, AV_CODEC_ID_SSA },
+    { VLC_CODEC_SUBT, AV_CODEC_ID_SRT},
+    { VLC_CODEC_WEBVTT, AV_CODEC_ID_WEBVTT},
+    { VLC_CODEC_CEA608, AV_CODEC_ID_EIA_608},
+    { VLC_CODEC_TTML, AV_CODEC_ID_TTML},
     /* AV_CODEC_ID_MOV_TEXT */
     { VLC_CODEC_BD_PG, AV_CODEC_ID_HDMV_PGS_SUBTITLE },
 #if LIBAVCODEC_VERSION_CHECK( 57, 999, 999, 71, 100 )
