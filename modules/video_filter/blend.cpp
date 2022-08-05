@@ -540,8 +540,12 @@ void Blend(const CPicture &dst_data, const CPicture &src_data,
 
             src.get(&spx, x);
             convert(spx);
-
+//Optimize subtitle blend by tzj
+#if defined(__ANDROID__)
+            unsigned a = spx.a;
+#else
             unsigned a = div255(alpha * spx.a);
+#endif
             if (a <= 0)
                 continue;
 
