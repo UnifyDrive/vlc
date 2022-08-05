@@ -249,6 +249,9 @@ static void FixSubtitleFormat(vout_display_sys_t *sys)
         i_video_height = fmt.i_visible_height;
     }
 
+    if (sys->embed) {
+        msg_Dbg(sys->embed, "[%s:%s:%d]=zspace=: Now video size %dx%d", __FILE__ , __FUNCTION__, __LINE__, i_video_width, i_video_height);
+    }
     if (fmt.i_sar_num > 0 && fmt.i_sar_den > 0) {
         if (fmt.i_sar_num >= fmt.i_sar_den)
             i_video_width = i_video_width * fmt.i_sar_num / fmt.i_sar_den;
@@ -278,6 +281,9 @@ static void FixSubtitleFormat(vout_display_sys_t *sys)
     if (i_width * i_height < i_video_width * i_video_height) {
         i_width = i_video_width;
         i_height = i_video_height;
+        if (sys->embed) {
+            msg_Dbg(sys->embed, "[%s:%s:%d]=zspace=: Display size is small, use video size for subtitle.", __FILE__ , __FUNCTION__, __LINE__);
+        }
     }
 
     if (sys->embed) {
@@ -698,7 +704,7 @@ static int OpenCommon(vout_display_t *vd)
 
     sys->i_display_width = vd->cfg->display.width;
     sys->i_display_height = vd->cfg->display.height;
-    msg_Dbg(vd, "[%s:%s:%d]=zspace=: set sys->i_display_width=%d, sys->i_display_height=%d from vd.", __FILE__ , __FUNCTION__, __LINE__, 
+    msg_Dbg(vd, "[%s:%s:%d]=zspace=: set vout_display_sys_t i_display_width=%d, i_display_height=%d from vd->cfg->display.", __FILE__ , __FUNCTION__, __LINE__, 
         sys->i_display_width, sys->i_display_height);
 
     if (vd->fmt.i_chroma != VLC_CODEC_ANDROID_OPAQUE) {
@@ -1081,8 +1087,8 @@ static void SubpicturePrepare(vout_display_t *vd, subpicture_t *subpicture)
 
         sys->i_sub_last_order = subpicture->i_order;
         sys->sub_last_region = memset_bounds;
-        msg_Dbg(vd, "[%s:%s:%d]=zspace=: memset_bounds [%d,%d,  %d,%d],sys->i_sub_last_order=%d", __FILE__ , __FUNCTION__, __LINE__, 
-            memset_bounds.left, memset_bounds.top, memset_bounds.right, memset_bounds.bottom, sys->i_sub_last_order);
+        /*msg_Dbg(vd, "[%s:%s:%d]=zspace=: memset_bounds [%d,%d,  %d,%d],sys->i_sub_last_order=%d", __FILE__ , __FUNCTION__, __LINE__, 
+            memset_bounds.left, memset_bounds.top, memset_bounds.right, memset_bounds.bottom, sys->i_sub_last_order);*/
     }
 
     if (AndroidWindow_LockPicture(sys, sys->p_sub_window, sys->p_sub_pic) != 0) {
@@ -1092,7 +1098,7 @@ static void SubpicturePrepare(vout_display_t *vd, subpicture_t *subpicture)
 
     /* Clear the subtitles surface. */
     SubtitleGetDirtyBounds(vd, subpicture, &memset_bounds);
-    msg_Dbg(vd, "[%s:%s:%d]=zspace=: Subtitle dirty bounds [%d,%d,  %d,%d]", __FILE__ , __FUNCTION__, __LINE__, memset_bounds.left, memset_bounds.top, memset_bounds.right, memset_bounds.bottom);
+    //msg_Dbg(vd, "[%s:%s:%d]=zspace=: Subtitle dirty bounds [%d,%d,  %d,%d]", __FILE__ , __FUNCTION__, __LINE__, memset_bounds.left, memset_bounds.top, memset_bounds.right, memset_bounds.bottom);
     const int x_pixels_offset = memset_bounds.left
                                 * sys->p_sub_pic->p[0].i_pixel_pitch;
     const int i_line_size = (memset_bounds.right - memset_bounds.left)

@@ -637,6 +637,8 @@ void vout_SetDisplayWindowSize(vout_thread_t *vout,
 {
     vout_window_t *window = vout->p->window;
 
+    msg_Dbg(vout, "[%s:%s:%d]=zspace=: Input width=%d, height=%d window=%p, display.vd=%p.", __FILE__ , __FUNCTION__, __LINE__, 
+        width, height, window, vout->p->display.vd);
     if (window != NULL)
     /* Request a resize of the window. If it fails, there is nothing to do.
      * If it succeeds, the window will emit a resize event later. */
@@ -978,6 +980,7 @@ static int ThreadDisplayRenderPicture(vout_thread_t *vout, bool is_forced)
 {
     vout_thread_sys_t *sys = vout->p;
     vout_display_t *vd = vout->p->display.vd;
+    bool force_use_display = false;
 
     picture_t *torender = picture_Hold(vout->p->displayed.current);
 
@@ -1029,7 +1032,10 @@ static int ThreadDisplayRenderPicture(vout_thread_t *vout, bool is_forced)
         vout_display_PlacePicture(&place, &vd->source, vd->cfg, false);
 
         fmt_spu = vd->source;
-        if (fmt_spu.i_width * fmt_spu.i_height < place.width * place.height) {
+        #if defined(__ANDROID__)
+        force_use_display = true;
+        #endif
+        if (force_use_display || fmt_spu.i_width * fmt_spu.i_height < place.width * place.height) {
             fmt_spu.i_sar_num = vd->cfg->display.sar.num;
             fmt_spu.i_sar_den = vd->cfg->display.sar.den;
             fmt_spu.i_width          =

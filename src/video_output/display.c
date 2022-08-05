@@ -699,10 +699,17 @@ static void VoutDisplayFitWindow(vout_display_t *vd, bool default_size)
         cfg.zoom.den = 1;
     }
 
-    unsigned display_width;
-    unsigned display_height;
+    unsigned display_width = 0;
+    unsigned display_height = 0;
+    msg_Dbg(vd, "[%s:%s:%d]=zspace=: Now vout_display_owner_sys_t->cfg vale width=%d, height=%d zoom.num=%d, zoom.den=%d.", __FILE__ , __FUNCTION__, __LINE__, 
+        cfg.display.width, cfg.display.height, cfg.zoom.num, cfg.zoom.den);
     vout_display_GetDefaultDisplaySize(&display_width, &display_height,
                                        &vd->source, &cfg);
+    #if defined(__ANDROID__)
+    //cfg.display.width = display_width;
+    //cfg.display.height = display_height;
+    #endif
+    msg_Dbg(vd, "[%s:%s:%d]=zspace=: Reset DisplayWindowSize (%d, %d) .", __FILE__ , __FUNCTION__, __LINE__, display_width, display_height);
     vout_SetDisplayWindowSize(osys->vout, display_width, display_height);
 }
 

@@ -265,7 +265,8 @@ struct vout_display_t {
      * It reflects the current values, i.e. after the event has been accepted
      * and applied/configured if needed.
      */
-    const vout_display_cfg_t *cfg;
+    //const vout_display_cfg_t *cfg;
+    vout_display_cfg_t *cfg;//for 4k + subtitle slow problem on TV.
 
     /* video source format.
      *

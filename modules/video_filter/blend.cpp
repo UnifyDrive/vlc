@@ -673,7 +673,17 @@ static void Blend(filter_t *filter,
 
     video_format_FixRgb(&filter->fmt_out.video);
     video_format_FixRgb(&filter->fmt_in.video);
-    msg_Err( filter, "sys->blend begin" );
+
+    //msg_Err( filter, "sys->blend begin" );
+
+    /*msg_Dbg(filter, "[%s:%s:%d]=zspace=: blending fmt_out.video.i_x_offset=%d, fmt_out.video.i_y_offset=%d, x_offset=%d, y_offset=%d,fmt_in.video.i_x_offset=%d, fmt_in.video.i_y_offset=%d,width=%d,height=%d", __FILE__, __FUNCTION__, __LINE__,
+                    filter->fmt_out.video.i_x_offset,
+                    filter->fmt_out.video.i_y_offset,
+                    x_offset,
+                    y_offset,
+                    filter->fmt_in.video.i_x_offset,
+                    filter->fmt_in.video.i_y_offset,
+                    width, height);*/
     sys->blend(CPicture(dst, &filter->fmt_out.video,
                         filter->fmt_out.video.i_x_offset + x_offset,
                         filter->fmt_out.video.i_y_offset + y_offset),

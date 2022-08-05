@@ -292,8 +292,18 @@ unsigned picture_BlendSubpicture(picture_t *dst,
             msg_Err(blend, "blending %4.4s to %4.4s failed",
                     (char *)&blend->fmt_in.video.i_chroma,
                     (char *)&blend->fmt_out.video.i_chroma );
-        else
+        else {
             done++;
+            /*msg_Dbg(blend, "[%s:%s:%d]=zspace=: blending %4.4s to %4.4s success r->fmt[%4.4s]", __FILE__ , __FUNCTION__, __LINE__,
+                    (char *)&blend->fmt_in.video.i_chroma,
+                    (char *)&blend->fmt_out.video.i_chroma, (char *)&r->fmt);
+            msg_Dbg(blend, "[%s:%s:%d]=zspace=: blending dst->format.i_width=%d, dst->format.i_height=%d", __FILE__, __FUNCTION__, __LINE__,
+                    dst->format.i_width,
+                    dst->format.i_height );
+            msg_Dbg(blend, "[%s:%s:%d]=zspace=: blending r->i_x=%d, r->i_y=%d", __FILE__, __FUNCTION__, __LINE__,
+                    r->i_x,
+                    r->i_y );*/
+        }
     }
     return done;
 }
