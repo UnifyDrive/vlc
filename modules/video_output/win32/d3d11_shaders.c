@@ -214,7 +214,7 @@ HRESULT D3D11_CompilePixelShader(vlc_object_t *o, d3d11_handle_t *hd3d, bool leg
     const char *psz_src_transform     = DEFAULT_NOOP;
     const char *psz_display_transform = DEFAULT_NOOP;
     const char *psz_primaries_transform = DEFAULT_NOOP;
-    const char *psz_tone_mapping      = "return rgb * LuminanceScale";
+    const char *psz_tone_mapping      = DEFAULT_NOOP;
     const char *psz_adjust_range      = DEFAULT_NOOP;
     char *psz_range = NULL;
 
@@ -282,7 +282,7 @@ HRESULT D3D11_CompilePixelShader(vlc_object_t *o, d3d11_handle_t *hd3d, bool leg
                        "rgb = pow(max(rgb, 0), 1.0/ST2084_m2);\n"
                        "rgb = max(rgb - ST2084_c1, 0.0) / (ST2084_c2 - ST2084_c3 * rgb);\n"
                        "rgb = pow(rgb, 1.0/ST2084_m1);\n"
-                       "return rgb * 10000";
+                       "return rgb";
                 src_transfer = TRANSFER_FUNC_LINEAR;
                 break;
             case TRANSFER_FUNC_HLG:
@@ -341,7 +341,7 @@ HRESULT D3D11_CompilePixelShader(vlc_object_t *o, d3d11_handle_t *hd3d, bool leg
                     /* Linear to ST2084 */
                     psz_display_transform =
                            ST2084_PQ_CONSTANTS
-                           "rgb = pow(rgb / 10000, ST2084_m1);\n"
+                           "rgb = pow(rgb, ST2084_m1);\n"
                            "rgb = (ST2084_c1 + ST2084_c2 * rgb) / (1 + ST2084_c3 * rgb);\n"
                            "rgb = pow(rgb, ST2084_m2);\n"
                            "return rgb";
