@@ -65,6 +65,7 @@ struct avformat_track_s
 {
     es_out_id_t *p_es;
     mtime_t i_pcr;
+    enum AVMediaType codec_type;
 };
 
 /*****************************************************************************
@@ -425,6 +426,7 @@ int avformat_OpenDemux( vlc_object_t *p_this )
                 es_fmt.i_original_fourcc = VLC_FOURCC('A','D','T','S');
                 es_fmt.b_packetized = false;
             }
+            p_track->codec_type = cp->codec_type;
             break;
 
         case AVMEDIA_TYPE_VIDEO:
@@ -482,6 +484,7 @@ int avformat_OpenDemux( vlc_object_t *p_this )
                 es_fmt.video.i_sar_den = s->sample_aspect_ratio.den;
             else
                 es_fmt.video.i_sar_den = 0;
+            p_track->codec_type = cp->codec_type;
             break;
 
         case AVMEDIA_TYPE_SUBTITLE:
@@ -534,7 +537,7 @@ int avformat_OpenDemux( vlc_object_t *p_this )
                 es_fmt.subs.dvb.i_id = GetWBE( cp->extradata ) |
                                       (GetWBE( cp->extradata + 2 ) << 16);
             }
-
+            p_track->codec_type = cp->codec_type;
             psz_type = "subtitle";
             break;
 
@@ -570,6 +573,7 @@ int avformat_OpenDemux( vlc_object_t *p_this )
 
                 msg_Warn( p_demux, "unsupported track type (%u:%u) in avformat demux", cp->codec_type, cp->codec_id );
             }
+            p_track->codec_type = AVMEDIA_TYPE_UNKNOWN;
             break;
         }
 
@@ -883,7 +887,8 @@ static int Demux( demux_t *p_demux )
     int64_t i_ts_max = INT64_MIN;
     for( unsigned i = 0; i < p_sys->i_tracks; i++ )
     {
-        if( p_sys->tracks[i].p_es != NULL )
+        if( p_sys->tracks[i].p_es != NULL &&
+           (p_sys->tracks[i].codec_type == AVMEDIA_TYPE_AUDIO || p_sys->tracks[i].codec_type == AVMEDIA_TYPE_VIDEO))
             i_ts_max = __MAX( i_ts_max, p_sys->tracks[i].i_pcr );
     }
 
@@ -892,7 +897,8 @@ static int Demux( demux_t *p_demux )
     {
         if( p_sys->tracks[i].p_es != NULL &&
                 p_sys->tracks[i].i_pcr > VLC_TS_INVALID &&
-                p_sys->tracks[i].i_pcr + 10 * CLOCK_FREQ >= i_ts_max )
+                p_sys->tracks[i].i_pcr + 10 * CLOCK_FREQ >= i_ts_max &&
+                (p_sys->tracks[i].codec_type == AVMEDIA_TYPE_AUDIO || p_sys->tracks[i].codec_type == AVMEDIA_TYPE_VIDEO))
             i_ts_min = __MIN( i_ts_min, p_sys->tracks[i].i_pcr );
     }
     if( i_ts_min >= p_sys->i_pcr && likely(i_ts_min != INT64_MAX) )
