@@ -490,6 +490,25 @@ libvlc_media_t *libvlc_media_new_path( libvlc_instance_t *p_instance,
     return m;
 }
 
+libvlc_media_t *libvlc_media_new_path_hdmi( libvlc_instance_t *p_instance,
+                                      const char *path, const char *scheme)
+{
+   char *mrl = vlc_path2uri( path, scheme );
+   if( unlikely(mrl == NULL) )
+   {
+       libvlc_printerr( "%s", vlc_strerror_c(errno) );
+       return NULL;
+   }
+
+   libvlc_media_t *m = libvlc_media_new_location( p_instance, mrl );
+   if (p_instance && p_instance->p_libvlc_int) {
+       msg_Dbg(p_instance->p_libvlc_int, "[%s:%s:%d]=zspace=: Input path[%s],convert uri[%s]", __FILE__ , __FUNCTION__, __LINE__, path, mrl);
+   }
+   free( mrl );
+   return m;
+}
+
+
 libvlc_media_t *libvlc_media_new_fd( libvlc_instance_t *p_instance, int fd )
 {
     char mrl[16];

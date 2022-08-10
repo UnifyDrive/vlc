@@ -418,6 +418,10 @@ LIBVLC_API libvlc_media_t *libvlc_media_new_location(
 LIBVLC_API libvlc_media_t *libvlc_media_new_path(
                                    libvlc_instance_t *p_instance,
                                    const char *path );
+LIBVLC_API libvlc_media_t *libvlc_media_new_path_hdmi(
+                                   libvlc_instance_t *p_instance,
+                                   const char *path, const char *scheme);
+
 
 /**
  * Create a media for an already open file descriptor.
