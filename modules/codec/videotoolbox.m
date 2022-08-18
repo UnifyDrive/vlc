@@ -1728,10 +1728,13 @@ static CMSampleBufferRef VTSampleBufferCreate(decoder_t *p_dec,
     CMBlockBufferRef  block_buf = NULL;
     CMSampleBufferRef sample_buf = NULL;
     CMTime pts;
-    if(!p_dec->p_sys->b_poc_based_reorder && p_block->i_pts == VLC_TS_INVALID)
+    if(!p_dec->p_sys->b_poc_based_reorder && p_block->i_pts == VLC_TS_INVALID) {
         pts = CMTimeMake(p_block->i_dts, CLOCK_FREQ);
-    else
+        //msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: p_block->i_dts=%lld from dts.", __FILE__ , __FUNCTION__, __LINE__, p_block->i_dts);
+    } else {
         pts = CMTimeMake(p_block->i_pts, CLOCK_FREQ);
+        //msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: p_block->i_pts=%lld from pts, p_block->i_dts=%lld.", __FILE__ , __FUNCTION__, __LINE__, p_block->i_pts, p_block->i_dts);
+    }
 
     CMSampleTimingInfo timeInfoArray[1] = { {
         .duration = CMTimeMake(p_block->i_length, 1),
@@ -1896,6 +1899,8 @@ static int DecodeBlock(decoder_t *p_dec, block_t *p_block)
         return VLCDEC_SUCCESS;
     }
 
+    //msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: p_block->i_pts=%lld, p_block->i_dts=%lld, Ori input.", __FILE__ , __FUNCTION__, __LINE__, p_block->i_pts, p_block->i_dts);
+
     vlc_mutex_lock(&p_sys->lock);
 
     if (p_block->i_flags & BLOCK_FLAG_INTERLACED_MASK)
@@ -1996,16 +2001,25 @@ static int DecodeBlock(decoder_t *p_dec, block_t *p_block)
     }
 
     bool b_config_changed = false;
+    mtime_t     i_z_pts = p_block->i_pts;
+    mtime_t     i_z_dts = p_block->i_dts;
     if(p_sys->pf_process_block)
     {
         p_block = p_sys->pf_process_block(p_dec, p_block, &b_config_changed);
         if (!p_block)
             return VLCDEC_SUCCESS;
+        if (p_sys->hh.b_is_xvcC == false) {
+            p_block->i_pts = i_z_pts;
+            p_block->i_dts = i_z_dts;
+        }
+        //msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: p_block->i_pts=%lld, p_block->i_dts=%lld, After pf_process_block, p_sys->hh.b_is_xvcC=[%s], p_sys->hh.b_need_xvcC=[%s].", __FILE__ , __FUNCTION__, __LINE__,
+            //p_block->i_pts, p_block->i_dts, p_sys->hh.b_is_xvcC?"true":"false", p_sys->hh.b_need_xvcC?"true":"false");
     }
 
     frame_info_t *p_info = CreateReorderInfo(p_dec, p_block);
     if(unlikely(!p_info))
         goto skip;
+    //msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: p_block->i_pts=%lld, p_block->i_dts=%lld, After CreateReorderInfo.", __FILE__ , __FUNCTION__, __LINE__, p_block->i_pts, p_block->i_dts);
 
     if (!p_sys->session /* Late Start */||
         (b_config_changed && p_info->b_flush))
@@ -2291,6 +2305,7 @@ static void DecoderCallback(void *decompressionOutputRefCon,
         p_info->p_picture = p_pic;
 
         p_pic->date = pts.value;
+        //msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Set p_pic->date=%lld(us).", __FILE__ , __FUNCTION__, __LINE__, p_pic->date);
         p_pic->b_force = p_info->b_forced;
         p_pic->b_progressive = p_info->b_progressive;
         if(!p_pic->b_progressive)

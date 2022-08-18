@@ -51,6 +51,7 @@
 #include "decoder.h"
 #include "event.h"
 #include "resource.h"
+#include "modules/modules.h"
 
 #include "../video_output/vout_control.h"
 
@@ -640,6 +641,7 @@ static mtime_t DecoderGetDisplayDate( decoder_t *p_dec, mtime_t i_ts )
     if( !p_owner->p_clock || i_ts <= VLC_TS_INVALID )
         return i_ts;
 
+    //msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Do convertTS.", __FILE__ , __FUNCTION__, __LINE__);
     if( input_clock_ConvertTS( VLC_OBJECT(p_dec), p_owner->p_clock, NULL, &i_ts, NULL, INT64_MAX ) ) {
         msg_Err(p_dec, "Could not get display date for timestamp %"PRId64"", i_ts);
         return VLC_TS_INVALID;
@@ -802,6 +804,7 @@ static void DecoderFixTs( decoder_t *p_dec, mtime_t *pi_ts0, mtime_t *pi_ts1,
             *pi_ts1 += i_es_delay;
         if( i_ts_bound != INT64_MAX )
             i_ts_bound += i_es_delay;
+        //msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Do convertTS.", __FILE__ , __FUNCTION__, __LINE__);
         if( input_clock_ConvertTS( VLC_OBJECT(p_dec), p_clock, &i_rate, pi_ts0, pi_ts1, i_ts_bound ) ) {
             const char *psz_name = module_get_name( p_dec->p_module, false );
             if( pi_ts1 != NULL )
@@ -1004,6 +1007,7 @@ static int DecoderPlayVideo( decoder_t *p_dec, picture_t *p_picture,
     vout_thread_t  *p_vout = p_owner->p_vout;
     bool prerolled;
 
+    //msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Ori p_picture->date=%lld(us).", __FILE__ , __FUNCTION__, __LINE__, p_picture->date);
     vlc_mutex_lock( &p_owner->lock );
     if( p_owner->i_preroll_end > p_picture->date )
     {
@@ -1054,6 +1058,7 @@ static int DecoderPlayVideo( decoder_t *p_dec, picture_t *p_picture,
     int i_rate = INPUT_RATE_DEFAULT;
     DecoderFixTs( p_dec, &p_picture->date, NULL, NULL,
                   &i_rate, DECODER_BOGUS_VIDEO_DELAY );
+    //msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Get picture display date=%lld.", __FILE__ , __FUNCTION__, __LINE__, p_picture->date);
 
     vlc_mutex_unlock( &p_owner->lock );
 
@@ -1623,6 +1628,9 @@ static void *DecoderThread( void *p_data )
         vlc_fifo_Unlock( p_owner->p_fifo );
 
         int canc = vlc_savecancel();
+        /*if (p_dec->p_module->psz_shortname == NULL) {
+            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: p_block->i_pts=%lld , p_block->i_dts=%lld get from p_fifo [%s].", __FILE__ , __FUNCTION__, __LINE__, p_block->i_pts, p_block->i_dts, p_dec->p_module->psz_shortname);
+        }*/
         DecoderProcess( p_dec, p_block );
 
         if( p_block == NULL )

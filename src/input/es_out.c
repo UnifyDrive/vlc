@@ -612,6 +612,7 @@ static void EsOutChangePosition( es_out_t *out )
 
     input_SendEventCache( p_sys->p_input, 0.0 );
 
+    msg_Dbg(p_sys->p_input, "[%s:%s:%d]=zspace=: p_sys->i_es=%d .", __FILE__ , __FUNCTION__, __LINE__, p_sys->i_es);
     for( int i = 0; i < p_sys->i_es; i++ )
     {
         es_out_id_t *p_es = p_sys->es[i];
@@ -629,6 +630,7 @@ static void EsOutChangePosition( es_out_t *out )
         p_es->i_pts_level = VLC_TS_INVALID;
     }
 
+    msg_Dbg(p_sys->p_input, "[%s:%s:%d]=zspace=: p_sys->i_pgrm=%d .", __FILE__ , __FUNCTION__, __LINE__, p_sys->i_pgrm);
     for( int i = 0; i < p_sys->i_pgrm; i++ ) {
         input_clock_Reset( p_sys->pgrm[i]->p_clock );
         p_sys->pgrm[i]->i_last_pcr = VLC_TS_INVALID;
@@ -2841,6 +2843,7 @@ static int EsOutControlLocked( es_out_t *out, int i_query, va_list args )
         // tdx add
         p_sys->playerState = true;
         assert( i_date == -1 );
+        msg_Dbg(p_sys->p_input, "[%s:%s:%d]=zspace=: ES_OUT_SET_TIME i_date=%lld(us).", __FILE__ , __FUNCTION__, __LINE__, i_date);
         EsOutChangePosition( out );
 
         return VLC_SUCCESS;

@@ -244,6 +244,8 @@ void input_clock_Update( input_clock_t *cl, vlc_object_t *p_log,
     bool b_reset_reference = false;
 
     assert( i_ck_stream > VLC_TS_INVALID && i_ck_system > VLC_TS_INVALID );
+    //msg_Dbg(p_log, "[%s:%s:%d]=zspace=: b_can_pace_control[%s] b_buffering_allowed[%s] i_ck_stream=%lld i_ck_system=%lld.", __FILE__ , __FUNCTION__, __LINE__, b_can_pace_control?"true":"false",
+        //b_buffering_allowed?"true":"false", i_ck_stream, i_ck_system);
 
     vlc_mutex_lock( &cl->lock );
 
@@ -251,6 +253,7 @@ void input_clock_Update( input_clock_t *cl, vlc_object_t *p_log,
     {
         /* */
         b_reset_reference= true;
+        msg_Dbg(p_log, "[%s:%s:%d]=zspace=: b_has_reference == false.", __FILE__ , __FUNCTION__, __LINE__);
     }
     else if( cl->last.i_stream > VLC_TS_INVALID &&
              ( (cl->last.i_stream - i_ck_stream) > CR_MAX_GAP ||
@@ -432,10 +435,12 @@ int input_clock_ConvertTS( vlc_object_t *p_object, input_clock_t *cl,
     /* */
     if( *pi_ts0 > VLC_TS_INVALID )
     {
+        //msg_Dbg(p_object, "[%s:%s:%d]=zspace=: Input stream time =%lld, cl->ref.i_stream=%lld, cl->ref.i_system=%lld.", __FILE__ , __FUNCTION__, __LINE__, (*pi_ts0 + AvgGet( &cl->drift )), cl->ref.i_stream, cl->ref.i_system);
         *pi_ts0 = ClockStreamToSystem( cl, *pi_ts0 + AvgGet( &cl->drift ) );
         if( *pi_ts0 > cl->i_ts_max )
             cl->i_ts_max = *pi_ts0;
         *pi_ts0 += i_ts_delay;
+        //msg_Dbg(p_object, "[%s:%s:%d]=zspace=: *pi_ts0=%lld i_ts_delay=%lld(us).", __FILE__ , __FUNCTION__, __LINE__, *pi_ts0, i_ts_delay);
     }
 
     /* XXX we do not update i_ts_max on purpose */
@@ -443,6 +448,7 @@ int input_clock_ConvertTS( vlc_object_t *p_object, input_clock_t *cl,
     {
         *pi_ts1 = ClockStreamToSystem( cl, *pi_ts1 + AvgGet( &cl->drift ) ) +
                   i_ts_delay;
+        //msg_Dbg(p_object, "[%s:%s:%d]=zspace=: *pi_ts1=%lld(us) i_ts_delay=%lld(us).", __FILE__ , __FUNCTION__, __LINE__, *pi_ts1, i_ts_delay);
     }
 
     vlc_mutex_unlock( &cl->lock );
