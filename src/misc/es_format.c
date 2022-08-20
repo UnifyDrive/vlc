@@ -466,6 +466,9 @@ int es_format_Copy(es_format_t *restrict dst, const es_format_t *src)
 {
     int ret = VLC_SUCCESS;
 
+    if (dst == NULL || src == NULL) {
+        return VLC_ENOMEM;
+    }
     *dst = *src;
 
     if (src->psz_language != NULL)
