@@ -254,7 +254,15 @@ void D3D11_ReleaseDevice(d3d11_device_t *d3d_dev)
     }
     if (d3d_dev->d3ddevice)
     {
-        ID3D11Device_Release(d3d_dev->d3ddevice);
+        bool isWin10OrGreater = false;
+        HMODULE hKernel32 = GetModuleHandle(TEXT("kernel32.dll"));
+        if (likely(hKernel32 != NULL))
+            isWin10OrGreater = GetProcAddress(hKernel32, "GetSystemCpuSetInformation") != NULL;
+        if (isWin10OrGreater) {
+            //ID3D11Device_Release(d3d_dev->d3ddevice);
+        }else {
+            ID3D11Device_Release(d3d_dev->d3ddevice);
+        }
         d3d_dev->d3ddevice = NULL;
     }
 #if defined(HAVE_ID3D11VIDEODECODER)
