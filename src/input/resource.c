@@ -377,6 +377,11 @@ void input_resource_PutAout( input_resource_t *p_resource,
         p_resource->b_aout_busy = false;
         msg_Dbg( p_resource->p_parent, "keeping audio output" );
         p_aout = NULL;
+        #if defined (_WIN32)
+        p_aout = p_resource->p_aout;
+        p_resource->p_aout = NULL;
+        msg_Dbg(p_resource->p_parent, "[%s:%s:%d]=zspace=: Destroy p_resource->p_aout to rebuild it.", __FILE__ , __FUNCTION__, __LINE__);
+        #endif
     }
     else
         msg_Dbg( p_resource->p_parent, "destroying extra audio output" );

@@ -87,11 +87,17 @@ int aout_DecNew( audio_output_t *p_aout,
     var_Change (p_aout, "stereo-mode", VLC_VAR_SETVALUE,
                 &(vlc_value_t) { .i_int = owner->initial_stereo_mode }, NULL);
 
+    msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: Will run aout_OutputNew().", __FILE__ , __FUNCTION__, __LINE__);
     owner->filters_cfg = AOUT_FILTERS_CFG_INIT;
-    if (aout_OutputNew (p_aout, &owner->mixer_format, &owner->filters_cfg))
+    if (aout_OutputNew (p_aout, &owner->mixer_format, &owner->filters_cfg)) {
+        msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: Run aout_OutputNew() failed!", __FILE__ , __FUNCTION__, __LINE__);
         goto error;
+    }else {
+        msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: Run aout_OutputNew() success.", __FILE__ , __FUNCTION__, __LINE__);
+    }
     aout_volume_SetFormat (owner->volume, owner->mixer_format.i_format);
 
+    msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: Will run aout_FiltersNew().", __FILE__ , __FUNCTION__, __LINE__);
     /* Create the audio filtering "input" pipeline */
     owner->filters = aout_FiltersNew (p_aout, p_format, &owner->mixer_format,
                                       &owner->request_vout,
@@ -99,6 +105,7 @@ int aout_DecNew( audio_output_t *p_aout,
     if (owner->filters == NULL)
     {
         aout_OutputDelete (p_aout);
+        msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: Run aout_FiltersNew() failed!", __FILE__ , __FUNCTION__, __LINE__);
 error:
         aout_volume_Delete (owner->volume);
         owner->volume = NULL;
@@ -106,7 +113,7 @@ error:
         return -1;
     }
 
-
+    msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: Run aout_FiltersNew() success.", __FILE__ , __FUNCTION__, __LINE__);
     owner->sync.end = VLC_TS_INVALID;
     owner->sync.resamp_type = AOUT_RESAMPLING_NONE;
     owner->sync.discontinuity = true;

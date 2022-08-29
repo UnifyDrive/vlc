@@ -328,6 +328,7 @@ static int aout_update_format( decoder_t *p_dec )
          p_dec->fmt_out.i_profile != p_owner->fmt.i_profile ) )
     {
         audio_output_t *p_aout = p_owner->p_aout;
+        msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Parameters changed, restart the aout.", __FILE__ , __FUNCTION__, __LINE__);
 
         /* Parameters changed, restart the aout */
         vlc_mutex_lock( &p_owner->lock );
@@ -342,16 +343,19 @@ static int aout_update_format( decoder_t *p_dec )
     if( aout_replaygain_changed( &p_dec->fmt_in.audio_replay_gain,
                                  &p_owner->fmt.audio_replay_gain ) )
     {
+        msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: only replay gain has changed.", __FILE__ , __FUNCTION__, __LINE__);
         p_dec->fmt_out.audio_replay_gain = p_dec->fmt_in.audio_replay_gain;
         if( p_owner->p_aout )
         {
             p_owner->fmt.audio_replay_gain = p_dec->fmt_in.audio_replay_gain;
             var_TriggerCallback( p_owner->p_aout, "audio-replay-gain-mode" );
+            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: audio-replay-gain-mode.", __FILE__ , __FUNCTION__, __LINE__);
         }
     }
 
     if( p_owner->p_aout == NULL )
     {
+        msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: p_owner->p_aout == NULL, get new aout.", __FILE__ , __FUNCTION__, __LINE__);
         p_dec->fmt_out.audio.i_format = p_dec->fmt_out.i_codec;
 
         audio_sample_format_t format = p_dec->fmt_out.audio;
@@ -376,6 +380,7 @@ static int aout_update_format( decoder_t *p_dec )
         p_aout = input_resource_GetAout( p_owner->p_resource );
         if( p_aout )
         {
+            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: get one new audio_output_t *p_aout.", __FILE__ , __FUNCTION__, __LINE__);
             /* TODO: 3.0 HACK: we need to put i_profile inside audio_format_t
              * for 4.0 */
             if( p_dec->fmt_out.i_codec == VLC_CODEC_DTS )
@@ -387,6 +392,9 @@ static int aout_update_format( decoder_t *p_dec )
             {
                 input_resource_PutAout( p_owner->p_resource, p_aout );
                 p_aout = NULL;
+                msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: aout_DecNew() failed!", __FILE__ , __FUNCTION__, __LINE__);
+            }else {
+                msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: aout_DecNew() success.", __FILE__ , __FUNCTION__, __LINE__);
             }
         }
 
@@ -402,7 +410,7 @@ static int aout_update_format( decoder_t *p_dec )
 
         if( p_aout == NULL )
         {
-            msg_Err( p_dec, "failed to create audio output" );
+            msg_Err(p_dec, "[%s:%s:%d]=zspace=: failed to create audio output", __FILE__ , __FUNCTION__, __LINE__);
             return -1;
         }
 
