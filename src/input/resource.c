@@ -377,11 +377,6 @@ void input_resource_PutAout( input_resource_t *p_resource,
         p_resource->b_aout_busy = false;
         msg_Dbg( p_resource->p_parent, "keeping audio output" );
         p_aout = NULL;
-        #if defined (_WIN32)
-        p_aout = p_resource->p_aout;
-        p_resource->p_aout = NULL;
-        msg_Dbg(p_resource->p_parent, "[%s:%s:%d]=zspace=: Destroy p_resource->p_aout to rebuild it.", __FILE__ , __FUNCTION__, __LINE__);
-        #endif
     }
     else
         msg_Dbg( p_resource->p_parent, "destroying extra audio output" );
@@ -390,6 +385,35 @@ void input_resource_PutAout( input_resource_t *p_resource,
     if( p_aout != NULL )
         aout_Destroy( p_aout );
 }
+
+
+VLC_API void input_resource_PutAout_win32( input_resource_t *p_resource,
+                             audio_output_t *p_aout)
+{
+    assert( p_aout != NULL );
+
+    vlc_mutex_lock( &p_resource->lock_hold );
+    if( p_aout == p_resource->p_aout )
+    {
+        assert( p_resource->b_aout_busy );
+        p_resource->b_aout_busy = false;
+        msg_Dbg( p_resource->p_parent, "[%s:%s:%d]=zspace=: keeping audio output", __FILE__ , __FUNCTION__, __LINE__ );
+        p_aout = NULL;
+        #if defined (_WIN32)
+        p_aout = p_resource->p_aout;
+        p_resource->p_aout = NULL;
+        msg_Dbg(p_resource->p_parent, "[%s:%s:%d]=zspace=: Destroy p_resource->p_aout to rebuild it.", __FILE__ , __FUNCTION__, __LINE__);
+        #endif
+    }
+    else
+        msg_Dbg( p_resource->p_parent, "[%s:%s:%d]=zspace=: destroying extra audio output", __FILE__ , __FUNCTION__, __LINE__ );
+    vlc_mutex_unlock( &p_resource->lock_hold );
+
+    if( p_aout != NULL )
+        aout_Destroy( p_aout );
+}
+
+
 
 audio_output_t *input_resource_HoldAout( input_resource_t *p_resource )
 {

@@ -390,9 +390,16 @@ static int aout_update_format( decoder_t *p_dec )
                              &p_dec->fmt_out.audio_replay_gain,
                              &request_vout ) )
             {
-                input_resource_PutAout( p_owner->p_resource, p_aout );
-                p_aout = NULL;
-                msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: aout_DecNew() failed!", __FILE__ , __FUNCTION__, __LINE__);
+                if (p_dec->fmt_in.i_codec == VLC_CODEC_DSD_LSBF || p_dec->fmt_in.i_codec == VLC_CODEC_DSD_MSBF || 
+                    p_dec->fmt_in.i_codec == VLC_CODEC_DSD_LSBF_PLANAR || p_dec->fmt_in.i_codec == VLC_CODEC_DSD_MSBF_PLANAR) {
+                    input_resource_PutAout_win32( p_owner->p_resource, p_aout );
+                    p_aout = NULL;
+                    msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: aout_DecNew() failed for dsf/dff!", __FILE__ , __FUNCTION__, __LINE__);
+                }else {
+                    input_resource_PutAout( p_owner->p_resource, p_aout );
+                    p_aout = NULL;
+                    msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: aout_DecNew() failed not for dsf/dff!", __FILE__ , __FUNCTION__, __LINE__);
+                }
             }else {
                 msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: aout_DecNew() success.", __FILE__ , __FUNCTION__, __LINE__);
             }

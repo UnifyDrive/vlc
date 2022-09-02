@@ -661,6 +661,9 @@ VLC_API audio_output_t *input_resource_GetAout( input_resource_t * );
  */
 VLC_API void input_resource_PutAout( input_resource_t *, audio_output_t * );
 
+VLC_API void input_resource_PutAout_win32( input_resource_t *, audio_output_t * );
+
+
 /**
  * Prevents the existing audio output (if any) from being recycled.
  */

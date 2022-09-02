@@ -1259,6 +1259,8 @@ static int Open(vlc_object_t *obj)
     if (unlikely(sys == NULL))
         return VLC_ENOMEM;
 
+    if (aout != NULL)
+        msg_Dbg(aout, "[%s:%s:%d]=zspace=: Try use mmdevice.", __FILE__ , __FUNCTION__, __LINE__);
     aout->sys = sys;
     sys->stream = NULL;
     sys->aout = aout;
