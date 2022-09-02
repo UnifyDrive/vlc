@@ -294,6 +294,7 @@ static input_thread_t *Create( vlc_object_t *p_parent, input_item_t *p_item,
         return NULL;
 
     input_thread_t *p_input = &priv->input;
+    msg_Warn(p_input, "[%s:%s:%d]=zspace=: enter Release Time: (%s-%s)", __FILE__ , __FUNCTION__, __LINE__, __DATE__, __TIME__);
 
     char * psz_name = input_item_GetName( p_item );
     msg_Dbg( p_input, "Creating an input for %s'%s'",
