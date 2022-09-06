@@ -825,7 +825,13 @@ static void bd_dir_close_url(BD_DIR_H* dir) {
 
 static int bd_dir_read_url(BD_DIR_H* dir, BD_DIRENT* entry) {
     //AVIODirContext* s = dir->internal;
+#if defined (_WIN32)
+    //assign "NULL" to "next" to avoid crash in "ZSpaceTmPlayer"'s bluray
+    //directory-hierarchy playback in Win OS, not necessary to vlc.
+    AVIODirEntry* next = NULL;
+#else
     AVIODirEntry* next;
+#endif
     int ret;
 
     if ((ret = avio_read_dir(dir->internal, &next)) < 0) {
@@ -839,7 +845,9 @@ static int bd_dir_read_url(BD_DIR_H* dir, BD_DIRENT* entry) {
     strncpy(entry->d_name, next->name, sizeof(entry->d_name));
     entry->d_name[sizeof(entry->d_name) -1] = 0;
 
+#if !defined(_WIN32)
     avio_free_directory_entry(&next);
+#endif
     return 0;
 }
 
@@ -888,6 +896,15 @@ static BD_FILE_H* bdfs_file_open(void* ctx, const char* path) {
 static BD_DIR_H* bdfs_dir_open(void* ctx, const char* path) {
     char* dir = (char*) ctx;
     char* url = av_append_path_component(dir, path);
+#ifdef _WIN32
+    for (int i = 0; i < strlen(url); i++)
+    {
+        if ('\\' == url[i])
+        {
+            url[i] = '/';
+        }
+    }
+#endif
     BD_DIR_H* d = bd_dir_open_url(url);
     av_free(url);
     return d;
