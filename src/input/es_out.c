@@ -2580,10 +2580,16 @@ static int EsOutControlLocked( es_out_t *out, int i_query, va_list args )
             {
                 const mtime_t i_pts_delay_base = p_sys->i_pts_delay - p_sys->i_pts_jitter;
                 mtime_t i_pts_delay = input_clock_GetJitter( p_pgrm->p_clock );
+                int force_jitter = 0;
+                #if defined(_WIN32)
+                force_jitter = 1;
+                #endif
 
                 /* Avoid dangerously high value */
                 const mtime_t i_jitter_max = INT64_C(1000) * var_InheritInteger( p_sys->p_input, "clock-jitter" );
-                if( i_pts_delay > __MIN( i_pts_delay_base + i_jitter_max, INPUT_PTS_DELAY_MAX ) )
+                msg_Dbg(p_sys->p_input, "[%s:%s:%d]=zspace=: i_pts_delay_base=%lld,i_pts_delay=%lld,p_sys->i_pts_delay=%lld,p_sys->i_pts_jitter=%lld,i_jitter_max=%lld.", __FILE__ , __FUNCTION__, __LINE__,
+                    i_pts_delay_base, i_pts_delay, p_sys->i_pts_delay, p_sys->i_pts_jitter, i_jitter_max);
+                if( i_pts_delay > __MIN( i_pts_delay_base + i_jitter_max, INPUT_PTS_DELAY_MAX )  || force_jitter)
                 {
                     msg_Err( p_sys->p_input,
                              "ES_OUT_SET_(GROUP_)PCR  is called too late (jitter of %d ms ignored)",

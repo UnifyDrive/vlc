@@ -848,6 +848,7 @@ static void ThreadChangeFilters(vout_thread_t *vout,
 static int ThreadDisplayPreparePicture(vout_thread_t *vout, bool reuse, bool frame_by_frame)
 {
     bool is_late_dropped = vout->p->is_late_dropped && !vout->p->pause.is_on && !frame_by_frame;
+    static int droped_pic_num = 0;
 
     vlc_mutex_lock(&vout->p->filter.lock);
 
@@ -870,12 +871,19 @@ static int ThreadDisplayPreparePicture(vout_thread_t *vout, bool reuse, bool fra
                     const mtime_t predicted = mdate() + 0; /* TODO improve */
                     const mtime_t late = predicted - decoded->date;
                     if (late > late_threshold) {
-                        msg_Warn(vout, "picture is too late to be displayed (missing %"PRId64" ms)", late/1000);
-                        picture_Release(decoded);
-                        vout_statistic_AddLost(&vout->p->statistic, 1);
-                        continue;
+                        droped_pic_num++;
+                        msg_Warn(vout, "picture is too late to be displayed (missing %"PRId64" ms), droped_pic_num=%d", late/1000, droped_pic_num);
+                        if (droped_pic_num < 10) {
+                            picture_Release(decoded);
+                            vout_statistic_AddLost(&vout->p->statistic, 1);
+                            continue;
+                        }else 
+                            droped_pic_num = 0;
                     } else if (late > 0) {
+                        droped_pic_num = 0;
                         msg_Dbg(vout, "picture might be displayed late (missing %"PRId64" ms)", late/1000);
+                    }else {
+                        droped_pic_num = 0;
                     }
                 }
                 if (!VideoFormatIsCropArEqual(&decoded->format, &vout->p->filter.format))
