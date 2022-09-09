@@ -1032,12 +1032,16 @@ static int LoadGlyphs( filter_t *p_filter, paragraph_t *p_paragraph,
                  )
                     SKIP_GLYPH( p_bitmaps )
             }
-
+#ifdef __ANDROID__
+            if( FT_Load_Glyph( p_face, i_glyph_index,FT_LOAD_NO_BITMAP |FT_LOAD_NO_HINTING|
+                FT_LOAD_IGNORE_TRANSFORM|FT_LOAD_IGNORE_GLOBAL_ADVANCE_WIDTH ) )
+                SKIP_GLYPH( p_bitmaps )
+#else
             if( FT_Load_Glyph( p_face, i_glyph_index,
                                FT_LOAD_NO_BITMAP | FT_LOAD_DEFAULT )
              && FT_Load_Glyph( p_face, i_glyph_index, FT_LOAD_DEFAULT ) )
                 SKIP_GLYPH( p_bitmaps )
-
+#endif
             if( ( p_style->i_style_flags & STYLE_BOLD )
                   && !( p_face->style_flags & FT_STYLE_FLAG_BOLD ) )
                 FT_GlyphSlot_Embolden( p_face->glyph );

@@ -621,6 +621,17 @@ static inline void BlendYUVAPixel( picture_t *p_picture,
 static void FillRGBAPicture( picture_t *p_picture,
                              int i_a, int i_r, int i_g, int i_b )
 {
+#ifdef __ANDROID__
+    if(i_a == 0)
+    {
+        for( int dy = 0; dy < p_picture->p[0].i_visible_lines; dy++ )
+        {
+            uint8_t *p_rgba = &p_picture->p->p_pixels[dy * p_picture->p->i_pitch];
+            memset(p_rgba, 0x00, p_picture->p[0].i_visible_pitch);
+        }
+        return;
+    }
+#endif
     for( int dy = 0; dy < p_picture->p[0].i_visible_lines; dy++ )
     {
         for( int dx = 0; dx < p_picture->p[0].i_visible_pitch; dx += 4 )
@@ -639,6 +650,23 @@ static inline void BlendRGBAPixel( picture_t *p_picture,
                                    int i_a, int i_r, int i_g, int i_b,
                                    int i_alpha )
 {
+
+#ifdef __ANDROID__
+    int i_an = i_alpha;
+
+    uint8_t *p_rgba = &p_picture->p->p_pixels[i_picture_y * p_picture->p->i_pitch + 4 * i_picture_x];
+
+    int i_ao = p_rgba[3];
+
+    if( i_ao == 0 || i_an == 255 )
+    {
+        p_rgba[0] = i_r;
+        p_rgba[1] = i_g;
+        p_rgba[2] = i_b;
+        p_rgba[3] = i_an;
+    }
+
+#else
     int i_an = i_a * i_alpha / 255;
 
     uint8_t *p_rgba = &p_picture->p->p_pixels[i_picture_y * p_picture->p->i_pitch + 4 * i_picture_x];
@@ -661,6 +689,7 @@ static inline void BlendRGBAPixel( picture_t *p_picture,
             p_rgba[2] = ( p_rgba[2] * i_ao * (255 - i_an) / 255 + i_b * i_an ) / p_rgba[3];
         }
     }
+#endif
 }
 
 static void FillARGBPicture(picture_t *pic, int a, int r, int g, int b)
@@ -888,6 +917,9 @@ static inline int RenderAXYZ( filter_t *p_filter,
     const text_style_t *p_style = p_filter->p_sys->p_default_style;
     uint8_t i_x, i_y, i_z;
 
+#ifdef __ANDROID__
+    p_region->b_noregionbg = true;
+#endif
     if (p_region->b_noregionbg) {
         /* Render the background just under the text */
         FillPicture( p_picture, STYLE_ALPHA_TRANSPARENT, 0x00, 0x00, 0x00 );
@@ -897,11 +929,12 @@ static inline int RenderAXYZ( filter_t *p_filter,
         FillPicture( p_picture, p_style->i_background_alpha, i_x, i_y, i_z );
     }
 
+#ifndef __ANDROID__
     /* Render text's background (from decoder) if any */
     RenderBackground(p_region, p_line_head,
                      p_regionbbox, p_paddedtextbbox, p_textbbox,
                      p_picture, ExtractComponents, BlendPixel);
-
+#endif
     /* Render shadow then outline and then normal glyphs */
     for( int g = 0; g < 3; g++ )
     {
@@ -1041,7 +1074,11 @@ static void FillDefaultStyles( filter_t *p_filter )
     p_sys->p_default_style->i_shadow_color = var_InheritInteger( p_filter, "freetype-shadow-color" );
 
     p_sys->p_default_style->i_font_size = 0;
+#ifdef __ANDROID__
+    p_sys->p_default_style->i_style_flags &= ~STYLE_SHADOW;
+#else
     p_sys->p_default_style->i_style_flags |= STYLE_SHADOW;
+#endif
     p_sys->p_default_style->i_features |= STYLE_HAS_FLAGS;
 
     p_sys->p_forced_style->i_font_size = var_InheritInteger( p_filter, "freetype-fontsize" );
