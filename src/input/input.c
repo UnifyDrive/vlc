@@ -294,7 +294,7 @@ static input_thread_t *Create( vlc_object_t *p_parent, input_item_t *p_item,
         return NULL;
 
     input_thread_t *p_input = &priv->input;
-    msg_Warn(p_input, "[%s:%s:%d]=zspace=: enter Release Time: (%s-%s)", __FILE__ , __FUNCTION__, __LINE__, __DATE__, __TIME__);
+    msg_Err(p_input, "[%s:%s:%d]=zspace=: enter Release Time: (%s-%s)", __FILE__ , __FUNCTION__, __LINE__, __DATE__, __TIME__);
 
     char * psz_name = input_item_GetName( p_item );
     msg_Dbg( p_input, "Creating an input for %s'%s'",
@@ -3240,8 +3240,10 @@ static void InputGetExtraFiles( input_thread_t *p_input,
 /* */
 static void input_ChangeState( input_thread_t *p_input, int i_state )
 {
-    if( input_priv(p_input)->i_state == i_state )
+    if( input_priv(p_input)->i_state == i_state ) {
+        msg_Dbg(p_input, "[%s:%s:%d]=zspace=: Same i_state=%d, return directly.", __FILE__ , __FUNCTION__, __LINE__, i_state);
         return;
+    }
 
     input_priv(p_input)->i_state = i_state;
     if( i_state == ERROR_S )
