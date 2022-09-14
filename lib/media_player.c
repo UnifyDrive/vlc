@@ -2330,6 +2330,10 @@ int libvlc_media_player_set_spu_option( libvlc_media_player_t *p_mi,
             if (p_vout != NULL) {
                 var_SetInteger(p_vout , "sub-margin", value );
             }
+            else
+            {
+                ret = VLC_EGENERIC;
+            }
             break;
         default:
             ret = VLC_EGENERIC;
