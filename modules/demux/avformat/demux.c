@@ -88,6 +88,8 @@ struct demux_sys_t
 
     /* Only one title with seekpoints possible atm. */
     input_title_t *p_title;
+
+    int i_seek_flag;
 };
 
 #define AVFORMAT_IOBUFFER_SIZE 32768  /* FIXME */
@@ -293,6 +295,7 @@ int avformat_OpenDemux( vlc_object_t *p_this )
     p_sys->i_ssa_order = 0;
     TAB_INIT( p_sys->i_attachments, p_sys->attachments);
     p_sys->p_title = NULL;
+    p_sys->i_seek_flag = 0;
 
     /* Create I/O wrapper */
     unsigned char * p_io_buffer = av_malloc( AVFORMAT_IOBUFFER_SIZE );
@@ -810,6 +813,21 @@ static int Demux( demux_t *p_demux )
     }
     else
     {
+        if( !strcmp( p_sys->fmt->name, "mpegts" ) && p_stream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO )
+        {
+            if(p_sys->i_seek_flag ==1  )
+            {
+                if( pkt.flags & AV_PKT_FLAG_KEY )
+                {
+                    p_sys->i_seek_flag = 0;
+                }
+                else
+                {
+                    av_packet_unref( &pkt );
+                    return 1;
+                }
+            }
+        }
         if( ( p_frame = block_Alloc( pkt.size ) ) == NULL )
         {
             av_packet_unref( &pkt );
@@ -1049,6 +1067,10 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
             {
                 ResetTime( p_demux, i64 - i_start_time );
             }
+            if( !strcmp( p_sys->fmt->name, "mpegts" ) )
+            {
+                p_sys->i_seek_flag = 1;
+            }
             return VLC_SUCCESS;
 
         case DEMUX_GET_LENGTH:
@@ -1076,6 +1098,10 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
                 return VLC_EGENERIC;
             }
             ResetTime( p_demux, i64 - i_start_time );
+            if( !strcmp( p_sys->fmt->name, "mpegts" ) )
+            {
+                p_sys->i_seek_flag = 1;
+            }
             return VLC_SUCCESS;
         }
 
