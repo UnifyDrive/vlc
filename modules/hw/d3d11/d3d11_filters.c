@@ -614,6 +614,15 @@ static void D3D11CloseAdjust(vlc_object_t *obj)
     var_DelCallback( filter, "brightness-threshold",
                                              AdjustCallback, sys );
 
+    bool isWin10OrGreater = false;
+    HMODULE hKernel32 = GetModuleHandle(TEXT("kernel32.dll"));
+    if (likely(hKernel32 != NULL))
+        isWin10OrGreater = GetProcAddress(hKernel32, "GetSystemCpuSetInformation") != NULL;
+    if (isWin10OrGreater) {
+        msg_Err(filter,"[%s:%s:%d]=zspace=: Win10/11 platform, return directly.", __FILE__ , __FUNCTION__, __LINE__);
+        return;
+    }
+
     for (int i=0; i<PROCESSOR_SLICES; i++)
     {
         if (sys->procInput[i])
@@ -621,6 +630,7 @@ static void D3D11CloseAdjust(vlc_object_t *obj)
         if (sys->procOutput[i])
             ID3D11VideoProcessorOutputView_Release(sys->procOutput[i]);
     }
+
     ID3D11Texture2D_Release(sys->out[0].texture);
     ID3D11Texture2D_Release(sys->out[1].texture);
     ID3D11VideoProcessor_Release(sys->videoProcessor);
