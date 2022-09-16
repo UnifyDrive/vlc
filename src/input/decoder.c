@@ -252,6 +252,16 @@ static int ReloadDecoder( decoder_t *p_dec, bool b_packetizer,
         es_format_Clean( &fmt_in );
         return VLC_EGENERIC;
     }
+    if (p_dec->fmt_out.i_cat == VIDEO_ES) {
+        const char* decoder_name = module_get_name( p_dec->p_module, false );
+        msg_Dbg(p_dec, "video decoder name: \"%s\"", decoder_name);
+        //char* ffmpeg_codec_name = p_dec->p_sys->p_codec->name;
+        if (strcmp(decoder_name, "videotoolbox")
+              && strcmp(decoder_name, "mediacodec")) {
+            decoder_owner_sys_t *p_owner = p_dec->p_owner;
+            input_SendEventSWVdec( p_owner->p_input );
+        }
+    }
     es_format_Clean( &fmt_in );
     return VLC_SUCCESS;
 }

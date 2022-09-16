@@ -810,6 +810,12 @@ static bool LateStartHEVC(decoder_t *p_dec)
 
 static bool CodecSupportedHEVC(decoder_t *p_dec)
 {
+    decoder_sys_t *p_sys = p_dec->p_sys;
+
+    uint8_t i_profile, i_level;
+    if (hxxx_helper_get_current_profile_level(&p_sys->hh, &i_profile, &i_level))
+        return true;
+
     return HXXXGetBestChroma(p_dec);
 
     return true;
