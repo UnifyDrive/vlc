@@ -494,6 +494,7 @@ static const struct vlc_avcodec_fourcc spu_codecs[] =
     { VLC_CODEC_BD_TEXT, AV_CODEC_ID_HDMV_TEXT_SUBTITLE },
 #endif
     { VLC_CODEC_TELETEXT, AV_CODEC_ID_DVB_TELETEXT },
+    { VLC_CODEC_TX3G, AV_CODEC_ID_MOV_TEXT},
     /* AV_CODEC_ID_SRT */
     /* ffmpeg only: AV_CODEC_ID_MICRODVD */
     /* ffmpeg only: AV_CODEC_ID_EIA_608 */
