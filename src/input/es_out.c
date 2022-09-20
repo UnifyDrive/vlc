@@ -606,7 +606,7 @@ static void EsOutChangeRate( es_out_t *out, int i_rate )
     EsOutProgramsChangeRate( out );
 }
 
-static void EsOutChangePosition( es_out_t *out )
+static void EsOutChangePosition( es_out_t *out, bool b_seek )
 {
     es_out_sys_t      *p_sys = out->p_sys;
 
@@ -619,7 +619,11 @@ static void EsOutChangePosition( es_out_t *out )
 
         if( p_es->p_dec != NULL )
         {
-            input_DecoderFlush( p_es->p_dec );
+            /*tzj*/
+            if (b_seek)
+            {
+                input_DecoderFlush( p_es->p_dec );
+            }
             if( !p_sys->b_buffering )
             {
                 input_DecoderStartWait( p_es->p_dec );
@@ -2580,16 +2584,12 @@ static int EsOutControlLocked( es_out_t *out, int i_query, va_list args )
             {
                 const mtime_t i_pts_delay_base = p_sys->i_pts_delay - p_sys->i_pts_jitter;
                 mtime_t i_pts_delay = input_clock_GetJitter( p_pgrm->p_clock );
-                int force_jitter = 0;
-                #if defined(_WIN32)
-                force_jitter = 1;
-                #endif
 
                 /* Avoid dangerously high value */
                 const mtime_t i_jitter_max = INT64_C(1000) * var_InheritInteger( p_sys->p_input, "clock-jitter" );
                 msg_Dbg(p_sys->p_input, "[%s:%s:%d]=zspace=: i_pts_delay_base=%lld,i_pts_delay=%lld,p_sys->i_pts_delay=%lld,p_sys->i_pts_jitter=%lld,i_jitter_max=%lld.", __FILE__ , __FUNCTION__, __LINE__,
                     i_pts_delay_base, i_pts_delay, p_sys->i_pts_delay, p_sys->i_pts_jitter, i_jitter_max);
-                if( i_pts_delay > __MIN( i_pts_delay_base + i_jitter_max, INPUT_PTS_DELAY_MAX )  || force_jitter)
+                if( i_pts_delay > __MIN( i_pts_delay_base + i_jitter_max, INPUT_PTS_DELAY_MAX ) )
                 {
                     msg_Err( p_sys->p_input,
                              "ES_OUT_SET_(GROUP_)PCR  is called too late (jitter of %d ms ignored)",
@@ -2621,7 +2621,7 @@ static int EsOutControlLocked( es_out_t *out, int i_query, va_list args )
 
     case ES_OUT_RESET_PCR:
         msg_Dbg( p_sys->p_input, "ES_OUT_RESET_PCR called" );
-        EsOutChangePosition( out );
+        EsOutChangePosition( out, false );
         return VLC_SUCCESS;
 
     case ES_OUT_SET_GROUP:
@@ -2850,7 +2850,7 @@ static int EsOutControlLocked( es_out_t *out, int i_query, va_list args )
         p_sys->playerState = true;
         assert( i_date == -1 );
         msg_Dbg(p_sys->p_input, "[%s:%s:%d]=zspace=: ES_OUT_SET_TIME i_date=%lld(us).", __FILE__ , __FUNCTION__, __LINE__, i_date);
-        EsOutChangePosition( out );
+        EsOutChangePosition( out, true );
 
         return VLC_SUCCESS;
     }

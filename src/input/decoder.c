@@ -160,7 +160,7 @@ struct decoder_owner_sys_t
 static int LoadDecoder( decoder_t *p_dec, bool b_packetizer,
                         const es_format_t *restrict p_fmt )
 {
-    p_dec->b_frame_drop_allowed = true;
+    p_dec->b_frame_drop_allowed = false;
     p_dec->i_extra_picture_buffers = 0;
 
     p_dec->pf_decode = NULL;
