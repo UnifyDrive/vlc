@@ -184,7 +184,7 @@ static int Open(vlc_object_t *obj)
     struct vlc_url_t crd_url;
     char *psz_realm = NULL;
 
-    msg_Warn(access, "psz_url=[%s]", access->psz_url);
+    msg_Warn(access, "[%s:%s:%d]=zspace=: access->psz_url=[%s]", __FILE__ , __FUNCTION__, __LINE__, access->psz_url);
     vlc_UrlParse(&crd_url, access->psz_url);
     vlc_credential_init(&crd, &crd_url);
 
@@ -246,7 +246,7 @@ static int Open(vlc_object_t *obj)
     if (redir != NULL)
     {
         access->psz_url = redir;
-        msg_Err(access, "redirect psz_url=[%s]", access->psz_url);
+        msg_Err(access, "[%s:%s:%d]=zspace=: access->redirect psz_url=[%s]", __FILE__ , __FUNCTION__, __LINE__, access->psz_url);
         ret = VLC_ACCESS_REDIRECT;
         goto error;
     }

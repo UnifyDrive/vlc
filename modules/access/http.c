@@ -165,6 +165,8 @@ static int Open( vlc_object_t *p_this )
     p_sys->size = 0;
     p_access->p_sys = p_sys;
 
+    msg_Warn(p_access, "[%s:%s:%d]=zspace=: psz_url=[%s], p_sys->url.psz_host=%p.", __FILE__ , __FUNCTION__, __LINE__,
+                    psz_url, p_sys->url.psz_host);
     if( vlc_UrlParse( &p_sys->url, psz_url ) || p_sys->url.psz_host == NULL )
     {
         msg_Err( p_access, "invalid URL" );
