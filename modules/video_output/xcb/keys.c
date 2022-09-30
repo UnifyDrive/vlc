@@ -62,12 +62,15 @@ key_handler_t *XCB_keyHandler_Create (vlc_object_t *obj,
 
     ctx->obj = obj;
     //ctx->syms = xcb_key_symbols_alloc (conn);
+    ctx->syms = NULL;
     return ctx;
 }
 
 void XCB_keyHandler_Destroy (key_handler_t *ctx)
 {
-    xcb_key_symbols_free (ctx->syms);
+    if (ctx && ctx->syms) {
+        xcb_key_symbols_free (ctx->syms);
+    }
     free (ctx);
 }
 
