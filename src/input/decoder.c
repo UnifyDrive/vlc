@@ -54,6 +54,7 @@
 #include "modules/modules.h"
 
 #include "../video_output/vout_control.h"
+#define  ZS_DEBUG      (0)
 
 /*
  * Possibles values set in p_owner->reload atomic
@@ -1032,7 +1033,9 @@ static int DecoderPlayVideo( decoder_t *p_dec, picture_t *p_picture,
     vout_thread_t  *p_vout = p_owner->p_vout;
     bool prerolled;
 
-    //msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Ori p_picture->date=%lld(us).", __FILE__ , __FUNCTION__, __LINE__, p_picture->date);
+    if (ZS_DEBUG) {
+        msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Ori p_picture->date=%lld(us).", __FILE__ , __FUNCTION__, __LINE__, p_picture->date);
+    }
     vlc_mutex_lock( &p_owner->lock );
     if( p_owner->i_preroll_end > p_picture->date )
     {
@@ -1074,7 +1077,7 @@ static int DecoderPlayVideo( decoder_t *p_dec, picture_t *p_picture,
     if( p_owner->b_waiting )
     {
         assert( p_owner->b_first );
-        msg_Dbg( p_dec, "Received first picture" );
+        msg_Dbg( p_dec, "[%s:%s:%d]=zspace=: Received first picture", __FILE__ , __FUNCTION__, __LINE__);
         p_owner->b_first = false;
         p_picture->b_force = true;
     }
@@ -1083,7 +1086,9 @@ static int DecoderPlayVideo( decoder_t *p_dec, picture_t *p_picture,
     int i_rate = INPUT_RATE_DEFAULT;
     DecoderFixTs( p_dec, &p_picture->date, NULL, NULL,
                   &i_rate, DECODER_BOGUS_VIDEO_DELAY );
-    //msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Get picture display date=%lld.", __FILE__ , __FUNCTION__, __LINE__, p_picture->date);
+    if (ZS_DEBUG) {
+        msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Get picture display date=%lld.", __FILE__ , __FUNCTION__, __LINE__, p_picture->date);
+    }
 
     vlc_mutex_unlock( &p_owner->lock );
 
@@ -1653,9 +1658,9 @@ static void *DecoderThread( void *p_data )
         vlc_fifo_Unlock( p_owner->p_fifo );
 
         int canc = vlc_savecancel();
-        /*if (p_dec->p_module->psz_shortname == NULL) {
+        if (p_dec->p_module->psz_shortname == NULL && ZS_DEBUG) {
             msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: p_block->i_pts=%lld , p_block->i_dts=%lld get from p_fifo [%s].", __FILE__ , __FUNCTION__, __LINE__, p_block->i_pts, p_block->i_dts, p_dec->p_module->psz_shortname);
-        }*/
+        }
         DecoderProcess( p_dec, p_block );
 
         if( p_block == NULL )

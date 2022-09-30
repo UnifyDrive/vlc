@@ -53,6 +53,7 @@
 #include <vlc_iso_lang.h>
 /* FIXME we should find a better way than including that */
 #include "../text/iso-639_def.h"
+#define  ZS_DEBUG      (0)
 
 /*****************************************************************************
  * Local prototypes
@@ -2092,6 +2093,9 @@ static int EsOutSend( es_out_t *out, es_out_id_t *es, block_t *p_block )
     input_thread_t *p_input = p_sys->p_input;
 
     assert( p_block->p_next == NULL );
+    if (ZS_DEBUG) {
+        msg_Dbg(p_input, "[%s:%s:%d]=zspace=: [%p]p_block->i_pts=%lld , p_block->i_dts=%lld send out Origin.", __FILE__ , __FUNCTION__, __LINE__, p_block, p_block->i_pts, p_block->i_dts);
+    }
 
     if( libvlc_stats( p_input ) )
     {
@@ -2177,6 +2181,9 @@ static int EsOutSend( es_out_t *out, es_out_id_t *es, block_t *p_block )
         if( p_dup )
             input_DecoderDecode( es->p_dec_record, p_dup,
                                  input_priv(p_input)->b_out_pace_control );
+    }
+    if (ZS_DEBUG) {
+        msg_Dbg(p_input, "[%s:%s:%d]=zspace=: p_block->i_pts=%lld , p_block->i_dts=%lld send out Finall.", __FILE__ , __FUNCTION__, __LINE__, p_block->i_pts, p_block->i_dts);
     }
     input_DecoderDecode( es->p_dec, p_block,
                          input_priv(p_input)->b_out_pace_control );
@@ -2557,6 +2564,8 @@ static int EsOutControlLocked( es_out_t *out, int i_query, va_list args )
         {
             msg_Err( p_sys->p_input, "Invalid PCR value in ES_OUT_SET_(GROUP_)PCR !" );
             return VLC_EGENERIC;
+        }else if (ZS_DEBUG){
+            msg_Dbg(p_sys->p_input, "[%s:%s:%d]=zspace=: Set p_pgrm->i_last_pcr=%lld.", __FILE__ , __FUNCTION__, __LINE__, i_pcr);
         }
 
         p_pgrm->i_last_pcr = i_pcr;

@@ -1583,9 +1583,11 @@ static int bluray_esOutSend(es_out_t *p_out, es_out_id_t *p_es, block_t *p_block
     demux_t *p_demux = esout_sys->priv;
     demux_sys_t *p_sys = p_demux->p_sys;
     mtime_t i_offset = VLC_TS_INVALID;
-    if ( p_sys->i_pcr_offset > VLC_TS_INVALID )
+    //msg_Dbg(p_demux, "[%s:%s:%d]=zspace=: [%p]p_block->i_pts=%lld , p_block->i_dts=%lld Origin.", __FILE__ , __FUNCTION__, __LINE__, p_block, p_block->i_pts, p_block->i_dts);
+    if ( p_sys->i_pcr_offset != VLC_TS_INVALID)
     {
         i_offset = p_sys->i_pcr_offset;
+        //msg_Dbg(p_demux, "[%s:%s:%d]=zspace=: p_sys->i_pcr_offset=%lld, p_pair->i_dts_offset=%lld.", __FILE__ , __FUNCTION__, __LINE__, p_sys->i_pcr_offset, p_pair->i_dts_offset);
     }
     else
     {
@@ -1595,6 +1597,7 @@ static int bluray_esOutSend(es_out_t *p_out, es_out_id_t *p_es, block_t *p_block
             p_pair->i_dts_offset = p_block->i_dts - i_time;
             i_offset = p_pair->i_dts_offset;
             p_sys->b_reset_dts_offset = false;
+            //msg_Dbg(p_demux, "[%s:%s:%d]=zspace=: Set [%s] p_pair->i_dts_offset=%lld from bd_tell_time().", __FILE__ , __FUNCTION__, __LINE__, (char*)&(p_pair->fmt.i_codec), p_pair->i_dts_offset);
         }
     }
 
@@ -1612,6 +1615,9 @@ static int bluray_esOutSend(es_out_t *p_out, es_out_id_t *p_es, block_t *p_block
         p_block = NULL;
     }
     vlc_mutex_unlock(&esout_sys->lock);
+    if (p_block) {
+        //msg_Dbg(p_demux, "[%s:%s:%d]=zspace=: [%p]p_block->i_pts=%lld , p_block->i_dts=%lld Finnal.", __FILE__ , __FUNCTION__, __LINE__, p_block, p_block->i_pts, p_block->i_dts);
+    }
     return (p_block) ? es_out_Send(esout_sys->p_dst_out, p_es, p_block) : VLC_SUCCESS;
 }
 
@@ -1737,12 +1743,14 @@ static int bluray_esOutControl(es_out_t *p_out, int i_query, va_list args)
             mtime_t i_pcr = va_arg( args, int64_t );
             demux_t *p_demux = esout_sys->priv;
             demux_sys_t *p_sys = p_demux->p_sys;
-            if ( p_sys->i_pcr_offset <= VLC_TS_INVALID )
+            //msg_Dbg(p_demux, "[%s:%s:%d]=zspace=: Get ES_OUT_SET_GROUP_PCR i_pcr =%lld , p_sys->i_pcr_offset=%lld .", __FILE__ , __FUNCTION__, __LINE__, i_pcr, p_sys->i_pcr_offset);
+            if ( p_sys->i_pcr_offset == VLC_TS_INVALID )
             {
                 mtime_t i_time = FROM_TICKS(bd_tell_time(p_sys->bluray));
                 p_sys->i_pcr_offset = i_pcr - i_time;
             }
             i_pcr -= p_sys->i_pcr_offset;
+            //msg_Dbg(p_demux, "[%s:%s:%d]=zspace=: Changed ES_OUT_SET_GROUP_PCR i_pcr =%lld , p_sys->i_pcr_offset=%lld .", __FILE__ , __FUNCTION__, __LINE__, i_pcr, p_sys->i_pcr_offset);
             i_ret = es_out_Control( esout_sys->p_dst_out, i_query, i_group, i_pcr );
         }
         break;
