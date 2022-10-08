@@ -28,6 +28,7 @@ FFMPEGCONF = \
 	--disable-doc \
 	--disable-encoder=vorbis \
 	--disable-decoder=opus \
+        --enable-encoder=ac3  \
 	--enable-libgsm \
 	--enable-decoder=mlp \
 	--enable-demuxer=mlp \
@@ -51,7 +52,7 @@ FFMPEGCONF = \
 
 ifdef USE_FFMPEG
 FFMPEGCONF += \
-	--disable-swresample \
+	--enable-swresample \
 	--disable-iconv \
 	--disable-avisynth \
 	--disable-nvenc \
@@ -79,7 +80,7 @@ ifdef BUILD_ENCODERS
 FFMPEGCONF += --enable-libmp3lame
 DEPS_ffmpeg += lame $(DEPS_lame)
 else
-FFMPEGCONF += --disable-encoders --disable-muxers
+FFMPEGCONF += --disable-encoders --enable-encoder=ac3  --disable-muxers
 endif
 
 # Small size
