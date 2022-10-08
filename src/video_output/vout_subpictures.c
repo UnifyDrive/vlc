@@ -96,6 +96,8 @@ struct spu_private_t {
     /* */
     mtime_t             last_sort_date;
     vout_thread_t       *vout;
+    /* tzj */
+    mtime_t             last_pts;
 };
 
 /*****************************************************************************
@@ -525,7 +527,7 @@ static void SpuSelectSubpictures(spu_t *spu,
                                  subpicture_t **subpicture_array,
                                  mtime_t render_subtitle_date,
                                  mtime_t render_osd_date,
-                                 bool ignore_osd)
+                                 bool ignore_osd, bool *got_spu)
 {
     spu_private_t *sys = spu->p;
 
@@ -565,7 +567,15 @@ static void SpuSelectSubpictures(spu_t *spu,
         mtime_t      ephemer_osd_date = 0;
         int64_t      ephemer_subtitle_order = INT64_MIN;
         int64_t      ephemer_system_order = INT64_MIN;
+#ifdef __ANDROID__
+        const mtime_t render_date = render_subtitle_date;
+        mtime_t pts_diff = render_date - sys->last_pts;
 
+        if (sys->last_pts == 0 || pts_diff > INT64_C(42000) || pts_diff <= 0) {
+            pts_diff = INT64_C(42000);
+        }
+        sys->last_pts = render_date;
+#endif
         /* Select available pictures */
         for (int index = 0; index < VOUT_MAX_SUBPICTURES; index++) {
             spu_heap_entry_t *entry = &sys->heap.entry[index];
@@ -583,7 +593,15 @@ static void SpuSelectSubpictures(spu_t *spu,
                (ignore_osd && !current->b_subtitle))
                 continue;
 
+#ifdef __ANDROID__
+            if (render_date && render_date < current->i_start && (render_date+pts_diff > current->i_start))
+            {
+                *got_spu = true;
+                msg_Dbg(spu, "render_date = %lld subtitle->start = %lld duration=%lld",render_date/1000,current->i_start/1000,(current->i_stop-current->i_start)/1000);
+            }
+#else
             const mtime_t render_date = current->b_subtitle ? render_subtitle_date : render_osd_date;
+#endif
             if (render_date &&
                 render_date < current->i_start) {
                 /* Too early, come back next monday */
@@ -1339,6 +1357,7 @@ spu_t *spu_Create(vlc_object_t *object, vout_thread_t *vout)
     /* */
     sys->last_sort_date = -1;
     sys->vout = vout;
+    sys->last_pts = 0;
 
     return spu;
 }
@@ -1529,7 +1548,7 @@ subpicture_t *spu_Render(spu_t *spu,
                          const video_format_t *fmt_src,
                          mtime_t render_subtitle_date,
                          mtime_t render_osd_date,
-                         bool ignore_osd)
+                         bool ignore_osd,bool *got_spu)
 {
     spu_private_t *sys = spu->p;
 
@@ -1588,7 +1607,7 @@ subpicture_t *spu_Render(spu_t *spu,
 
     /* Get an array of subpictures to render */
     SpuSelectSubpictures(spu, &subpicture_count, subpicture_array,
-                         render_subtitle_date, render_osd_date, ignore_osd);
+                         render_subtitle_date, render_osd_date, ignore_osd, got_spu);
     if (subpicture_count <= 0) {
         vlc_mutex_unlock(&sys->lock);
         return NULL;

@@ -1167,6 +1167,22 @@ static void Prepare(vout_display_t *vd, picture_t *picture,
      && AndroidOpaquePicture_CanReleaseAtTime(picture->p_sys))
     {
         mtime_t now = mdate();
+#ifdef __ANDROID__
+        if (picture->date+INT64_C(40000) > now)
+        {
+            if (picture->date - now <= INT64_C(1000000)) {
+
+                if (picture->date-now<0){
+                    AndroidOpaquePicture_Release(picture->p_sys, true);
+                }
+                else {
+                    AndroidOpaquePicture_ReleaseAtTime(picture->p_sys, picture->date);
+                }
+            }
+            else /* The picture will be displayed from the Display callback */
+                msg_Warn(vd, "picture way too early to release at time");
+        }
+#else
         if (picture->date > now)
         {
             if (picture->date - now <= INT64_C(1000000))
@@ -1174,6 +1190,7 @@ static void Prepare(vout_display_t *vd, picture_t *picture,
             else /* The picture will be displayed from the Display callback */
                 msg_Warn(vd, "picture way too early to release at time");
         }
+#endif
     }
 }
 

@@ -74,6 +74,8 @@ static void VoutDestructor(vlc_object_t *);
 /* Better be in advance when awakening than late... */
 #define VOUT_MWAIT_TOLERANCE (INT64_C(4000))
 
+#define VOUT_DISPLAY_GOT_SPU 2
+
 /* */
 static int VoutValidateFormat(video_format_t *dst,
                               const video_format_t *src)
@@ -1062,11 +1064,14 @@ static int ThreadDisplayRenderPicture(vout_thread_t *vout, bool is_forced)
 
     video_format_t fmt_spu_rot;
     video_format_ApplyRotation(&fmt_spu_rot, &fmt_spu);
+
+    bool got_spu =  false;
     subpicture_t *subpic = spu_Render(vout->p->spu,
                                       subpicture_chromas, &fmt_spu_rot,
                                       &vd->source,
                                       render_subtitle_date, render_osd_date,
-                                      do_snapshot);
+                                      do_snapshot, &got_spu);
+
     /*
      * Perform rendering
      *
@@ -1178,15 +1183,24 @@ static int ThreadDisplayRenderPicture(vout_thread_t *vout, bool is_forced)
     if (delay < 1000)
         msg_Warn(vout, "picture is late (%lld ms)", delay / 1000);
 #endif
+/* tzj */
+#ifdef __ANDROID__
+
+#else
     if (!is_forced)
         mwait(todisplay->date);
-
+#endif
     /* Display the direct buffer returned by vout_RenderPicture */
     vout->p->displayed.date = mdate();
     vout_display_Display(vd, todisplay, subpic);
 
     vout_statistic_AddDisplayed(&vout->p->statistic, 1);
 
+/* tzj */
+#ifdef __ANDROID__
+    if(got_spu)
+        return VOUT_DISPLAY_GOT_SPU;
+#endif
     return VLC_SUCCESS;
 }
 
@@ -1209,12 +1223,24 @@ static int ThreadDisplayPicture(vout_thread_t *vout, mtime_t *deadline)
 
     bool drop_next_frame = frame_by_frame;
     mtime_t date_next = VLC_TS_INVALID;
+#ifdef __ANDROID__
+    if (!paused && vout->p->displayed.next) {
+        date_next = vout->p->displayed.next->date;
+        if (date_next <= date || vout->p->has_spu)
+        {
+            drop_next_frame = true;
+            if (vout->p->has_spu)
+                vout->p->has_spu = false;
+        }
+    }
+#else
     if (!paused && vout->p->displayed.next) {
         date_next = vout->p->displayed.next->date - render_delay;
         if (date_next /* + 0 FIXME */ <= date)
             drop_next_frame = true;
     }
 
+#endif
     /* FIXME/XXX we must redisplay the last decoded picture (because
      * of potential vout updated, or filters update or SPU update)
      * For now a high update period is needed but it could be removed
@@ -1227,6 +1253,13 @@ static int ThreadDisplayPicture(vout_thread_t *vout, mtime_t *deadline)
     bool refresh = false;
 
     mtime_t date_refresh = VLC_TS_INVALID;
+#ifdef __ANDROID__
+    bool force_refresh = !drop_next_frame && refresh;
+
+    if (!frame_by_frame) {
+        *deadline = date_next;
+    }
+#else
     if (vout->p->displayed.date > VLC_TS_INVALID) {
         date_refresh = vout->p->displayed.date + VOUT_REDISPLAY_DELAY - render_delay;
         refresh = date_refresh <= date;
@@ -1240,6 +1273,7 @@ static int ThreadDisplayPicture(vout_thread_t *vout, mtime_t *deadline)
             *deadline = date_next;
     }
 
+#endif
     if (!first && !refresh && !drop_next_frame) {
         return VLC_EGENERIC;
     }
@@ -1256,6 +1290,11 @@ static int ThreadDisplayPicture(vout_thread_t *vout, mtime_t *deadline)
     /* display the picture immediately */
     bool is_forced = frame_by_frame || force_refresh || vout->p->displayed.current->b_force;
     int ret = ThreadDisplayRenderPicture(vout, is_forced);
+#ifdef __ANDROID__
+    if (ret == VOUT_DISPLAY_GOT_SPU) {
+        vout->p->has_spu = true;
+    }
+#endif
     return force_refresh ? VLC_EGENERIC : ret;
 }
 
