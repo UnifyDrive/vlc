@@ -1,0 +1,26 @@
+From 39a5b34991db3f820b87c4c51e64acb2bec88995 Mon Sep 17 00:00:00 2001
+From: shixuehui <shixuehui@zspace.cn>
+Date: Sun, 9 Oct 2022 14:26:27 +0800
+Subject: [PATCH] [Bugfix/ALL] Resolve can not play some bluray problem.
+
+---
+ src/psi.h | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/psi.h b/src/psi.h
+index c173ec1..dc9cad1 100644
+--- a/src/psi.h
++++ b/src/psi.h
+@@ -193,7 +193,8 @@ static inline bool dvbpsi_has_CRC32(dvbpsi_psi_section_t *p_section)
+         (p_section->i_table_id == (uint8_t) 0x7E))/* DIT (has no CRC 32) */
+         return false;
+ 
+-    return (p_section->b_syntax_indicator || (p_section->i_table_id == 0x73));
++    //return (p_section->b_syntax_indicator || (p_section->i_table_id == 0x73));
++    return (p_section->i_table_id == 0x73);
+ }
+ 
+ #ifdef __cplusplus
+-- 
+2.33.0
+

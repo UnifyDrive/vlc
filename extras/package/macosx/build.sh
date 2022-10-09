@@ -256,6 +256,7 @@ if [ "$REBUILD" = "yes" ]; then
 fi
 #make cleanffmpeg
 #make cleanlibxml2
+#make cleanlibdvbpsi
 if [ "$CONTRIBFROMSOURCE" = "yes" ]; then
     make fetch
     make -j$JOBS .gettext

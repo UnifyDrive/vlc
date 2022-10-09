@@ -20,6 +20,7 @@ libdvbpsi: libdvbpsi-$(DVBPSI_VERSION).tar.bz2 .sum-dvbpsi
 	$(APPLY) $(SRC)/dvbpsi/dvbpsi-sys-types.patch
 	$(APPLY) $(SRC)/dvbpsi/0001-really-identify-duplicates.patch
 	$(APPLY) $(SRC)/dvbpsi/0002-really-reset-packet-counter.patch
+	$(APPLY) $(SRC)/dvbpsi/0003-Bugfix-ALL-Resolve-can-not-play-some-bluray-problem.patch
 	$(MOVE)
 
 .dvbpsi: libdvbpsi

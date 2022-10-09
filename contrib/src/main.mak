@@ -493,6 +493,14 @@ cleanlibxml2:
 	-$(RM) "$(PREFIX)/lib/libxml2.*"
 	-$(RM) "$(PREFIX)/lib/pkgconfig/libxml-2.0*"
 
+cleanlibdvbpsi:
+	-$(RM) "./.dvbpsi"
+	-$(RM) "./.sum-dvbpsi"
+	-$(RM) -R "$(PREFIX)/include/dvbpsi/*.*"
+	-$(RM) -R "$(PREFIX)/share/doc/dvbpsi*"
+	-$(RM) "$(PREFIX)/lib/libdvbpsi.*"
+	-$(RM) "$(PREFIX)/lib/pkgconfig/libdvbpsi*"
+
 mostlyclean:
 	-$(RM) $(foreach p,$(PKGS_ALL),.$(p) .sum-$(p) .dep-$(p))
 	-$(RM) toolchain.cmake
