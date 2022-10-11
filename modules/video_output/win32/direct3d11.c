@@ -342,10 +342,22 @@ static void Close(vlc_object_t *object)
 {
     vout_display_t * vd = (vout_display_t *)object;
 
+    bool isWin10OrGreater = false;
+    HMODULE hKernel32 = GetModuleHandle(TEXT("kernel32.dll"));
+    if (likely(hKernel32 != NULL))
+        isWin10OrGreater = GetProcAddress(hKernel32, "GetSystemCpuSetInformation") != NULL;
+
     Direct3D11Close(vd);
     CommonClean(vd);
+    if (isWin10OrGreater) {
+        msg_Err(vd,"[%s:%s:%d]=zspace=: Win10/11 platform, return directly.", __FILE__ , __FUNCTION__, __LINE__);
+        free(vd->sys);
+        vd->sys = NULL;
+        return;
+    }
     Direct3D11Destroy(vd);
     free(vd->sys);
+    vd->sys = NULL;
 }
 
 static picture_pool_t *Pool(vout_display_t *vd, unsigned pool_size)
