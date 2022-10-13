@@ -196,11 +196,15 @@ static int  process_ac3_encod(decoder_t *p_dec,AVFrame  *inputframe,block_t *p_b
    }else{
         frame = inputframe;
    }
-   add_samples_to_fifo(p_dec,p_sys->fifo, frame->data, frame->nb_samples); 
-   av_frame_free(&frame);  
+   add_samples_to_fifo(p_dec,p_sys->fifo, frame->data, frame->nb_samples);
+   if(frame != inputframe){
+      av_frame_free(&frame);
+   }
+   
    int audio_fifo_size = av_audio_fifo_size(p_sys->fifo);
+
    if (audio_fifo_size < p_sys->ac3_CodecCtx->frame_size ) {
-       return 0;
+        return 0;
    }
 
     while (av_audio_fifo_size(p_sys->fifo) >= p_sys->ac3_CodecCtx->frame_size) {
@@ -220,6 +224,7 @@ static int  process_ac3_encod(decoder_t *p_dec,AVFrame  *inputframe,block_t *p_b
             av_frame_free(&output_frame);
             return 0;
         }
+
         ret = encode_write_frame(p_dec,output_frame,p_block);
         av_frame_free(&output_frame);
     } 
@@ -378,7 +383,6 @@ process_decode_audio( decoder_t *p_dec, block_t *p_block )
         goto end;
     pkt->data = p_block->p_buffer;
     pkt->size = p_block->i_buffer;
-
     ret = avcodec_send_packet( ctx, pkt );
     
     if( ret >= 0 ) /* Block has been consumed */
@@ -387,7 +391,7 @@ process_decode_audio( decoder_t *p_dec, block_t *p_block )
     }
     else if ( ret != AVERROR(EAGAIN) ) /* Errors other than buffer full */
     {
-        msg_Dbg(p_dec,"tdx    avcodec_send_packet error  ret    %d",ret); 
+        msg_Dbg(p_dec,"tdx    avcodec_send_packet error  ret    %d",ret);
         if( ret == AVERROR(ENOMEM) || ret == AVERROR(EINVAL) )
             goto end;
         else
@@ -416,8 +420,9 @@ process_decode_audio( decoder_t *p_dec, block_t *p_block )
     }
     if( p_block != NULL )
         block_Release(p_block);
-    if( frame != NULL )
-        av_frame_unref(frame);
+    if( frame != NULL ){
+        av_frame_free(&frame );
+    }
     return VLCDEC_SUCCESS;
 
 end:
@@ -563,6 +568,7 @@ static int
 OpenDecoder(vlc_object_t *p_this)
 {
     decoder_t *p_dec = (decoder_t*)p_this;
+
     switch (p_dec->fmt_in.i_codec)
     {
     case VLC_CODEC_MPGA:
