@@ -1470,6 +1470,8 @@ static int Create( vlc_object_t *p_this )
     if(unlikely(!p_sys->p_forced_style))
         goto error;
 
+    p_sys->b_optimize_subtitle = var_InheritBool( p_filter, "optimize-subtitles" );
+
     /* fills default and forced style */
     FillDefaultStyles( p_filter );
 
@@ -1545,7 +1547,6 @@ static int Create( vlc_object_t *p_this )
     }
 
     p_filter->pf_render = Render;
-    p_sys->b_optimize_subtitle = var_InheritBool( p_filter, "optimize-subtitles" );
 
     return VLC_SUCCESS;
 
