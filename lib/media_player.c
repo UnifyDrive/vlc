@@ -773,6 +773,9 @@ libvlc_media_player_new( libvlc_instance_t *instance )
     var_Create (mp, "freetype-color", VLC_VAR_INTEGER | VLC_VAR_DOINHERIT);
     var_Create (mp, "freetype-bold", VLC_VAR_BOOL | VLC_VAR_DOINHERIT);
 
+    /* tzj */
+    var_Create (mp, "optimize-subtitles", VLC_VAR_BOOL | VLC_VAR_DOINHERIT);
+
      /* Audio */
     var_Create (mp, "aout", VLC_VAR_STRING | VLC_VAR_DOINHERIT);
     var_Create (mp, "audio-device", VLC_VAR_STRING);

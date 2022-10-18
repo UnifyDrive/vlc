@@ -42,6 +42,9 @@ static void Close(vlc_object_t *);
 
 vlc_module_begin()
     set_description(N_("Video pictures blending"))
+    /* tzj */
+    add_bool( "optimize-subtitles", false, NULL,
+                  NULL, false )
     set_capability("video blending", 100)
     set_callbacks(Open, Close)
 vlc_module_end()
@@ -117,7 +120,7 @@ public:
         if (has_alpha)
             px->a = *getPointer(3, dx);
     }
-    void merge(unsigned dx, const CPixel &spx, unsigned a, bool full)
+    void merge(unsigned dx, const CPixel &spx, unsigned a, bool full, bool b_optimize_subtitle)
     {
         ::merge(getPointer(0, dx), spx.i, a);
         if (full) {
@@ -167,7 +170,7 @@ public:
             px->k = getPointer(1, dx)[!swap_uv];
         }
     }
-    void merge(unsigned dx, const CPixel &spx, unsigned a, bool full)
+    void merge(unsigned dx, const CPixel &spx, unsigned a, bool full, bool b_optimize_subtitle)
     {
         ::merge(getPointer(0, dx), spx.i, a);
         if (full) {
@@ -213,7 +216,7 @@ public:
             px->k = data[offset_v];
         }
     }
-    void merge(unsigned dx, const CPixel &spx, unsigned a, bool full)
+    void merge(unsigned dx, const CPixel &spx, unsigned a, bool full, bool b_optimize_subtitle)
     {
         uint8_t *data = getPointer(dx);
         ::merge(&data[offset_y], spx.i, a);
@@ -300,7 +303,7 @@ public:
         if (has_alpha)
             px->a = src[offset_a];
     }
-    void merge(unsigned dx, const CPixel &spx, unsigned a, bool)
+    void merge(unsigned dx, const CPixel &spx, unsigned a, bool, bool b_optimize_subtitle)
     {
         uint8_t *dst = getPointer(dx);
         if (has_alpha) {
@@ -309,25 +312,28 @@ public:
             // the RGB components should be copied as is and
             // alpha set to 'a'. If the existing alpha is 255,
             // this should behave just as the non-alpha case below.
-//Optimize subtitle blend by tzj
-#if defined(__ANDROID__)
-            dst[offset_r] = spx.i;
-            dst[offset_g] = spx.j;
-            dst[offset_b] = spx.k;
-            dst[offset_a] = spx.a;
-#else
-            // First blend the existing color based on its
-            // alpha with the incoming color.
-            ::merge(&dst[offset_r], spx.i, 255 - dst[offset_a]);
-            ::merge(&dst[offset_g], spx.j, 255 - dst[offset_a]);
-            ::merge(&dst[offset_b], spx.k, 255 - dst[offset_a]);
-            // Now blend in the new color on top with the normal formulas.
-            ::merge(&dst[offset_r], spx.i, a);
-            ::merge(&dst[offset_g], spx.j, a);
-            ::merge(&dst[offset_b], spx.k, a);
-            // Finally set dst_a = (255 * src_a + prev_a * (255 - src_a))/255.
-            ::merge(&dst[offset_a], 255, a);
-#endif
+            /*Optimize subtitle blend by tzj*/
+            if (b_optimize_subtitle)
+            {
+                dst[offset_r] = spx.i;
+                dst[offset_g] = spx.j;
+                dst[offset_b] = spx.k;
+                dst[offset_a] = spx.a;
+            }
+            else
+            {
+                // First blend the existing color based on its
+                // alpha with the incoming color.
+                ::merge(&dst[offset_r], spx.i, 255 - dst[offset_a]);
+                ::merge(&dst[offset_g], spx.j, 255 - dst[offset_a]);
+                ::merge(&dst[offset_b], spx.k, 255 - dst[offset_a]);
+                // Now blend in the new color on top with the normal formulas.
+                ::merge(&dst[offset_r], spx.i, a);
+                ::merge(&dst[offset_g], spx.j, a);
+                ::merge(&dst[offset_b], spx.k, a);
+                // Finally set dst_a = (255 * src_a + prev_a * (255 - src_a))/255.
+                ::merge(&dst[offset_a], 255, a);
+            }
         } else {
             ::merge(&dst[offset_r], spx.i, a);
             ::merge(&dst[offset_g], spx.j, a);
@@ -364,7 +370,7 @@ public:
         px->j = (data & fmt->i_gmask) >> fmt->i_lgshift;
         px->k = (data & fmt->i_bmask) >> fmt->i_lbshift;
     }
-    void merge(unsigned dx, const CPixel &spx, unsigned a, bool full)
+    void merge(unsigned dx, const CPixel &spx, unsigned a, bool full, bool b_optimize_subtitle)
     {
         CPixel dpx;
         get(&dpx, dx, full);
@@ -528,7 +534,7 @@ private:
 
 template <class TDst, class TSrc, class TConvert>
 void Blend(const CPicture &dst_data, const CPicture &src_data,
-           unsigned width, unsigned height, int alpha)
+           unsigned width, unsigned height, int alpha, bool b_optimize_subtitle)
 {
     TSrc src(src_data);
     TDst dst(dst_data);
@@ -540,19 +546,20 @@ void Blend(const CPicture &dst_data, const CPicture &src_data,
 
             src.get(&spx, x);
             convert(spx);
-//Optimize subtitle blend by tzj
-#if defined(__ANDROID__)
-            unsigned a = spx.a;
-#else
-            unsigned a = div255(alpha * spx.a);
-#endif
+            unsigned a;
+            /*Optimize subtitle blend by tzj*/
+            if (b_optimize_subtitle)
+                a = spx.a;
+            else
+                a = div255(alpha * spx.a);
+
             if (a <= 0)
                 continue;
 
             if (dst.isFull(x))
-                dst.merge(x, spx, a, true);
+                dst.merge(x, spx, a, true, b_optimize_subtitle);
             else
-                dst.merge(x, spx, a, false);
+                dst.merge(x, spx, a, false, b_optimize_subtitle);
         }
         src.nextLine();
         dst.nextLine();
@@ -560,7 +567,7 @@ void Blend(const CPicture &dst_data, const CPicture &src_data,
 }
 
 typedef void (*blend_function_t)(const CPicture &dst_data, const CPicture &src_data,
-                                 unsigned width, unsigned height, int alpha);
+                                 unsigned width, unsigned height, int alpha, bool b_optimize_subtitle);
 
 static const struct {
     vlc_fourcc_t     dst;
@@ -639,6 +646,7 @@ struct filter_sys_t {
     {
     }
     blend_function_t blend;
+    bool b_optimize_subtitle;
 };
 
 /**
@@ -672,7 +680,7 @@ static void Blend(filter_t *filter,
                CPicture(src, &filter->fmt_in.video,
                         filter->fmt_in.video.i_x_offset,
                         filter->fmt_in.video.i_y_offset),
-               width, height, alpha);
+               width, height, alpha, sys->b_optimize_subtitle);
     msg_Err( filter, "sys->blend end" );
 }
 
@@ -694,6 +702,8 @@ static int Open(vlc_object_t *object)
         delete sys;
         return VLC_EGENERIC;
     }
+
+    sys->b_optimize_subtitle = var_InheritBool( filter, "optimize-subtitles" );
 
     filter->pf_video_blend = Blend;
     filter->p_sys          = sys;

@@ -233,6 +233,10 @@ vlc_module_begin ()
     add_bool( "freetype-yuvp", false, YUVP_TEXT,
               YUVP_LONGTEXT, true )
 
+    /* tzj */
+    add_bool( "optimize-subtitles", false, NULL,
+                  NULL, false )
+
 #ifdef HAVE_FRIBIDI
     add_integer_with_range( "freetype-text-direction", 0, 0, 2, TEXT_DIRECTION_TEXT,
                             TEXT_DIRECTION_LONGTEXT, false )
@@ -586,7 +590,7 @@ static void FillYUVAPicture( picture_t *p_picture,
             p_picture->p[3].i_pitch * p_picture->p[3].i_lines );
 }
 
-static inline void BlendYUVAPixel( picture_t *p_picture,
+static inline void BlendYUVAPixel( filter_t *p_filter, picture_t *p_picture,
                                    int i_picture_x, int i_picture_y,
                                    int i_a, int i_y, int i_u, int i_v,
                                    int i_alpha )
@@ -621,17 +625,6 @@ static inline void BlendYUVAPixel( picture_t *p_picture,
 static void FillRGBAPicture( picture_t *p_picture,
                              int i_a, int i_r, int i_g, int i_b )
 {
-#ifdef __ANDROID__
-    if(i_a == 0)
-    {
-        for( int dy = 0; dy < p_picture->p[0].i_visible_lines; dy++ )
-        {
-            uint8_t *p_rgba = &p_picture->p->p_pixels[dy * p_picture->p->i_pitch];
-            memset(p_rgba, 0x00, p_picture->p[0].i_visible_pitch);
-        }
-        return;
-    }
-#endif
     for( int dy = 0; dy < p_picture->p[0].i_visible_lines; dy++ )
     {
         for( int dx = 0; dx < p_picture->p[0].i_visible_pitch; dx += 4 )
@@ -645,51 +638,53 @@ static void FillRGBAPicture( picture_t *p_picture,
     }
 }
 
-static inline void BlendRGBAPixel( picture_t *p_picture,
+static inline void BlendRGBAPixel( filter_t *p_filter, picture_t *p_picture,
                                    int i_picture_x, int i_picture_y,
                                    int i_a, int i_r, int i_g, int i_b,
                                    int i_alpha )
 {
-
-#ifdef __ANDROID__
-    int i_an = i_alpha;
-
-    uint8_t *p_rgba = &p_picture->p->p_pixels[i_picture_y * p_picture->p->i_pitch + 4 * i_picture_x];
-
-    int i_ao = p_rgba[3];
-
-    if( i_ao == 0 || i_an == 255 )
+    filter_sys_t *p_sys = p_filter->p_sys;
+    if (p_sys->b_optimize_subtitle)
     {
-        p_rgba[0] = i_r;
-        p_rgba[1] = i_g;
-        p_rgba[2] = i_b;
-        p_rgba[3] = i_an;
-    }
+        int i_an = i_alpha;
 
-#else
-    int i_an = i_a * i_alpha / 255;
+        uint8_t *p_rgba = &p_picture->p->p_pixels[i_picture_y * p_picture->p->i_pitch + 4 * i_picture_x];
 
-    uint8_t *p_rgba = &p_picture->p->p_pixels[i_picture_y * p_picture->p->i_pitch + 4 * i_picture_x];
+        int i_ao = p_rgba[3];
 
-    int i_ao = p_rgba[3];
-    if( i_ao == 0 )
-    {
-        p_rgba[0] = i_r;
-        p_rgba[1] = i_g;
-        p_rgba[2] = i_b;
-        p_rgba[3] = i_an;
+        if( i_ao == 0 || i_an == 255 )
+        {
+            p_rgba[0] = i_r;
+            p_rgba[1] = i_g;
+            p_rgba[2] = i_b;
+            p_rgba[3] = i_an;
+        }
     }
     else
     {
-        p_rgba[3] = 255 - (255 - p_rgba[3]) * (255 - i_an) / 255;
-        if( p_rgba[3] != 0 )
+        int i_an = i_a * i_alpha / 255;
+
+        uint8_t *p_rgba = &p_picture->p->p_pixels[i_picture_y * p_picture->p->i_pitch + 4 * i_picture_x];
+
+        int i_ao = p_rgba[3];
+        if( i_ao == 0 )
         {
-            p_rgba[0] = ( p_rgba[0] * i_ao * (255 - i_an) / 255 + i_r * i_an ) / p_rgba[3];
-            p_rgba[1] = ( p_rgba[1] * i_ao * (255 - i_an) / 255 + i_g * i_an ) / p_rgba[3];
-            p_rgba[2] = ( p_rgba[2] * i_ao * (255 - i_an) / 255 + i_b * i_an ) / p_rgba[3];
+            p_rgba[0] = i_r;
+            p_rgba[1] = i_g;
+            p_rgba[2] = i_b;
+            p_rgba[3] = i_an;
+        }
+        else
+        {
+            p_rgba[3] = 255 - (255 - p_rgba[3]) * (255 - i_an) / 255;
+            if( p_rgba[3] != 0 )
+            {
+                p_rgba[0] = ( p_rgba[0] * i_ao * (255 - i_an) / 255 + i_r * i_an ) / p_rgba[3];
+                p_rgba[1] = ( p_rgba[1] * i_ao * (255 - i_an) / 255 + i_g * i_an ) / p_rgba[3];
+                p_rgba[2] = ( p_rgba[2] * i_ao * (255 - i_an) / 255 + i_b * i_an ) / p_rgba[3];
+            }
         }
     }
-#endif
 }
 
 static void FillARGBPicture(picture_t *pic, int a, int r, int g, int b)
@@ -714,7 +709,7 @@ static void FillARGBPicture(picture_t *pic, int a, int r, int g, int b)
     }
 }
 
-static inline void BlendARGBPixel(picture_t *pic, int pic_x, int pic_y,
+static inline void BlendARGBPixel(filter_t *p_filter, picture_t *pic, int pic_x, int pic_y,
                                   int a, int r, int g, int b, int alpha)
 {
     uint8_t *rgba = &pic->p->p_pixels[pic_y * pic->p->i_pitch + 4 * pic_x];
@@ -740,28 +735,28 @@ static inline void BlendARGBPixel(picture_t *pic, int pic_x, int pic_y,
     }
 }
 
-static inline void BlendAXYZGlyph( picture_t *p_picture,
+static inline void BlendAXYZGlyph( filter_t *p_filter, picture_t *p_picture,
                                    int i_picture_x, int i_picture_y,
                                    int i_a, int i_x, int i_y, int i_z,
                                    FT_BitmapGlyph p_glyph,
-                                   void (*BlendPixel)(picture_t *, int, int, int, int, int, int, int) )
+                                   void (*BlendPixel)(filter_t *, picture_t *, int, int, int, int, int, int, int) )
 
 {
     for( unsigned int dy = 0; dy < p_glyph->bitmap.rows; dy++ )
     {
         for( unsigned int dx = 0; dx < p_glyph->bitmap.width; dx++ )
-            BlendPixel( p_picture, i_picture_x + dx, i_picture_y + dy,
+            BlendPixel( p_filter, p_picture, i_picture_x + dx, i_picture_y + dy,
                         i_a, i_x, i_y, i_z,
                         p_glyph->bitmap.buffer[dy * p_glyph->bitmap.width + dx] );
     }
 }
 
-static inline void BlendAXYZLine( picture_t *p_picture,
+static inline void BlendAXYZLine( filter_t *p_filter, picture_t *p_picture,
                                   int i_picture_x, int i_picture_y,
                                   int i_a, int i_x, int i_y, int i_z,
                                   const line_character_t *p_current,
                                   const line_character_t *p_next,
-                                  void (*BlendPixel)(picture_t *, int, int, int, int, int, int, int) )
+                                  void (*BlendPixel)(filter_t *, picture_t *, int, int, int, int, int, int, int) )
 {
     int i_line_width = p_current->p_glyph->bitmap.width;
     if( p_next )
@@ -770,21 +765,21 @@ static inline void BlendAXYZLine( picture_t *p_picture,
     for( int dx = 0; dx < i_line_width; dx++ )
     {
         for( int dy = 0; dy < p_current->i_line_thickness; dy++ )
-            BlendPixel( p_picture,
+            BlendPixel( p_filter, p_picture,
                         i_picture_x + dx,
                         i_picture_y + p_current->i_line_offset + dy,
                         i_a, i_x, i_y, i_z, 0xff );
     }
 }
 
-static inline void RenderBackground( subpicture_region_t *p_region,
+static inline void RenderBackground( filter_t *p_filter, subpicture_region_t *p_region,
                                      line_desc_t *p_line_head,
                                      FT_BBox *p_regionbbox,
                                      FT_BBox *p_paddedbbox,
                                      FT_BBox *p_textbbox,
                                      picture_t *p_picture,
                                      void (*ExtractComponents)( uint32_t, uint8_t *, uint8_t *, uint8_t * ),
-                                     void (*BlendPixel)(picture_t *, int, int, int, int, int, int, int) )
+                                     void (*BlendPixel)(filter_t *p_filter, picture_t *, int, int, int, int, int, int, int) )
 {
     for( const line_desc_t *p_line = p_line_head; p_line != NULL; p_line = p_line->p_next )
     {
@@ -865,7 +860,7 @@ static inline void RenderBackground( subpicture_region_t *p_region,
                     for( int dy = absbox.yMax; dy < absbox.yMin; dy++ )
                     {
                         for( int dx = absbox.xMin; dx < absbox.xMax; dx++ )
-                            BlendPixel( p_picture, dx, dy, i_alpha, i_x, i_y, i_z, 0xff );
+                            BlendPixel( p_filter, p_picture, dx, dy, i_alpha, i_x, i_y, i_z, 0xff );
                     }
                 }
             }
@@ -888,7 +883,7 @@ static inline int RenderAXYZ( filter_t *p_filter,
                               const video_format_t *fmt_out,
                               void (*ExtractComponents)( uint32_t, uint8_t *, uint8_t *, uint8_t * ),
                               void (*FillPicture)( picture_t *p_picture, int, int, int, int ),
-                              void (*BlendPixel)(picture_t *, int, int, int, int, int, int, int) )
+                              void (*BlendPixel)(filter_t *,picture_t *, int, int, int, int, int, int, int) )
 {
     /* Create a new subpicture region */
     video_format_t fmt;
@@ -917,9 +912,10 @@ static inline int RenderAXYZ( filter_t *p_filter,
     const text_style_t *p_style = p_filter->p_sys->p_default_style;
     uint8_t i_x, i_y, i_z;
 
-#ifdef __ANDROID__
-    p_region->b_noregionbg = true;
-#endif
+    filter_sys_t *p_sys = p_filter->p_sys;
+    if (p_sys->b_optimize_subtitle)
+        p_region->b_noregionbg = true;
+
     if (p_region->b_noregionbg) {
         /* Render the background just under the text */
         FillPicture( p_picture, STYLE_ALPHA_TRANSPARENT, 0x00, 0x00, 0x00 );
@@ -929,12 +925,12 @@ static inline int RenderAXYZ( filter_t *p_filter,
         FillPicture( p_picture, p_style->i_background_alpha, i_x, i_y, i_z );
     }
 
-#ifndef __ANDROID__
-    /* Render text's background (from decoder) if any */
-    RenderBackground(p_region, p_line_head,
-                     p_regionbbox, p_paddedtextbbox, p_textbbox,
-                     p_picture, ExtractComponents, BlendPixel);
-#endif
+    if (!p_sys->b_optimize_subtitle)
+        /* Render text's background (from decoder) if any */
+        RenderBackground(p_filter, p_region, p_line_head,
+                         p_regionbbox, p_paddedtextbbox, p_textbbox,
+                         p_picture, ExtractComponents, BlendPixel);
+
     /* Render shadow then outline and then normal glyphs */
     for( int g = 0; g < 3; g++ )
     {
@@ -980,7 +976,7 @@ static inline int RenderAXYZ( filter_t *p_filter,
                 int i_glyph_y = offset.y + p_regionbbox->yMax - p_glyph->top + p_line->i_base_line;
                 int i_glyph_x = offset.x + p_glyph->left - p_regionbbox->xMin;
 
-                BlendAXYZGlyph( p_picture,
+                BlendAXYZGlyph( p_filter, p_picture,
                                 i_glyph_x, i_glyph_y,
                                 i_a, i_x, i_y, i_z,
                                 p_glyph,
@@ -988,7 +984,7 @@ static inline int RenderAXYZ( filter_t *p_filter,
 
                 /* underline/strikethrough are only rendered for the normal glyph */
                 if( g == 2 && ch->i_line_thickness > 0 )
-                    BlendAXYZLine( p_picture,
+                    BlendAXYZLine( p_filter, p_picture,
                                    i_glyph_x, i_glyph_y + p_glyph->top,
                                    i_a, i_x, i_y, i_z,
                                    &ch[0],
@@ -1074,11 +1070,13 @@ static void FillDefaultStyles( filter_t *p_filter )
     p_sys->p_default_style->i_shadow_color = var_InheritInteger( p_filter, "freetype-shadow-color" );
 
     p_sys->p_default_style->i_font_size = 0;
-#ifdef __ANDROID__
-    p_sys->p_default_style->i_style_flags &= ~STYLE_SHADOW;
-#else
-    p_sys->p_default_style->i_style_flags |= STYLE_SHADOW;
-#endif
+
+    /* tzj */
+    if (p_sys->b_optimize_subtitle)
+        p_sys->p_default_style->i_style_flags &= ~STYLE_SHADOW;
+    else
+        p_sys->p_default_style->i_style_flags |= STYLE_SHADOW;
+
     p_sys->p_default_style->i_features |= STYLE_HAS_FLAGS;
 
     p_sys->p_forced_style->i_font_size = var_InheritInteger( p_filter, "freetype-fontsize" );
@@ -1547,6 +1545,7 @@ static int Create( vlc_object_t *p_this )
     }
 
     p_filter->pf_render = Render;
+    p_sys->b_optimize_subtitle = var_InheritBool( p_filter, "optimize-subtitles" );
 
     return VLC_SUCCESS;
 

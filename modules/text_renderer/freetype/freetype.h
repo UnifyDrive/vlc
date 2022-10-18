@@ -136,6 +136,8 @@ struct filter_sys_t
 #if defined( _WIN32 )
     void *p_dw_sys;
 #endif
+    /* tzj */
+    bool    b_optimize_subtitle;
 };
 
 /**
