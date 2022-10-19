@@ -48,6 +48,7 @@
 #include <libavutil/opt.h>
 #include <libavformat/avformat.h>
 #include <libavutil/display.h>
+#include "../../../src/input/es_out.h"
 
 
 //#define AVFORMAT_DEBUG 1
@@ -90,8 +91,12 @@ struct demux_sys_t
     input_title_t *p_title;
 
     int i_seek_flag;
+    /* tzj */
+    uint64_t     i_nztime;
 };
 
+#define DEMUX_INCREMENT (CLOCK_FREQ / 4) /* How far the pcr will go, each round */
+#define MAX_BUFFER_SIZE     (30*1024*1024)
 #define AVFORMAT_IOBUFFER_SIZE 32768  /* FIXME */
 
 /*****************************************************************************
@@ -396,6 +401,7 @@ int avformat_OpenDemux( vlc_object_t *p_this )
     for( unsigned i = 0; i < nb_streams; i++ )
     {
         struct avformat_track_s *p_track = &p_sys->tracks[i];
+        p_track->codec_type = AVMEDIA_TYPE_UNKNOWN;
         AVStream *s = p_sys->ic->streams[i];
         const AVCodecParameters *cp = s->codecpar;
         es_format_t es_fmt;
@@ -724,6 +730,8 @@ int avformat_OpenDemux( vlc_object_t *p_this )
     }
 
     ResetTime( p_demux, 0 );
+    p_sys->i_nztime = 0;
+    p_sys->i_pcr  = VLC_TS_INVALID;
     return VLC_SUCCESS;
 }
 
@@ -766,9 +774,16 @@ static int Demux( demux_t *p_demux )
     AVPacket    pkt;
     block_t     *p_frame;
     int64_t     i_start_time;
+    int         i_av_ret = 0;
+    bool        is_mp4 = false;
 
+    if( !strcmp( p_sys->fmt->name, "mov,mp4,m4a,3gp,3g2,mj2" ) )
+    {
+        is_mp4 = true;
+    }
+again:
     /* Read a frame */
-    int i_av_ret = av_read_frame( p_sys->ic, &pkt );
+    i_av_ret = av_read_frame( p_sys->ic, &pkt );
     if( i_av_ret )
     {
         /* Avoid EOF if av_read_frame returns AVERROR(EAGAIN) */
@@ -901,37 +916,77 @@ static int Demux( demux_t *p_demux )
 #endif
     if( p_frame->i_dts > VLC_TS_INVALID && p_track->p_es != NULL )
         p_track->i_pcr = p_frame->i_dts;
-
-    int64_t i_ts_max = INT64_MIN;
-    for( unsigned i = 0; i < p_sys->i_tracks; i++ )
+    if (is_mp4)
     {
-        if( p_sys->tracks[i].p_es != NULL &&
-           (p_sys->tracks[i].codec_type == AVMEDIA_TYPE_AUDIO || p_sys->tracks[i].codec_type == AVMEDIA_TYPE_VIDEO))
-            i_ts_max = __MAX( i_ts_max, p_sys->tracks[i].i_pcr );
+        if (p_sys->i_pcr == VLC_TS_INVALID) {
+            p_sys->i_pcr = VLC_TS_0;
+            es_out_SetPCR( p_demux->out, p_sys->i_pcr );
+        }
     }
-
-    int64_t i_ts_min = INT64_MAX;
-    for( unsigned i = 0; i < p_sys->i_tracks; i++ )
+    else
     {
-        if( p_sys->tracks[i].p_es != NULL &&
-                p_sys->tracks[i].i_pcr > VLC_TS_INVALID &&
-                p_sys->tracks[i].i_pcr + 10 * CLOCK_FREQ >= i_ts_max &&
-                (p_sys->tracks[i].codec_type == AVMEDIA_TYPE_AUDIO || p_sys->tracks[i].codec_type == AVMEDIA_TYPE_VIDEO))
-            i_ts_min = __MIN( i_ts_min, p_sys->tracks[i].i_pcr );
-    }
-    if( i_ts_min >= p_sys->i_pcr && likely(i_ts_min != INT64_MAX) )
-    {
-        p_sys->i_pcr = i_ts_min;
-        es_out_SetPCR( p_demux->out, p_sys->i_pcr );
-        UpdateSeekPoint( p_demux, p_sys->i_pcr );
-    }
+        int64_t i_ts_max = INT64_MIN;
+        for( unsigned i = 0; i < p_sys->i_tracks; i++ )
+        {
+            if( p_sys->tracks[i].p_es != NULL &&
+               (p_sys->tracks[i].codec_type == AVMEDIA_TYPE_AUDIO || p_sys->tracks[i].codec_type == AVMEDIA_TYPE_VIDEO))
+                i_ts_max = __MAX( i_ts_max, p_sys->tracks[i].i_pcr );
+        }
 
+        int64_t i_ts_min = INT64_MAX;
+        for( unsigned i = 0; i < p_sys->i_tracks; i++ )
+        {
+            if( p_sys->tracks[i].p_es != NULL &&
+                    p_sys->tracks[i].i_pcr > VLC_TS_INVALID &&
+                    p_sys->tracks[i].i_pcr + 10 * CLOCK_FREQ >= i_ts_max &&
+                    (p_sys->tracks[i].codec_type == AVMEDIA_TYPE_AUDIO || p_sys->tracks[i].codec_type == AVMEDIA_TYPE_VIDEO))
+                i_ts_min = __MIN( i_ts_min, p_sys->tracks[i].i_pcr );
+        }
+
+        if( i_ts_min >= p_sys->i_pcr && likely(i_ts_min != INT64_MAX) )
+        {
+            p_sys->i_pcr = i_ts_min;
+            es_out_SetPCR( p_demux->out, p_sys->i_pcr );
+            UpdateSeekPoint( p_demux, p_sys->i_pcr );
+        }
+    }
     if( p_track->p_es != NULL )
         es_out_Send( p_demux->out, p_track->p_es, p_frame );
     else
         block_Release( p_frame );
 
     av_packet_unref( &pkt );
+    if (is_mp4)
+    {
+        for( unsigned i = 0; i < p_sys->i_tracks; i++ )
+        {
+            if ((p_sys->tracks[i].codec_type != AVMEDIA_TYPE_VIDEO && p_sys->tracks[i].codec_type !=AVMEDIA_TYPE_AUDIO)) {
+                continue;
+            }
+
+            size_t buffer_size = EsOutGetBufferSize(p_demux->p_input);
+            if (buffer_size > MAX_BUFFER_SIZE)
+            {
+                msg_Warn( p_demux, "buffer_size has reached %lld",buffer_size);
+                break;
+            }
+
+            if (p_sys->tracks[i].i_pcr < p_sys->i_nztime + DEMUX_INCREMENT){
+#ifdef AVFORMAT_DEBUG
+                msg_Dbg( p_demux, "p_sys->tracks[%d]->i_pcr = %lld p_sys->i_nztime + DEMUX_INCREMENT=%lld",i,p_sys->tracks[i].i_pcr,p_sys->i_nztime + DEMUX_INCREMENT);
+#endif
+                goto again;
+            }
+        }
+        p_sys->i_nztime += DEMUX_INCREMENT;
+        if( p_sys->i_pcr > VLC_TS_INVALID )
+        {
+            p_sys->i_pcr = VLC_TS_0 + p_sys->i_nztime;
+            es_out_SetPCR( p_demux->out, p_sys->i_pcr );
+        }
+        UpdateSeekPoint( p_demux, p_sys->i_pcr );
+    }
+
     return 1;
 }
 
@@ -1071,6 +1126,8 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
             {
                 p_sys->i_seek_flag = 1;
             }
+            p_sys->i_pcr  = VLC_TS_INVALID;
+            p_sys->i_nztime = i64;
             return VLC_SUCCESS;
 
         case DEMUX_GET_LENGTH:
@@ -1102,6 +1159,8 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
             {
                 p_sys->i_seek_flag = 1;
             }
+            p_sys->i_pcr  = VLC_TS_INVALID;
+            p_sys->i_nztime = i64;
             return VLC_SUCCESS;
         }
 

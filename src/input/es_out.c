@@ -649,7 +649,21 @@ static void EsOutChangePosition( es_out_t *out, bool b_seek )
     p_sys->i_prev_stream_level = -1;
 }
 
+size_t EsOutGetBufferSize( input_thread_t *p_input )
+{
 
+    es_out_sys_t *p_sys = input_priv(p_input)->p_es_out_display->p_sys;
+    size_t i_size = 0;
+    for( int i = 0; i < p_sys->i_es; i++ )
+    {
+        es_out_id_t *p_es = p_sys->es[i];
+
+        if( p_es->p_dec )
+            i_size += input_DecoderGetFifoSize( p_es->p_dec );
+
+    }
+    return i_size;
+}
 
 static void EsOutDecodersStopBuffering( es_out_t *out, bool b_forced )
 {

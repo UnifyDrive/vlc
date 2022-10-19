@@ -259,6 +259,7 @@ ifdef USE_FFMPEG
 	$(APPLY) $(SRC)/ffmpeg/0001-avcodec-vp9-Do-not-destroy-uninitialized-mutexes-con.patch
 	$(APPLY) $(SRC)/ffmpeg/001-tdx-ffmpeg-webdav.patch
 	$(APPLY) $(SRC)/ffmpeg/002-tdx-ffmpeg-bluray-remote-iso-and-bdmv-dir.patch
+	$(APPLY) $(SRC)/ffmpeg/003-tdx-ffmpeg-mov.patch
 endif
 ifdef USE_LIBAV
 	$(APPLY) $(SRC)/ffmpeg/libav_gsm.patch
