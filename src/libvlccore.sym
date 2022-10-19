@@ -769,3 +769,4 @@ vlc_rd_probe_add
 vlc_input_attachment_New
 vlc_input_attachment_Hold
 vlc_input_attachment_Release
+EsOutGetBufferSize

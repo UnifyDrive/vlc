@@ -175,6 +175,6 @@ static inline void es_out_Eos( es_out_t *p_out )
 }
 
 es_out_t  *input_EsOutNew( input_thread_t *, int i_rate );
-size_t EsOutGetBufferSize( input_thread_t *p_input );
+VLC_API size_t EsOutGetBufferSize( input_thread_t *p_input );
 
 #endif
