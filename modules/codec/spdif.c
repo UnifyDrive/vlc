@@ -180,6 +180,25 @@ static int  process_ac3_encod(decoder_t *p_dec,AVFrame  *inputframe,block_t *p_b
   
    if(!p_sys->ac3_CodecCtx)
         return 0;
+
+    if(p_sys->swr_ctx == NULL && (p_sys->ac3_CodecCtx->sample_fmt != inputframe->format
+            || p_sys->ac3_CodecCtx->channels != inputframe->channels
+            || p_sys->ac3_CodecCtx->channel_layout != inputframe->channel_layout
+            || p_sys->ac3_CodecCtx->sample_rate != inputframe->sample_rate)){
+    //    msg_Dbg(p_dec,"tdx  dts layout  %lld  chanles  %d  samplerate  %d  format  %d  ",inputframe->channel_layout,inputframe->channels,inputframe->sample_rate,inputframe->format);
+        p_sys->swr_ctx  = swr_alloc();
+        p_sys->swr_ctx = swr_alloc_set_opts(
+            p_sys->swr_ctx,
+            p_sys->ac3_CodecCtx->channel_layout,
+            p_sys->ac3_CodecCtx->sample_fmt,
+            p_sys->ac3_CodecCtx->sample_rate,
+           // av_get_default_channel_layout(p_sys->p_context->channels),
+            inputframe->channel_layout,
+            inputframe->format,
+            inputframe->sample_rate,0,NULL);
+        swr_init(p_sys->swr_ctx);
+    }
+
    AVFrame *frame  = NULL;
    if(p_sys->swr_ctx != NULL){
         frame = av_frame_alloc();
@@ -454,31 +473,13 @@ static int open_ac3_encoder(decoder_t *p_dec)
     p_sys->ac3_CodecCtx = avcodec_alloc_context3(codec);
     if (!p_sys->ac3_CodecCtx)
         return false;
-    p_sys->ac3_CodecCtx->sample_rate =48000;
-    p_sys->ac3_CodecCtx->channels =  2;
     if(!p_sys->p_context)
          return false;
-
     p_sys->ac3_CodecCtx->bit_rate =  640000;
     p_sys->ac3_CodecCtx->sample_fmt =  AV_SAMPLE_FMT_FLTP;
     p_sys->ac3_CodecCtx->sample_rate = 48000;
     p_sys->ac3_CodecCtx->channel_layout =   AV_CH_LAYOUT_5POINT1_BACK;
     p_sys->ac3_CodecCtx->channels = av_get_channel_layout_nb_channels(p_sys->ac3_CodecCtx->channel_layout);
- 
-    if(p_sys->ac3_CodecCtx->sample_fmt != p_sys->p_context->sample_fmt 
-            ||p_sys->ac3_CodecCtx->channels != p_sys->p_context->channels
-            ||p_sys->ac3_CodecCtx->sample_rate != p_sys->p_context->sample_rate){
-        p_sys->swr_ctx  = swr_alloc();
-        p_sys->swr_ctx = swr_alloc_set_opts(
-            p_sys->swr_ctx,
-            av_get_default_channel_layout(p_sys->ac3_CodecCtx->channels),
-            p_sys->ac3_CodecCtx->sample_fmt,
-            p_sys->ac3_CodecCtx->sample_rate,
-            av_get_default_channel_layout(p_sys->p_context->channels),
-            p_sys->p_context->sample_fmt,
-            p_sys->p_context->sample_rate,0,0);
-        swr_init(p_sys->swr_ctx);
-    }
 
   /* open the codec */
   ret = avcodec_open2( p_sys->ac3_CodecCtx, codec,  NULL );

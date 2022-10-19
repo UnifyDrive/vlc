@@ -528,6 +528,11 @@
 #define VLC_CODEC_DSD_LSBF_PLANAR            VLC_FOURCC('D','L','F','P')
 #define VLC_CODEC_DSD_MSBF_PLANAR            VLC_FOURCC('D','M','F','P')
 
+#define VLC_CODEC_PCM_S8_PLANAR              VLC_FOURCC('S','8','P','L')
+#define VLC_CODEC_PCM_S24LE_PLANAR           VLC_FOURCC('S','2','4','L')
+#define VLC_CODEC_PCM_S32LE_PLANAR           VLC_FOURCC('S','3','2','L')
+#define VLC_CODEC_PCM_S16BE_PLANAR           VLC_FOURCC('S','1','6','B')
+
 /* Subtitle */
 #define VLC_CODEC_SPU       VLC_FOURCC('s','p','u',' ')
 #define VLC_CODEC_DVBS      VLC_FOURCC('d','v','b','s')
