@@ -679,7 +679,7 @@ static void SpuRenderRegion(spu_t *spu,
                             const vlc_fourcc_t *chroma_list,
                             const video_format_t *fmt,
                             const spu_area_t *subtitle_area, int subtitle_area_count,
-                            mtime_t render_date)
+                            mtime_t render_date, int margin_scale)
 {
     spu_private_t *sys = spu->p;
 
@@ -731,7 +731,7 @@ static void SpuRenderRegion(spu_t *spu,
      * requested (dvd menu) */
     int y_margin = 0;
     if (!crop_requested && subpic->b_subtitle)
-        y_margin = spu_invscale_h(sys->margin, scale_size);
+        y_margin = sys->margin*margin_scale/SCALE_UNIT;
 
     /* Place the picture
      * We compute the position in the rendered size */
@@ -1131,12 +1131,14 @@ static subpicture_t *SpuRenderSubpictures(spu_t *spu,
             if (scale.w <= 0 || scale.h <= 0)
                 continue;
 
+            /* Fix the problem that low resolution video subtitles cannot reach the top*/
+            int margin_scale = fmt_dst->i_visible_height*SCALE_UNIT/fmt_src->i_height;
             /* */
             SpuRenderRegion(spu, output_last_ptr, &area,
                             subpic, region, scale,
                             chroma_list, fmt_dst,
                             subtitle_area, subtitle_area_count,
-                            subpic->b_subtitle ? render_subtitle_date : render_osd_date);
+                            subpic->b_subtitle ? render_subtitle_date : render_osd_date,margin_scale);
             if (*output_last_ptr)
                 output_last_ptr = &(*output_last_ptr)->p_next;
 
