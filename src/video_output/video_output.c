@@ -559,6 +559,13 @@ void vout_ControlChangeSubMargin(vout_thread_t *vout, int margin)
                              margin);
 }
 
+void vout_ControlChangeSubForceDisplaySize(vout_thread_t *vout, int value)
+{
+    vout_control_PushInteger(&vout->p->control, VOUT_CONTROL_CHANGE_SUB_FORCE_DISPLAY_SIZE,
+                             value);
+}
+
+
 void vout_ControlChangeViewpoint(vout_thread_t *vout,
                                  const vlc_viewpoint_t *p_viewpoint)
 {
@@ -1033,7 +1040,10 @@ static int ThreadDisplayRenderPicture(vout_thread_t *vout, bool is_forced)
 
         fmt_spu = vd->source;
         #if defined(__ANDROID__)
-        force_use_display = true;
+        if (sys->force_display_size > 0) {
+            force_use_display = true;
+            //msg_Warn(vout, "Set force_use_display to true.");
+        }
         #endif
         if (force_use_display || fmt_spu.i_width * fmt_spu.i_height < place.width * place.height) {
             fmt_spu.i_sar_num = vd->cfg->display.sar.num;
@@ -1340,6 +1350,12 @@ static void ThreadChangeSubMargin(vout_thread_t *vout, int margin)
     spu_ChangeMargin(vout->p->spu, margin);
 }
 
+static void ThreadChangeSubForceDisplaySize(vout_thread_t *vout, int value)
+{
+    vout->p->force_display_size = value;
+}
+
+
 static void ThreadChangePause(vout_thread_t *vout, bool is_paused, mtime_t date)
 {
     assert(!vout->p->pause.is_on || !is_paused);
@@ -1602,6 +1618,7 @@ static int ThreadStart(vout_thread_t *vout, vout_display_state_t *state)
 
     vout->p->spu_blend_chroma        = 0;
     vout->p->spu_blend               = NULL;
+    vout->p->force_display_size      = 0;
 
     video_format_Print(VLC_OBJECT(vout), "original format", &vout->p->original);
     return VLC_SUCCESS;
@@ -1781,6 +1798,9 @@ static int ThreadControl(vout_thread_t *vout, vout_control_cmd_t cmd)
         break;
     case VOUT_CONTROL_CHANGE_SUB_MARGIN:
         ThreadChangeSubMargin(vout, cmd.u.integer);
+        break;
+    case VOUT_CONTROL_CHANGE_SUB_FORCE_DISPLAY_SIZE:
+        ThreadChangeSubForceDisplaySize(vout, cmd.u.integer);
         break;
     case VOUT_CONTROL_PAUSE:
         ThreadChangePause(vout, cmd.u.pause.is_on, cmd.u.pause.date);

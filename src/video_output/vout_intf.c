@@ -73,6 +73,8 @@ static int SubFilterCallback( vlc_object_t *, char const *,
                               vlc_value_t, vlc_value_t, void * );
 static int SubMarginCallback( vlc_object_t *, char const *,
                               vlc_value_t, vlc_value_t, void * );
+static int SubForceDisplaySizeCallback( vlc_object_t *, char const *,
+                              vlc_value_t, vlc_value_t, void * );
 static int ViewpointCallback( vlc_object_t *, char const *,
                               vlc_value_t, vlc_value_t, void * );
 
@@ -295,6 +297,11 @@ void vout_IntfInit( vout_thread_t *p_vout )
                 VLC_VAR_INTEGER | VLC_VAR_DOINHERIT | VLC_VAR_ISCOMMAND );
     var_AddCallback( p_vout, "sub-margin", SubMarginCallback, NULL );
 
+    /* Add sub-force-display-size variable */
+    var_Create( p_vout, "sub-force-display-size",
+                VLC_VAR_INTEGER | VLC_VAR_DOINHERIT | VLC_VAR_ISCOMMAND );
+    var_AddCallback( p_vout, "sub-force-display-size", SubForceDisplaySizeCallback, NULL );
+
     /* Mouse coordinates */
     var_Create( p_vout, "mouse-button-down", VLC_VAR_INTEGER );
     var_Create( p_vout, "mouse-moved", VLC_VAR_COORDS );
@@ -324,6 +331,7 @@ void vout_IntfReinit( vout_thread_t *p_vout )
     var_TriggerCallback( p_vout, "sub-source" );
     var_TriggerCallback( p_vout, "sub-filter" );
     var_TriggerCallback( p_vout, "sub-margin" );
+    var_TriggerCallback( p_vout, "sub-force-display-size" );
 }
 
 /*****************************************************************************
@@ -605,6 +613,17 @@ static int SubMarginCallback( vlc_object_t *p_this, char const *psz_cmd,
     vout_ControlChangeSubMargin( p_vout, newval.i_int );
     return VLC_SUCCESS;
 }
+
+static int SubForceDisplaySizeCallback( vlc_object_t *p_this, char const *psz_cmd,
+                              vlc_value_t oldval, vlc_value_t newval, void *p_data )
+{
+  vout_thread_t *p_vout = (vout_thread_t *)p_this;
+  VLC_UNUSED(psz_cmd); VLC_UNUSED(oldval); VLC_UNUSED(p_data);
+
+  vout_ControlChangeSubForceDisplaySize( p_vout, newval.i_int );
+  return VLC_SUCCESS;
+}
+
 
 static int ViewpointCallback( vlc_object_t *p_this, char const *psz_cmd,
                               vlc_value_t oldval, vlc_value_t newval, void *p_data)

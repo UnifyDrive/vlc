@@ -2158,7 +2158,8 @@ typedef enum libvlc_media_player_spu_option {
     libvlc_spu_None = 0, /**< none */
     libvlc_spu_font_size,   /**< subtitle font size */
     libvlc_spu_font_color, /**< subtitle font color */
-    libvlc_spu_position /**< subtitle position */
+    libvlc_spu_position, /**< subtitle position */
+    libvlc_spu_force_display_size /**< subtitle use screen display size */
 } libvlc_media_player_spu_option_t;
 
 /**

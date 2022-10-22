@@ -2338,6 +2338,16 @@ int libvlc_media_player_set_spu_option( libvlc_media_player_t *p_mi,
                 ret = VLC_EGENERIC;
             }
             break;
+        case libvlc_spu_force_display_size:
+            p_vout = input_GetVout( p_input_thread );
+            if (p_vout != NULL) {
+                var_SetInteger(p_vout , "sub-force-display-size", value );
+            }
+            else
+            {
+                ret = VLC_EGENERIC;
+            }
+            break;
         default:
             ret = VLC_EGENERIC;
             break;

@@ -137,6 +137,7 @@ struct vout_thread_sys_t
     picture_fifo_t  *decoder_fifo;
     vout_chrono_t   render;           /**< picture render time estimator */
     bool            has_spu;
+    int             force_display_size;
 };
 
 /* TODO to move them to vlc_vout.h */
@@ -152,6 +153,7 @@ void vout_ControlChangeFilters(vout_thread_t *, const char *);
 void vout_ControlChangeSubSources(vout_thread_t *, const char *);
 void vout_ControlChangeSubFilters(vout_thread_t *, const char *);
 void vout_ControlChangeSubMargin(vout_thread_t *, int);
+void vout_ControlChangeSubForceDisplaySize(vout_thread_t *, int );
 void vout_ControlChangeViewpoint( vout_thread_t *, const vlc_viewpoint_t *);
 
 /* */

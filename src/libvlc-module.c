@@ -707,6 +707,12 @@ static const char *const ppsz_prefres[] = {
     "You can use this option to place the subtitles under the movie, " \
     "instead of over the movie. Try several positions.")
 
+#define SUB_FORCE_DISPLAY_SIZE_TEXT N_("Force subtitle use display size")
+#define SUB_FORCE_DISPLAY_SIZE_LONGTEXT N_( \
+    "You can use this option to control the subtitles use display size, " \
+    "instead of normal method.")
+
+
 #define SUB_TEXT_SCALE_TEXT N_("Subtitles text scaling factor")
 #define SUB_TEXT_SCALE_LONGTEXT N_("Changes the subtitles size where possible")
 
@@ -1697,6 +1703,8 @@ vlc_module_begin ()
                  SUB_PATH_TEXT, SUB_PATH_LONGTEXT, true )
     add_integer( "sub-margin", 0, SUB_MARGIN_TEXT,
                  SUB_MARGIN_LONGTEXT, true )
+    add_integer( "sub-force-display-size", 0, SUB_FORCE_DISPLAY_SIZE_TEXT,
+                 SUB_FORCE_DISPLAY_SIZE_LONGTEXT, true )
     add_integer_with_range( "sub-text-scale", 100, 10, 500,
                SUB_TEXT_SCALE_TEXT, SUB_TEXT_SCALE_LONGTEXT, false )
         change_volatile  ()
