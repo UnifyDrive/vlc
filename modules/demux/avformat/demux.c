@@ -67,6 +67,7 @@ struct avformat_track_s
     es_out_id_t *p_es;
     mtime_t i_pcr;
     enum AVMediaType codec_type;
+    bool b_selected;
 };
 
 /*****************************************************************************
@@ -781,6 +782,13 @@ static int Demux( demux_t *p_demux )
     {
         is_mp4 = true;
     }
+    for( unsigned i = 0; i < p_sys->i_tracks; i++ )
+    {
+        struct avformat_track_s *p_track = &p_sys->tracks[i];
+        if (p_track->p_es != NULL)
+            es_out_Control( p_demux->out, ES_OUT_GET_ES_STATE, p_track->p_es, &p_track->b_selected );
+    }
+
 again:
     /* Read a frame */
     i_av_ret = av_read_frame( p_sys->ic, &pkt );
@@ -950,7 +958,7 @@ again:
             UpdateSeekPoint( p_demux, p_sys->i_pcr );
         }
     }
-    if( p_track->p_es != NULL )
+    if( p_track->p_es != NULL && p_track->b_selected)
         es_out_Send( p_demux->out, p_track->p_es, p_frame );
     else
         block_Release( p_frame );
@@ -960,7 +968,7 @@ again:
     {
         for( unsigned i = 0; i < p_sys->i_tracks; i++ )
         {
-            if ((p_sys->tracks[i].codec_type != AVMEDIA_TYPE_VIDEO && p_sys->tracks[i].codec_type !=AVMEDIA_TYPE_AUDIO)) {
+            if (!p_sys->tracks[i].b_selected || (p_sys->tracks[i].codec_type != AVMEDIA_TYPE_VIDEO && p_sys->tracks[i].codec_type !=AVMEDIA_TYPE_AUDIO)) {
                 continue;
             }
 
