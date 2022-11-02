@@ -1968,7 +1968,6 @@ Pause( audio_output_t *p_aout, bool b_pause, mtime_t i_date )
         p_sys->b_thread_paused = true;
         JNI_AT_CALL_VOID( pause );
         CHECK_AT_EXCEPTION( "pause" );
-	JNI_AT_CALL_VOID( flush );
     } else
     {
         p_sys->b_thread_paused = false;
