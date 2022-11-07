@@ -592,7 +592,7 @@ int avformat_OpenDemux( vlc_object_t *p_this )
             es_fmt.psz_language = strdup( language->value );
 
         AVDictionaryEntry *title = av_dict_get( s->metadata, "title", NULL, 0 );
-        if ( title && language->value )
+        if ( title && title->value )
             es_fmt.psz_description = strdup( title->value );
         msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: find es: language=[%s], title =[%s]", __FILE__ , __FUNCTION__, __LINE__,
             es_fmt.psz_language, es_fmt.psz_description );
