@@ -775,6 +775,7 @@ libvlc_media_player_new( libvlc_instance_t *instance )
 
     /* tzj */
     var_Create (mp, "optimize-subtitles", VLC_VAR_BOOL | VLC_VAR_DOINHERIT);
+    var_Create (mp, "support-jiguang5pro-subtitles", VLC_VAR_BOOL | VLC_VAR_DOINHERIT);
 
      /* Audio */
     var_Create (mp, "aout", VLC_VAR_STRING | VLC_VAR_DOINHERIT);

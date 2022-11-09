@@ -63,6 +63,8 @@ vlc_module_begin()
     set_capability("vout display", 260)
     add_shortcut("android-display")
     add_string(CFG_PREFIX "chroma", NULL, CHROMA_TEXT, CHROMA_LONGTEXT, true)
+    add_bool( "support-jiguang5pro-subtitles", false, NULL,
+                      NULL, false )
     set_callbacks(Open, Close)
     add_submodule ()
         set_description("Android opaque video output")
@@ -139,6 +141,9 @@ struct vout_display_sys_t
     bool b_has_subpictures;
 
     uint8_t hash[16];
+    /* tzj add for jiguang 5 pro box subtitle overlap */
+    bool b_support_jg5pro_subtitles;
+    ARect jg5pro_sub_region;
 };
 
 #define PRIV_WINDOW_FORMAT_YV12 0x32315659
@@ -768,6 +773,13 @@ static int OpenCommon(vout_display_t *vd)
         goto error;
     }
 
+    sys->b_support_jg5pro_subtitles = var_InheritBool(vd, "support-jiguang5pro-subtitles");
+    sys->jg5pro_sub_region.top = -1;
+    sys->jg5pro_sub_region.bottom = -1;
+    sys->jg5pro_sub_region.left = -1;
+    sys->jg5pro_sub_region.right = -1;
+    msg_Dbg(vd, "[%s:%s:%d]=zspace=: b_support_jg5pro_subtitles=%d.", __FILE__ , __FUNCTION__, __LINE__,sys->b_support_jg5pro_subtitles);
+
     /* Setup vout_display */
     vd->pool    = Pool;
     vd->prepare = Prepare;
@@ -1072,6 +1084,49 @@ static void SubtitleGetDirtyBounds(vout_display_t *vd,
         SubtitleRegionToBounds(subpicture, &sys->p_sub_buffer_bounds[i].bounds);
 }
 
+static void SubtitleGetDirtyBoundsForJiGuang5Pro(vout_display_t *vd,
+                                   subpicture_t *subpicture,
+                                   ARect *p_out_bounds)
+{
+    vout_display_sys_t *sys = vd->sys;
+
+    if (subpicture)
+    {
+        if (sys->jg5pro_sub_region.left == -1 && sys->jg5pro_sub_region.right == -1 && sys->jg5pro_sub_region.top == -1 && sys->jg5pro_sub_region.bottom == -1)
+        {
+            sys->jg5pro_sub_region.left = p_out_bounds->left;
+            sys->jg5pro_sub_region.right = p_out_bounds->right;
+            sys->jg5pro_sub_region.top = p_out_bounds->top;
+            sys->jg5pro_sub_region.bottom = p_out_bounds->bottom;
+        }
+        /* save the max subtitle region*/
+        if (p_out_bounds->left < sys->jg5pro_sub_region.left)
+        {
+            sys->jg5pro_sub_region.left = p_out_bounds->left;
+        }
+        p_out_bounds->left = sys->jg5pro_sub_region.left;
+        if (p_out_bounds->right > sys->jg5pro_sub_region.right)
+        {
+            sys->jg5pro_sub_region.right = p_out_bounds->right;
+        }
+        p_out_bounds->right = sys->jg5pro_sub_region.right;
+        if (p_out_bounds->top < sys->jg5pro_sub_region.top )
+        {
+            sys->jg5pro_sub_region.top = p_out_bounds->top;
+        }
+        p_out_bounds->top = sys->jg5pro_sub_region.top;
+        if (p_out_bounds->bottom > sys->jg5pro_sub_region.bottom)
+        {
+            sys->jg5pro_sub_region.bottom = p_out_bounds->bottom;
+        }
+        p_out_bounds->bottom = sys->jg5pro_sub_region.bottom;
+    }else {
+        p_out_bounds->left = 0;
+        p_out_bounds->top = 0;
+        p_out_bounds->right = sys->p_sub_pic->format.i_width;
+        p_out_bounds->bottom = sys->p_sub_pic->format.i_height;
+    }
+}
 static void SubpicturePrepare(vout_display_t *vd, subpicture_t *subpicture)
 {
     vout_display_sys_t *sys = vd->sys;
@@ -1096,9 +1151,16 @@ static void SubpicturePrepare(vout_display_t *vd, subpicture_t *subpicture)
         return;
     }
 
-    /* Clear the subtitles surface. */
-    SubtitleGetDirtyBounds(vd, subpicture, &memset_bounds);
-    //msg_Dbg(vd, "[%s:%s:%d]=zspace=: Subtitle dirty bounds [%d,%d,  %d,%d]", __FILE__ , __FUNCTION__, __LINE__, memset_bounds.left, memset_bounds.top, memset_bounds.right, memset_bounds.bottom);
+    if (sys->b_support_jg5pro_subtitles)
+    {
+        SubtitleGetDirtyBoundsForJiGuang5Pro(vd, subpicture, &memset_bounds);
+    }
+    else
+    {
+        /* Clear the subtitles surface. */
+        SubtitleGetDirtyBounds(vd, subpicture, &memset_bounds);
+    }
+    msg_Dbg(vd, "[%s:%s:%d]=zspace=: Subtitle dirty bounds [%d,%d,  %d,%d]", __FILE__ , __FUNCTION__, __LINE__, memset_bounds.left, memset_bounds.top, memset_bounds.right, memset_bounds.bottom);
     const int x_pixels_offset = memset_bounds.left
                                 * sys->p_sub_pic->p[0].i_pixel_pitch;
     const int i_line_size = (memset_bounds.right - memset_bounds.left)
