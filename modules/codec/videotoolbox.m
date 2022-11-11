@@ -1350,7 +1350,7 @@ static void StopVideoToolbox(decoder_t *p_dec, bool closing)
          * vout (and not released). To work-around this issue, we force a vout
          * change. */
         if (!closing && p_dec->fmt_out.i_codec == VLC_CODEC_CVPX_BGRA
-         && p_dec->fmt_out.video.i_width * p_dec->fmt_out.video.i_height >= 8000000)
+         && p_dec->fmt_out.video.i_width * p_dec->fmt_out.video.i_height >= 9000000)
         {
             const video_format_t orig = p_dec->fmt_out.video;
             p_dec->fmt_out.video.i_width = p_dec->fmt_out.video.i_height =
