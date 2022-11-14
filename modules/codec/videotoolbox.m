@@ -1986,7 +1986,7 @@ static int DecodeBlock(decoder_t *p_dec, block_t *p_block)
         msg_Err(p_dec, "decoder failure, Abort.");
         /* Add an empty variable so that videotoolbox won't be loaded again for
          * this ES */
-        var_Create(p_dec, "videotoolbox-failed", VLC_VAR_VOID);
+        //var_Create(p_dec, "videotoolbox-failed", VLC_VAR_VOID);
         return VLCDEC_RELOAD;
     }
     else if (p_sys->vtsession_status == VTSESSION_STATUS_VOUT_FAILURE)
