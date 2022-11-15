@@ -1098,10 +1098,16 @@ static int blurayOpen(vlc_object_t *object)
                 msg_Warn(p_demux, "[%s:%s:%d]=zspace=: p_demux->s->psz_url=[%s].", __FILE__ , __FUNCTION__, __LINE__, p_demux->s->psz_url);
             }
             #endif
-            if (!bd_open_files(p_sys->bluray, p_sys->psz_bd_url, bdfs_dir_open, bdfs_file_open)) {
+            if (strstr(p_sys->psz_bd_url, ".rmvb?redirect=") || strstr(p_sys->psz_bd_url, ".rm?redirect=")) {
                 bd_close(p_sys->bluray);
                 p_sys->bluray = NULL;
-                msg_Warn(p_demux, "[%s:%s:%d]=zspace=: bd_open_files() failed, set p_sys->bluray to NULL!", __FILE__ , __FUNCTION__, __LINE__);
+                msg_Warn(p_demux, "[%s:%s:%d]=zspace=: No need run bd_open_files() for rmvb, set p_sys->bluray to NULL!", __FILE__ , __FUNCTION__, __LINE__);
+            } else {
+                if (!bd_open_files(p_sys->bluray, p_sys->psz_bd_url, bdfs_dir_open, bdfs_file_open)) {
+                    bd_close(p_sys->bluray);
+                    p_sys->bluray = NULL;
+                    msg_Warn(p_demux, "[%s:%s:%d]=zspace=: bd_open_files() failed, set p_sys->bluray to NULL!", __FILE__ , __FUNCTION__, __LINE__);
+                }
             }
         } else {
             p_sys->bluray = bd_init();
