@@ -291,7 +291,7 @@ ssize_t vlc_tls_Read_zs(vlc_tls_t *session, void *buf, size_t len, bool waitall,
             }
             ret = vlc_poll_i11e(&ufd, 1, 1000);
             try_times++;
-        } while (ret <=0 && try_times <= 10);
+        } while (ret <=0 && try_times <= 30);
         ssize_t val = session->readv(session, &iov, 1);
         //vlc_http_err(obj_tmp, "session->readv(%d), ret=%d, val=%d, try_times=%d.", (int)len, ret, val, try_times);
         if (val > 0)
