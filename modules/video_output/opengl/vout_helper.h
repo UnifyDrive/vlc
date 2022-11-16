@@ -210,7 +210,7 @@ static const char * const dither_text[] = {
     add_integer("target-trc", PL_COLOR_TRC_UNKNOWN, TRC_TEXT, TRC_LONGTEXT, false) \
             change_integer_list(trc_values, trc_text) \
     set_section("Tone mapping", NULL) \
-    add_integer("tone-mapping", PL_TONE_MAPPING_HABLE, \
+    add_integer("tone-mapping", PL_TONE_MAPPING_REINHARD, \
                 TONEMAPPING_TEXT, TONEMAPPING_LONGTEXT, false) \
             change_integer_list(tone_values, tone_text) \
     add_float("tone-mapping-param", pl_color_map_default_params.tone_mapping_param, \
