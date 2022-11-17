@@ -51,6 +51,7 @@ struct aout_sys_t
     bool soft_mute;
     float soft_gain;
     char *device;
+    int drop_frames_num;
 };
 
 #include "audio_output/volume.h"
@@ -476,6 +477,7 @@ static int Start (audio_output_t *aout, audio_sample_format_t *restrict fmt)
         sys->chans_to_reorder = 0;
         channels = 2;
     }
+    sys->drop_frames_num = 0;
 
     /* By default, ALSA plug will pad missing channels with zeroes, which is
      * usually fine. However, it will also discard extraneous channels, which
@@ -636,7 +638,7 @@ static void Play (audio_output_t *aout, block_t *block)
     /* TODO: better overflow handling */
     /* TODO: no period wake ups */
 
-    while (block->i_nb_samples > 0)
+    while (block->i_nb_samples > 0 && sys->drop_frames_num <=0)
     {
         snd_pcm_sframes_t frames;
 
@@ -648,6 +650,7 @@ static void Play (audio_output_t *aout, block_t *block)
             block->p_buffer += bytes;
             block->i_buffer -= bytes;
             // pts, length
+            sys->drop_frames_num = 0;
         }
         else  
         {
@@ -659,8 +662,15 @@ static void Play (audio_output_t *aout, block_t *block)
                 DumpDeviceStatus (aout, pcm);
                 break;
             }
-            msg_Warn (aout, "cannot write samples: %s", snd_strerror (frames));
+            sys->drop_frames_num = 6;
+            msg_Warn (aout, "cannot write samples: %s, [%d]", snd_strerror (frames), sys->drop_frames_num);
+            break;
         }
+    }
+    sys->drop_frames_num--;
+    if (sys->drop_frames_num > 0) {
+        msg_Warn (aout, "Drop one block, [%d]", sys->drop_frames_num);
+        snd_pcm_recover (pcm, -1, 1);
     }
     block_Release (block);
 }
@@ -696,10 +706,14 @@ static void Flush (audio_output_t *aout, bool wait)
 {
     snd_pcm_t *pcm = aout->sys->pcm;
 
-    if (wait)
+    if (wait) {
         snd_pcm_drain (pcm);
-    else
+        msg_Warn (aout, "snd_pcm_drain().");
+    }
+    else {
         snd_pcm_drop (pcm);
+        msg_Warn (aout, "snd_pcm_drop().");
+    }
     snd_pcm_prepare (pcm);
 }
 
