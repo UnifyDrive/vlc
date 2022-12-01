@@ -335,7 +335,7 @@ ca_Pause(audio_output_t * p_aout, bool pause, mtime_t date)
     lock_unlock(p_sys);
 }
 
-void
+int
 ca_Play(audio_output_t * p_aout, block_t * p_block)
 {
     struct aout_sys_common *p_sys = (struct aout_sys_common *) p_aout->sys;
@@ -364,6 +364,13 @@ ca_Play(audio_output_t * p_aout, block_t * p_block)
         const size_t i_avalaible_bytes =
             __MIN(p_block->i_buffer, p_sys->i_out_max_size - p_sys->i_out_size);
 
+        //msg_Warn(p_aout, "[%s:%s:%d]=zspace=: i_avalaible_bytes=%d, p_block->i_buffer=%d.", __FILE__ , __FUNCTION__, __LINE__, i_avalaible_bytes, p_block->i_buffer);
+        if (i_avalaible_bytes <= 0 && p_sys->b_paused == false) {
+            msg_Warn(p_aout, "[%s:%s:%d]=zspace=: Force release audio block.", __FILE__ , __FUNCTION__, __LINE__);
+            lock_unlock(p_sys);
+            block_Release(p_block);
+            return 1;
+        }
         if (unlikely(i_avalaible_bytes != p_block->i_buffer))
         {
             /* Not optimal but unlikely code path. */
@@ -374,7 +381,7 @@ ca_Play(audio_output_t * p_aout, block_t * p_block)
             if (!p_new)
             {
                 block_Release(p_block);
-                return;
+                return 0;
             }
 
             memcpy(p_new->p_buffer, p_block->p_buffer, i_avalaible_bytes);
@@ -391,7 +398,7 @@ ca_Play(audio_output_t * p_aout, block_t * p_block)
             {
                 lock_unlock(p_sys);
                 block_Release(p_block);
-                return;
+                return 0;
             }
 
             const mtime_t i_frame_us =
@@ -419,6 +426,8 @@ ca_Play(audio_output_t * p_aout, block_t * p_block)
         p_sys->b_played = true;
     else if (i_underrun_size > 0)
         msg_Warn(p_aout, "underrun of %zu bytes", i_underrun_size);
+
+    return 0;
 }
 
 int
@@ -890,7 +899,7 @@ au_Initialize(audio_output_t *p_aout, AudioUnit au, audio_sample_format_t *fmt,
         *warn_configuration = false;
 
     /* Set the desired format */
-    AudioStreamBasicDescription desc;
+    AudioStreamBasicDescription desc = {0};
     if (aout_BitsPerSample(fmt->i_format) != 0)
     {
         /* PCM */

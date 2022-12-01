@@ -157,6 +157,8 @@ struct aout_sys_t
     /* sw gain */
     float               soft_gain;
     bool                soft_mute;
+
+    audio_sample_format_t zs_save_fmt;
 };
 
 /* Soft volume helper */
@@ -225,6 +227,7 @@ enum port_type
 - (void)handleSpatialCapabilityChange:(NSNotification *)notification
 {
     if (@available(iOS 15.0, tvOS 15.0, *)) {
+
         audio_output_t *p_aout = [self aout];
         struct aout_sys_t *p_sys = p_aout->sys;
         NSDictionary *userInfo = notification.userInfo;
@@ -492,17 +495,20 @@ Pause (audio_output_t *p_aout, bool pause, mtime_t date)
      * interruption, our unit would be permanently silenced. In case of
      * multi-tasking, the multi-tasking view would still show a playing state
      * despite we are paused, same for lock screen */
+     msg_Warn(p_aout, "[%s:%s:%d]=zspace=: pause=[%s], p_sys->b_stopped=[%s].", __FILE__ , __FUNCTION__, __LINE__, pause?"True":"False",
+         p_sys->b_stopped?"True":"False");
 
     if (pause == p_sys->b_stopped)
         return;
 
-    OSStatus err;
+    OSStatus err = noErr;
     if (pause)
     {
         err = AudioOutputUnitStop(p_sys->au_unit);
         if (err != noErr)
             ca_LogErr("AudioOutputUnitStart failed");
         avas_SetActive(p_aout, false, 0);
+        msg_Warn(p_aout, "[%s:%s:%d]=zspace=: Stoped AudioUnit.", __FILE__ , __FUNCTION__, __LINE__);
     }
     else
     {
@@ -517,6 +523,7 @@ Pause (audio_output_t *p_aout, bool pause, mtime_t date)
                  * of ca_Play will deadlock */
                 return;
             }
+            msg_Warn(p_aout, "[%s:%s:%d]=zspace=: Started AudioUnit.", __FILE__ , __FUNCTION__, __LINE__);
         }
     }
     p_sys->b_stopped = pause;
@@ -536,6 +543,7 @@ Flush(audio_output_t *p_aout, bool wait)
 {
     struct aout_sys_t * p_sys = p_aout->sys;
 
+    msg_Warn(p_aout, "[%s:%s:%d]=zspace=: wait=[%s].", __FILE__ , __FUNCTION__, __LINE__, wait?"True":"False");
     ca_Flush(p_aout, wait);
 }
 
@@ -555,15 +563,28 @@ MuteSet(audio_output_t *p_aout, bool mute)
     return VLC_SUCCESS;
 }
 
+static void Stop(audio_output_t *p_aout);
+static int Start(audio_output_t *p_aout, audio_sample_format_t *restrict fmt);
+
+
 static void
 Play(audio_output_t * p_aout, block_t * p_block)
 {
     struct aout_sys_t * p_sys = p_aout->sys;
+    int ret = 0;
 
+    //msg_Warn(p_aout, "[%s:%s:%d]=zspace=: p_sys->b_muted=[%s],begin.", __FILE__ , __FUNCTION__, __LINE__, p_sys->b_muted?"True":"False");
     if (p_sys->b_muted)
         block_Release(p_block);
-    else
-        ca_Play(p_aout, p_block);
+    else {
+        ret = ca_Play(p_aout, p_block);
+        if (ret != 0) {
+            Stop(p_aout);
+            msg_Warn(p_aout, "[%s:%s:%d]=zspace=: Need Reset Audio unit.", __FILE__ , __FUNCTION__, __LINE__);
+            Start(p_aout,&(p_sys->zs_save_fmt) );
+        }
+    }
+   //msg_Warn(p_aout, "[%s:%s:%d]=zspace=: p_sys->b_muted=[%s].", __FILE__ , __FUNCTION__, __LINE__, p_sys->b_muted?"True":"False");
 }
 
 #pragma mark initialization
@@ -613,6 +634,7 @@ Start(audio_output_t *p_aout, audio_sample_format_t *restrict fmt)
     aout_FormatPrint(p_aout, "VLC is looking for:", fmt);
 
     p_sys->au_unit = NULL;
+    p_sys->zs_save_fmt = *fmt;
 
     NSNotificationCenter *notificationCenter = [NSNotificationCenter defaultCenter];
     [notificationCenter addObserver:p_sys->aoutWrapper

@@ -98,7 +98,7 @@ void ca_Flush(audio_output_t *p_aout, bool wait);
 
 void ca_Pause(audio_output_t * p_aout, bool pause, mtime_t date);
 
-void ca_Play(audio_output_t * p_aout, block_t * p_block);
+int ca_Play(audio_output_t * p_aout, block_t * p_block);
 
 int  ca_Initialize(audio_output_t *p_aout, const audio_sample_format_t *fmt,
                    mtime_t i_dev_latency_us);
