@@ -303,9 +303,12 @@ static subpicture_t *ConvertSubtitle(decoder_t *dec, AVSubtitle *ffsub, mtime_t 
     spu->b_ephemer  = dec->p_sys->b_need_ephemer;
                     /* We only show subtitle for i_stop time only */
 
+    /*msg_Warn( dec, "[%s:%s:%d]=zspace=: avctx[(%d,%d)] fmt_in[%d,%d].", __FILE__ , __FUNCTION__, __LINE__, 
+            avctx->coded_width, avctx->coded_height, dec->fmt_in.subs.spu.i_original_frame_width, dec->fmt_in.subs.spu.i_original_frame_height );*/
     if (avctx->coded_width != 0 && avctx->coded_height != 0) {
         spu->i_original_picture_width = avctx->coded_width;
         spu->i_original_picture_height = avctx->coded_height;
+        spu->b_subtitle_rescale = true;
     } else {
         spu->i_original_picture_width =
             dec->fmt_in.subs.spu.i_original_frame_width;

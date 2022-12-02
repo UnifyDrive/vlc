@@ -636,6 +636,7 @@ static subpicture_t *spu_new_buffer( decoder_t *p_dec,
         p_subpic->i_channel = p_owner->i_spu_channel;
         p_subpic->i_order = p_owner->i_spu_order++;
         p_subpic->b_subtitle = true;
+        p_subpic->b_subtitle_rescale = false;
     }
 
     vlc_object_release( p_vout );

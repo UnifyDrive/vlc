@@ -1045,6 +1045,8 @@ static int ThreadDisplayRenderPicture(vout_thread_t *vout, bool is_forced)
             //msg_Warn(vout, "Set force_use_display to true.");
         }
         #endif
+        /*msg_Warn( vout, "[%s:%s:%d]=zspace=: fmt[(%d,%d) (%d,%d)] place[%d,%d].", __FILE__ , __FUNCTION__, __LINE__, 
+            fmt_spu.i_width, fmt_spu.i_height, fmt_spu.i_visible_width, fmt_spu.i_visible_height, place.width, place.height );*/
         if (force_use_display || fmt_spu.i_width * fmt_spu.i_height < place.width * place.height) {
             fmt_spu.i_sar_num = vd->cfg->display.sar.num;
             fmt_spu.i_sar_den = vd->cfg->display.sar.den;

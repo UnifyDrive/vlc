@@ -1076,17 +1076,27 @@ static subpicture_t *SpuRenderSubpictures(spu_t *spu,
             continue;
 
         if (subpic->i_original_picture_width  <= 0 ||
-            subpic->i_original_picture_height <= 0) {
-            if (subpic->i_original_picture_width  > 0 ||
+            subpic->i_original_picture_height <= 0 || subpic->b_subtitle_rescale) {
+            /*if (subpic->i_original_picture_width  > 0 ||
                 subpic->i_original_picture_height > 0)
                 msg_Err(spu, "original picture size %dx%d is unsupported",
                          subpic->i_original_picture_width,
                          subpic->i_original_picture_height);
             else
-                msg_Warn(spu, "original picture size is undefined");
-
-            subpic->i_original_picture_width  = fmt_src->i_visible_width;
-            subpic->i_original_picture_height = fmt_src->i_visible_height;
+                msg_Warn(spu, "original picture size [%d,%d]is undefined. Use fmt_src->visible[%d,%d],b_subtitle_rescale=%s",
+                    subpic->i_original_picture_width, subpic->i_original_picture_height,
+                    fmt_src->i_visible_width, fmt_src->i_visible_height,
+                    subpic->b_subtitle_rescale?"True":"False");*/
+            if (subpic->b_subtitle_rescale) {
+                if (subpic->i_original_picture_width == fmt_src->i_visible_width) {
+                    subpic->i_original_picture_height = fmt_src->i_visible_height;
+                }else {
+                    subpic->i_original_picture_height = fmt_src->i_visible_height * subpic->i_original_picture_width / fmt_src->i_visible_width ;
+                }
+            }else {
+                subpic->i_original_picture_width  = fmt_src->i_visible_width;
+                subpic->i_original_picture_height = fmt_src->i_visible_height;
+            }
         }
 
         if (sys->text) {
