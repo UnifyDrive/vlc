@@ -467,11 +467,12 @@ cleanffmpeg:
 	-$(RM) "./.ffmpeg"
 	-$(RM) "./.sum-ffmpeg"
 	-$(RM) "./.dep-ffmpeg"
-	# -$(RM) toolchain.cmake
-	-$(RM) -R "$(PREFIX)/include/ffmpeg/*.*"
-	-$(RM) -R "$(PREFIX)/share/doc/ffmpeg/*.*"
-	-$(RM) "$(PREFIX)/lib/libffmpeg.*"
-	-$(RM) "$(PREFIX)/lib/pkgconfig/ffmpeg.*"
+	-$(RM) -R "$(PREFIX)/include/libav*"
+	-$(RM) -R "$(PREFIX)/include/libsw*"
+	-$(RM) "$(PREFIX)/lib/libav*"
+	-$(RM) "$(PREFIX)/lib/libsw*"
+	-$(RM) "$(PREFIX)/lib/pkgconfig/libav*"
+	-$(RM) "$(PREFIX)/lib/pkgconfig/libsw*"
 
 cleanlua:
 	-$(RM) "./.lua"
