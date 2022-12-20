@@ -213,11 +213,51 @@ int vlc_http_file_seek(struct vlc_http_resource *res, uintmax_t offset)
     if (mPrintObj) {
         msg_Dbg((stream_t *)mPrintObj, "[%s:%s:%d]=zspace=: seek offset=%ld.", __FILE__ , __FUNCTION__, __LINE__, offset);
     }
-    struct vlc_http_msg *resp = vlc_http_res_open(res, &offset);
+    
+    struct vlc_http_msg *resp = NULL;
+    struct vlc_http_file *file = (struct vlc_http_file *)res;
+
+    if (res->response != NULL && !strcasecmp(res->path, res->response->path) && 1) {
+        for (int i = 0; i < res->bak_num; i++) {
+            if (mPrintObj) {
+                msg_Dbg((stream_t *)mPrintObj, "[%s:%s:%d]=zspace=: res->response_bak[%d]->offset_last=%ld.", __FILE__ , __FUNCTION__, __LINE__, i, res->response_bak[i]->offset_last);
+            }
+            if (res->response_bak[i] && res->response_bak[i]->offset_last == offset) {
+                resp = res->response_bak[i];
+                if (mPrintObj) {
+                    msg_Dbg((stream_t *)mPrintObj, "[%s:%s:%d]=zspace=: Reuse this http socket.", __FILE__ , __FUNCTION__, __LINE__);
+                }
+                break;
+            }
+        }
+
+        if (res->bak_num < (MAX_HTTP_MSG_NUM -1)) {
+            res->response_bak[res->bak_num++] = res->response;
+            res->response = NULL;
+        }else {
+            for (int i = 0; i < res->bak_num; i++) {
+                if (res->response_bak[i] != NULL && res->response_bak[i] != res->response && res->response_bak[i] != resp) {
+                    for (int j = i + 1; j < res->bak_num; j++) {
+                        if (res->response_bak[i] == res->response_bak[j])
+                            res->response_bak[j] = NULL;
+                    }
+                    vlc_http_msg_destroy(res->response_bak[i]);
+                }
+            }
+            res->bak_num = 0;
+            memset(res->response_bak, 0x0, sizeof(struct vlc_http_msg *)*MAX_HTTP_MSG_NUM);
+            if (res->response != NULL) {
+                vlc_http_msg_destroy(res->response);
+                res->response = NULL;
+            }
+        }
+        if (resp)
+            goto vlc_http_msg_ready;
+    }
+
+    resp = vlc_http_res_open(res, &offset);
     if (resp == NULL)
         return -1;
-
-    struct vlc_http_file *file = (struct vlc_http_file *)res;
 
     int status = vlc_http_msg_get_status(resp);
     if (res->response != NULL)
@@ -231,9 +271,14 @@ int vlc_http_file_seek(struct vlc_http_resource *res, uintmax_t offset)
             vlc_http_msg_destroy(resp);
             return -1;
         }
+        for (int i = 0; i < res->bak_num; i++) {
+            if (res->response == res->response_bak[i])
+                res->response_bak[i] = NULL;
+        }
         vlc_http_msg_destroy(res->response);
     }
 
+vlc_http_msg_ready:
     res->response = resp;
     file->offset = offset;
     return 0;
@@ -260,6 +305,7 @@ block_t *vlc_http_file_read(struct vlc_http_resource *res)
         return NULL; /* End of stream */
 
     file->offset += block->i_buffer;
+    res->response->offset_last = file->offset;
     return block;
 }
 

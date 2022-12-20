@@ -118,6 +118,15 @@ retry:
     vlc_http_msg_get_cookies(resp, vlc_http_mgr_get_jar(res->manager),
                              res->host, res->path);
 
+    if (resp->path == NULL) {
+        int path_len = strlen(res->path);
+        resp->path = (char *)malloc(path_len + 4);
+        if (resp->path) {
+            memset(resp->path, 0x0, path_len + 4);
+            strncpy(resp->path, res->path, path_len);
+        }
+    }
+
     int status = vlc_http_msg_get_status(resp);
     if (status < 200 || status >= 599)
         goto fail;
@@ -174,6 +183,17 @@ static void vlc_http_res_deinit(struct vlc_http_resource *res)
     free(res->authority);
     free(res->host);
     free(res->token);
+
+    for (int i = 0; i < res->bak_num; i++) {
+        if (res->response_bak[i] != NULL && res->response_bak[i] != res->response) {
+            for (int j = i + 1; j < res->bak_num; j++) {
+                if (res->response_bak[i] == res->response_bak[j])
+                    res->response_bak[j] = NULL;
+            }
+            vlc_http_msg_destroy(res->response_bak[i]);
+        }
+    }
+    res->bak_num = 0;
 
     if (res->response != NULL)
         vlc_http_msg_destroy(res->response);
@@ -237,6 +257,8 @@ int vlc_http_res_init(struct vlc_http_resource *restrict res,
                                                : NULL;
     res->agent = (ua != NULL) ? strdup(ua) : NULL;
     res->referrer = (ref != NULL) ? strdup(ref) : NULL;
+    res->bak_num = 0;
+    memset(res->response_bak, 0x0, sizeof(struct vlc_http_msg *)*MAX_HTTP_MSG_NUM);
 
     const char *path = url.psz_path;
     if (path == NULL)

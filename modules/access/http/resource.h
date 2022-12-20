@@ -21,6 +21,8 @@
 #ifndef VLC_HTTP_RESOURCE_H
 #define VLC_HTTP_RESOURCE_H 1
 
+#define MAX_HTTP_MSG_NUM  (256)
+
 /**
  * \defgroup http_res Resources
  * Remote HTTP resources identified by a URL
@@ -57,6 +59,8 @@ struct vlc_http_resource
     char *agent;
     char *referrer;
     char *token;
+    struct vlc_http_msg *response_bak[MAX_HTTP_MSG_NUM];
+    int bak_num;
 };
 
 int vlc_http_res_init(struct vlc_http_resource *,

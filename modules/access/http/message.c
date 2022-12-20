@@ -38,7 +38,7 @@
 #include "message.h"
 #include "h2frame.h"
 
-struct vlc_http_msg
+/*struct vlc_http_msg
 {
     short status;
     char *method;
@@ -48,7 +48,7 @@ struct vlc_http_msg
     char *(*headers)[2];
     unsigned count;
     struct vlc_http_stream *payload;
-};
+};*/
 
 /* Maximum alignment for safe conversion to/from any specific pointer type */
 static const char alignas (max_align_t) vlc_http_error_loc;

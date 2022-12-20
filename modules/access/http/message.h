@@ -28,7 +28,20 @@
  * \file message.h
  */
 
-struct vlc_http_msg;
+//struct vlc_http_msg;
+struct vlc_http_msg
+{
+    short status;
+    char *method;
+    char *scheme;
+    char *authority;
+    char *path;
+    char *(*headers)[2];
+    unsigned count;
+    uintmax_t offset_last;
+    struct vlc_http_stream *payload;
+};
+
 struct block_t;
 struct vlc_http_cookie_jar_t;
 
