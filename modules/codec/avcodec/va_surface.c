@@ -160,7 +160,8 @@ static picture_context_t *GetSurface(va_pool_t *va_pool)
 
 int va_pool_Get(va_pool_t *va_pool, picture_t *pic)
 {
-    unsigned tries = (CLOCK_FREQ + VOUT_OUTMEM_SLEEP) / VOUT_OUTMEM_SLEEP;
+    /* Solve the problem that seek gets stuck when rendering with OpenGL */
+    unsigned tries = (CLOCK_FREQ + VOUT_OUTMEM_SLEEP) / VOUT_OUTMEM_SLEEP * 5;
     picture_context_t *field;
 
     if (va_pool->surface_count == 0)
