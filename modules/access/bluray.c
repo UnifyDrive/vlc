@@ -163,6 +163,7 @@ typedef struct bluray_overlay_t
 struct  demux_sys_t
 {
     BLURAY              *bluray;
+    BLURAY_DISC_INFO    *di;
     bool                b_draining;
 
     /* Titles */
@@ -1047,6 +1048,7 @@ static int blurayOpen(vlc_object_t *object)
     p_sys->i_still_end_time = STILL_IMAGE_NOT_SET;
     p_sys->b_reset_dts_offset = true;
     p_sys->i_pcr_offset = VLC_TS_INVALID;
+    p_sys->di = NULL;
 
     /* init demux info fields */
     p_demux->info.i_update    = 0;
@@ -1146,6 +1148,7 @@ static int blurayOpen(vlc_object_t *object)
 
     /* Warning the user about AACS/BD+ */
     const BLURAY_DISC_INFO *disc_info = bd_get_disc_info(p_sys->bluray);
+    p_sys->di = disc_info;
 
     /* Is it a bluray? */
     if (!disc_info->bluray_detected) {
@@ -1162,6 +1165,7 @@ static int blurayOpen(vlc_object_t *object)
              disc_info->num_unsupported_titles);
 
     /* AACS */
+    msg_Dbg(p_demux, "Disc AACS........................");
     if (disc_info->aacs_detected) {
         msg_Dbg(p_demux, "Disc is using AACS");
         if (!disc_info->libaacs_detected)
@@ -1187,6 +1191,7 @@ static int blurayOpen(vlc_object_t *object)
         }
     }
 
+    msg_Dbg(p_demux, "Disc BD+........................");
     /* BD+ */
     if (disc_info->bdplus_detected) {
         msg_Dbg(p_demux, "Disc is using BD+");
@@ -1199,12 +1204,14 @@ static int blurayOpen(vlc_object_t *object)
     }
 
     /* set player region code */
+    msg_Dbg(p_demux, "Set region ........................");
     char *psz_region = var_InheritString(p_demux, "bluray-region");
     unsigned int region = psz_region ? (psz_region[0] - 'A') : REGION_DEFAULT;
     free(psz_region);
     bd_set_player_setting(p_sys->bluray, BLURAY_PLAYER_SETTING_REGION_CODE, 1<<region);
 
     /* set preferred languages */
+    msg_Dbg(p_demux, "Set language ........................");
     const char *psz_code = DemuxGetLanguageCode( p_demux, "audio-language" );
     bd_set_player_setting_str(p_sys->bluray, BLURAY_PLAYER_SETTING_AUDIO_LANG, psz_code);
     psz_code = DemuxGetLanguageCode( p_demux, "sub-language" );
@@ -1213,10 +1220,12 @@ static int blurayOpen(vlc_object_t *object)
     bd_set_player_setting_str(p_sys->bluray, BLURAY_PLAYER_SETTING_MENU_LANG,  psz_code);
 
     /* Get disc metadata */
+    msg_Dbg(p_demux, "Get meta ........................");
     p_sys->p_meta = bd_get_meta(p_sys->bluray);
     if (!p_sys->p_meta)
         msg_Warn(p_demux, "Failed to get meta info.");
 
+    msg_Dbg(p_demux, "Attach Thumbnail ........................");
     p_sys->i_cover_idx = -1;
     attachThumbnail(p_demux);
 
@@ -1233,6 +1242,7 @@ static int blurayOpen(vlc_object_t *object)
         p_sys->b_menu = false;
     }
 
+    msg_Dbg(p_demux, "Init title ........................");
     /* Get titles and chapters */
     blurayInitTitles(p_demux, disc_info->num_hdmv_titles + disc_info->num_bdj_titles + 1/*Top Menu*/ + 1/*First Play*/);
 
@@ -2452,20 +2462,20 @@ static void blurayUpdateTitleInfo(input_title_t *t, BLURAY_TITLE_INFO *title_inf
 static void blurayInitTitles(demux_t *p_demux, uint32_t menu_titles)
 {
     demux_sys_t *p_sys = p_demux->p_sys;
-    const BLURAY_DISC_INFO *di = bd_get_disc_info(p_sys->bluray);
+    const BLURAY_DISC_INFO *di = p_sys->di;//bd_get_disc_info(p_sys->bluray);
 
     /* get and set the titles */
     uint32_t i_title = menu_titles;
 
     if (!p_sys->b_menu) {
-        i_title = bd_get_titles(p_sys->bluray, TITLES_RELEVANT, 60);
+        i_title = bd_get_titles(p_sys->bluray, TITLES_RELEVANT, 3600);
         p_sys->i_longest_title = bd_get_main_title(p_sys->bluray);
         msg_Dbg(p_demux, "[%s:%s:%d]=zspace=: Get p_sys->i_longest_title=%d, titles=%d.", __FILE__ , __FUNCTION__, __LINE__, p_sys->i_longest_title, i_title);
     }
 
     uint64_t duration = 0;
     uint32_t i_longest_playlist = 0;
-    for (uint32_t i = 0; i < i_title; i++) {
+    for (uint32_t i = 0; i <= p_sys->i_longest_title; i++) {
         input_title_t *t = vlc_input_title_New();
         if (!t)
             break;
@@ -3271,7 +3281,7 @@ static bool blurayIsBdjTitle(demux_t *p_demux)
 {
     demux_sys_t *p_sys = p_demux->p_sys;
     unsigned int i_title = p_demux->info.i_title;
-    const BLURAY_DISC_INFO *di = bd_get_disc_info(p_sys->bluray);
+    const BLURAY_DISC_INFO *di = p_sys->di;//bd_get_disc_info(p_sys->bluray);
 
     if (di && di->titles) {
         if ((i_title <= di->num_titles && di->titles[i_title] && di->titles[i_title]->bdj) ||

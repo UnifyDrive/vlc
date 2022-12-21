@@ -42,6 +42,7 @@
 #pragma GCC visibility push(default)
 
 static void *mPrintObj = NULL;
+static void *mPrintReleaseObj = NULL;
 
 struct vlc_http_file
 {
@@ -224,8 +225,8 @@ int vlc_http_file_seek(struct vlc_http_resource *res, uintmax_t offset)
             }
             if (res->response_bak[i] && res->response_bak[i]->offset_last == offset) {
                 resp = res->response_bak[i];
-                if (mPrintObj) {
-                    msg_Dbg((stream_t *)mPrintObj, "[%s:%s:%d]=zspace=: Reuse this http socket.", __FILE__ , __FUNCTION__, __LINE__);
+                if (mPrintReleaseObj) {
+                    msg_Dbg((stream_t *)mPrintReleaseObj, "[%s:%s:%d]=zspace=: Reuse this http socket.", __FILE__ , __FUNCTION__, __LINE__);
                 }
                 break;
             }
@@ -311,7 +312,8 @@ block_t *vlc_http_file_read(struct vlc_http_resource *res)
 
 void vlc_http_file_setPrintObj(void *tmp)
 {
-    mPrintObj = tmp;
-    vlc_http_res_setPrintObj(tmp);
+    //mPrintObj = tmp;
+    //vlc_http_res_setPrintObj(tmp);
+    mPrintReleaseObj = tmp;
 }
 

@@ -154,7 +154,7 @@ static struct vlc_http_stream *vlc_h1_stream_open(struct vlc_http_conn *c,
     if (unlikely(payload == NULL))
         return NULL;
 
-    vlc_http_dbg(CO(conn), "outgoing request:\n%.*s", (int)len, payload);
+    //vlc_http_dbg(CO(conn), "outgoing request:\n%.*s", (int)len, payload);
     val = vlc_tls_Write(conn->conn.tls, payload, len);
     free(payload);
 
@@ -184,7 +184,7 @@ static struct vlc_http_msg *vlc_h1_stream_wait(struct vlc_http_stream *stream)
     if (payload == NULL)
         return vlc_h1_stream_fatal(conn);
 
-    vlc_http_dbg(CO(conn), "incoming response:\n%.*s", (int)len, payload);
+    //vlc_http_dbg(CO(conn), "incoming response:\n%.*s", (int)len, payload);
 
     resp = vlc_http_msg_headers(payload);
     minor = vlc_http_minor(payload);
@@ -361,7 +361,7 @@ struct vlc_http_stream *vlc_h1_request(void *ctx, const char *hostname,
         .ai_protocol = IPPROTO_TCP,
     }, *res;
 
-    vlc_http_dbg(ctx, "resolving %s ...", hostname);
+    //vlc_http_dbg(ctx, "resolving %s ...", hostname);
 
     int val = vlc_getaddrinfo_i11e(hostname, port, &hints, &res);
     if (val != 0)
