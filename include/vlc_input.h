@@ -255,6 +255,7 @@ typedef enum input_state_e
     PAUSE_S,
     END_S,
     ERROR_S,
+    ERROR_PASST,
 } input_state_e;
 
 /**

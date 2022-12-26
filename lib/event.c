@@ -173,6 +173,7 @@ static const event_name_t event_list[] = {
     DEF(MediaPlayerAudioVolume)
     DEF(MediaPlayerAudioDevice)
     DEF(MediaPlayerChapterChanged)
+    DEF(MediaPlayerPassThroughError)
 
     DEF(MediaListItemAdded)
     DEF(MediaListWillAddItem)

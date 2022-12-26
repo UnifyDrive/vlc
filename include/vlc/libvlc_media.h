@@ -92,7 +92,8 @@ typedef enum libvlc_state_t
     libvlc_Paused,
     libvlc_Stopped,
     libvlc_Ended,
-    libvlc_Error
+    libvlc_Error,
+    libvlc_Error_PassThrough,
 } libvlc_state_t;
 
 enum

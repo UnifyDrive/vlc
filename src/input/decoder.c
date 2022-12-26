@@ -396,7 +396,7 @@ static int aout_update_format( decoder_t *p_dec )
              * for 4.0 */
             if( p_dec->fmt_out.i_codec == VLC_CODEC_DTS )
                 var_SetBool( p_aout, "dtshd", p_dec->fmt_out.i_profile > 0 );
-
+            var_SetBool(p_aout,"isPassthrough",false);
             if( aout_DecNew( p_aout, &format,
                              &p_dec->fmt_out.audio_replay_gain,
                              &request_vout ) )
@@ -407,6 +407,12 @@ static int aout_update_format( decoder_t *p_dec )
                     p_aout = NULL;
                     msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: aout_DecNew() failed for dsf/dff!", __FILE__ , __FUNCTION__, __LINE__);
                 }else {
+                   {
+                        bool b_passThrough = var_GetBool(p_aout, "isPassthrough");
+                        if(b_passThrough == true ){
+                            input_SendEventState(p_owner->p_input,ERROR_PASST);
+                        }
+                    }
                     input_resource_PutAout( p_owner->p_resource, p_aout );
                     p_aout = NULL;
                     msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: aout_DecNew() failed not for dsf/dff!", __FILE__ , __FUNCTION__, __LINE__);

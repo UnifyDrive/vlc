@@ -55,7 +55,7 @@ struct filter_sys_t
 {
     block_t *p_out_buf;
     size_t i_out_offset;
-
+    bool    b_AC3_passthrough;
     union
     {
         struct
@@ -89,7 +89,40 @@ struct filter_sys_t
 
 static bool is_big_endian( filter_t *p_filter, block_t *p_in_buf )
 {
-#if defined( __ANDROID__ )
+    filter_sys_t *p_sys = p_filter->p_sys;
+    if(p_sys->b_AC3_passthrough == true){
+        switch( p_filter->fmt_in.audio.i_format )
+        {
+            case VLC_CODEC_A52:
+            case VLC_CODEC_EAC3:
+            case VLC_CODEC_MLP:
+            case VLC_CODEC_TRUEHD:
+                return true;
+            case VLC_CODEC_DTS:
+               // return p_in_buf->p_buffer[0] == 0x1F
+               // || p_in_buf->p_buffer[0] == 0x7F;
+              return true;
+            default:
+           // vlc_assert_unreachable();
+           return true;
+        }
+    }else{
+        switch( p_filter->fmt_in.audio.i_format )
+        {
+            case VLC_CODEC_A52:
+            case VLC_CODEC_EAC3:
+            case VLC_CODEC_MLP:
+            case VLC_CODEC_TRUEHD:
+                return true;
+            case VLC_CODEC_DTS:
+                return p_in_buf->p_buffer[0] == 0x1F
+                    || p_in_buf->p_buffer[0] == 0x7F;
+            default:
+                vlc_assert_unreachable();
+        }
+    }
+
+#if defined( SPDIF_TDX )
     switch( p_filter->fmt_in.audio.i_format )
     {
         case VLC_CODEC_A52:
@@ -98,14 +131,14 @@ static bool is_big_endian( filter_t *p_filter, block_t *p_in_buf )
         case VLC_CODEC_TRUEHD:
             return true;
         case VLC_CODEC_DTS:
-         //   return p_in_buf->p_buffer[0] == 0x1F
-         //       || p_in_buf->p_buffer[0] == 0x7F;
-            return true;
+           return p_in_buf->p_buffer[0] == 0x1F
+                || p_in_buf->p_buffer[0] == 0x7F;
+        //    return true;
         default:
            // vlc_assert_unreachable();
            return true;
     }
-#else
+
     switch( p_filter->fmt_in.audio.i_format )
     {
         case VLC_CODEC_A52:
@@ -574,7 +607,49 @@ static block_t *DoWork( filter_t *p_filter, block_t *p_in_buf )
     filter_sys_t *p_sys = p_filter->p_sys;
     block_t *p_out_buf = NULL;
     int i_ret;
-#if defined( __ANDROID__ )
+    if(p_sys->b_AC3_passthrough == true){
+        switch (p_filter->fmt_in.audio.i_format)
+        {
+        case VLC_CODEC_A52:
+        case VLC_CODEC_EAC3:
+        case VLC_CODEC_MLP:
+        case VLC_CODEC_TRUEHD:
+        case VLC_CODEC_DTS:
+            i_ret = write_buffer_ac3(p_filter, p_in_buf);
+            break;
+        default:
+            i_ret = write_buffer_ac3(p_filter, p_in_buf);
+            break;
+        }
+    }else{
+        switch( p_filter->fmt_in.audio.i_format )
+        {
+            case VLC_CODEC_A52:
+                i_ret = write_buffer_ac3( p_filter, p_in_buf );
+                break;
+            case VLC_CODEC_EAC3:
+                i_ret = write_buffer_eac3( p_filter, p_in_buf );
+                break;
+            case VLC_CODEC_MLP:
+            case VLC_CODEC_TRUEHD:
+                i_ret = write_buffer_truehd( p_filter, p_in_buf );
+                break;
+            case VLC_CODEC_DTS:
+                /* if the fmt_out is configured for a higher rate than 48kHz
+                * (IEC958 rate), use the DTS-HD framing to pass the DTS Core and
+                 * or DTS substreams (like DTS-HD MA). */
+                if( p_filter->fmt_out.audio.i_rate > 48000 ){
+                    i_ret = write_buffer_dtshd( p_filter, p_in_buf );
+                }else{
+                    i_ret = write_buffer_dts( p_filter, p_in_buf );
+                }
+                break;
+            default:
+                vlc_assert_unreachable();
+        }
+    }
+
+#if defined( SPDIF_TDX )
     switch( p_filter->fmt_in.audio.i_format )
     {
         case VLC_CODEC_A52:
@@ -605,7 +680,7 @@ static block_t *DoWork( filter_t *p_filter, block_t *p_in_buf )
             i_ret = write_buffer_ac3( p_filter, p_in_buf);
           //  vlc_assert_unreachable();
     }
-#else
+
     switch( p_filter->fmt_in.audio.i_format )
     {
         case VLC_CODEC_A52:
@@ -666,6 +741,7 @@ static int Open( vlc_object_t *p_this )
     if( unlikely( p_sys == NULL ) )
         return VLC_ENOMEM;
 
+    p_sys->b_AC3_passthrough = var_InheritBool( p_filter, "spdif-ac3");
     p_filter->pf_audio_filter = DoWork;
     p_filter->pf_flush = Flush;
 

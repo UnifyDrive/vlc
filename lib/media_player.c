@@ -382,7 +382,10 @@ input_event_changed( vlc_object_t * p_this, char const * psz_cmd,
                 libvlc_state = libvlc_Error;
                 event.type = libvlc_MediaPlayerEncounteredError;
                 break;
-
+            case ERROR_PASST:
+                libvlc_state = libvlc_Error_PassThrough;
+                event.type = libvlc_MediaPlayerPassThroughError;
+                break;
             default:
                 return VLC_SUCCESS;
         }

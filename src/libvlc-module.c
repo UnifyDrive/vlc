@@ -1509,6 +1509,7 @@ vlc_module_begin ()
     add_obsolete_integer( "aout-rate" ) /* since 2.0.0 */
     add_obsolete_bool( "hq-resampling" ) /* since 1.1.8 */
     add_bool( "spdif", false, SPDIF_TEXT, SPDIF_LONGTEXT, true )
+    add_bool( "spdif-ac3", false, SPDIF_TEXT, SPDIF_LONGTEXT, true);
     add_integer( "force-dolby-surround", 0, FORCE_DOLBY_TEXT,
                  FORCE_DOLBY_LONGTEXT, false )
         change_integer_list( pi_force_dolby_values, ppsz_force_dolby_descriptions )

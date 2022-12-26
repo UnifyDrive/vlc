@@ -1,0 +1,24 @@
+From 2159ede073844961998ec1b816e2d58bf6488a13 Mon Sep 17 00:00:00 2001
+From: zouhuangfei <zouhuangfei@zspace.cn>
+Date: Thu, 15 Dec 2022 17:38:51 +0800
+Subject: [PATCH] The parsed data is more accurate
+
+---
+ libavcodec/dca_parser.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/libavcodec/dca_parser.c b/libavcodec/dca_parser.c
+index 80d665985e..1112efdb5e 100644
+--- a/libavcodec/dca_parser.c
++++ b/libavcodec/dca_parser.c
+@@ -334,6 +334,7 @@ static int dca_parse(AVCodecParserContext *s, AVCodecContext *avctx,
+     if (!dca_parse_params(pc1, buf, buf_size, &duration, &sample_rate, &avctx->profile)) {
+         if (!avctx->sample_rate)
+             avctx->sample_rate = sample_rate;
++	avctx->sample_rate = sample_rate;
+         s->duration = av_rescale(duration, avctx->sample_rate, sample_rate);
+     } else
+         s->duration = 0;
+-- 
+2.32.0 (Apple Git-132)
+

@@ -97,6 +97,7 @@ enum libvlc_event_e {
     libvlc_MediaPlayerRecordChanged,
     libvlc_MediaPlayerLoudnessChanged,
     libvlc_MediaPlayerSWVdecUsed,
+    libvlc_MediaPlayerPassThroughError,
 
     libvlc_MediaListItemAdded=0x200,
     libvlc_MediaListWillAddItem,
