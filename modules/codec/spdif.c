@@ -78,6 +78,8 @@ vlc_module_begin()
 vlc_module_end()
 
 
+#if defined(__ANDROID__)
+
 static int add_samples_to_fifo(decoder_t *p_dec,AVAudioFifo *fifo,
                                uint8_t **converted_input_samples,
                                const int frame_size)
@@ -250,10 +252,12 @@ static int  process_ac3_encod(decoder_t *p_dec,AVFrame  *inputframe,block_t *p_b
     } 
    return 1;
 }
+#endif
 
 static int
 DecodeBlock(decoder_t *p_dec, block_t *p_block)
 {
+#if defined(__ANDROID__)
     if(p_dec->p_sys->b_AC3_passthrough == true){
         if(p_dec->fmt_in.i_codec == VLC_CODEC_A52){
             if(p_block != NULL)
@@ -262,7 +266,9 @@ DecodeBlock(decoder_t *p_dec, block_t *p_block)
             if(p_block != NULL)
                 process_decode_audio( p_dec, p_block);
         }
-    }else{
+    }else
+#endif
+    {
         if(p_block != NULL)
             decoder_QueueAudio( p_dec, p_block);
     }
@@ -283,6 +289,8 @@ DecodeBlock(decoder_t *p_dec, block_t *p_block)
            decoder_QueueAudio( p_dec, p_block );
 #endif
 }
+
+#if defined(__ANDROID__)
 static void init_decoder_config(decoder_t *p_dec, AVCodecContext *p_context)
 {
     if( p_dec->fmt_in.i_extra > 0 )
@@ -502,11 +510,13 @@ static int open_ac3_encoder(decoder_t *p_dec)
   return true;
 }
 
+#endif
 /*****************************************************************************
  * Flush:
  *****************************************************************************/
 static void Flush( decoder_t *p_dec )
 {
+#if defined(__ANDROID__)
     if(p_dec->p_sys->b_AC3_passthrough == true){
         if(p_dec->fmt_in.i_codec != VLC_CODEC_A52){
             decoder_sys_t *p_sys = p_dec->p_sys;
@@ -540,6 +550,7 @@ static void Flush( decoder_t *p_dec )
             }
         }
     }
+#endif
 #if defined( SPDIF_TDX )
     if(p_dec->fmt_in.i_codec != VLC_CODEC_A52)
     {
@@ -580,6 +591,7 @@ static void Flush( decoder_t *p_dec )
 static void 
 EndTranscode(vlc_object_t *p_this)
 {
+#if defined(__ANDROID__)
     decoder_t *p_dec = (decoder_t*)p_this;
     if(p_dec->p_sys->b_AC3_passthrough == true){
         if(p_dec->fmt_in.i_codec != VLC_CODEC_A52){
@@ -602,6 +614,8 @@ EndTranscode(vlc_object_t *p_this)
             }
         }
     }
+#endif
+
 #if defined( SPDIF_TDX )
 
     if(p_dec->fmt_in.i_codec != VLC_CODEC_A52)
@@ -663,6 +677,7 @@ OpenDecoder(vlc_object_t *p_this)
     {
         return VLC_EGENERIC;
     }
+#if defined(__ANDROID__)
     p_dec->p_sys->b_AC3_passthrough = var_InheritBool(p_dec, "spdif-ac3");
     if(p_dec->p_sys->b_AC3_passthrough == true){
         if(p_dec->fmt_in.i_codec != VLC_CODEC_A52){
@@ -672,6 +687,7 @@ OpenDecoder(vlc_object_t *p_this)
                 return VLC_EGENERIC;
         }
     }
+#endif
 
 #if defined( SPDIF_TDX )
     if(p_dec->fmt_in.i_codec != VLC_CODEC_A52)
