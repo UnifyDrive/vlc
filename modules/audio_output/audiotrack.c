@@ -1378,6 +1378,9 @@ Start( audio_output_t *p_aout, audio_sample_format_t *restrict p_fmt )
         return VLC_EGENERIC;
     }
 
+    if( i_ret != 0 )
+        return VLC_EGENERIC;
+
     p_sys->i_max_audiotrack_samples = BYTES_TO_FRAMES( p_sys->audiotrack_args.i_size );
 
 #ifdef AUDIOTRACK_HW_LATENCY
