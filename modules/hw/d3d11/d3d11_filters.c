@@ -142,9 +142,11 @@ static bool ApplyFilter( filter_sys_t *p_sys,
     HRESULT hr;
 
     int level = atomic_load(&p_level->level);
+    /* Remove the judgment on the default value */
+#if 0
     if (level == p_level->Range.Default)
         return false;
-
+#endif
     ID3D11VideoContext_VideoProcessorSetStreamFilter(p_sys->d3dvidctx,
                                                      p_sys->videoProcessor,
                                                      0,
