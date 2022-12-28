@@ -1298,6 +1298,8 @@ static int blurayOpen(vlc_object_t *object)
 
     p_demux->pf_control = blurayControl;
     p_demux->pf_demux   = blurayDemux;
+    if (p_demux->s && p_demux->s->p_source && p_demux->s->p_source->p_source) 
+        vlc_stream_Control( p_demux->s->p_source->p_source, STREAM_SET_CLEAN_BAK_RES, 1 );
 
     return VLC_SUCCESS;
 

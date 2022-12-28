@@ -307,6 +307,13 @@ block_t *vlc_http_file_read(struct vlc_http_resource *res)
 
     file->offset += block->i_buffer;
     res->response->offset_last = file->offset;
+    res->response->read_times++;
+    if (res->response->read_times >= 4096 && res->bak_num > 0) {
+        if (mPrintReleaseObj) {
+            msg_Dbg((stream_t *)mPrintReleaseObj, "[%s:%s:%d]=zspace=: Relese bak http socket [%d].", __FILE__ , __FUNCTION__, __LINE__, res->bak_num);
+        }
+        vlc_http_res_destroy_response_bak(res);
+    }
     return block;
 }
 

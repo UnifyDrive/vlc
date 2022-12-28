@@ -42,6 +42,7 @@ struct access_sys_t
 {
     struct vlc_http_mgr *manager;
     struct vlc_http_resource *resource;
+    bool need_release_res_bak;
 };
 
 extern void *const vlc_http_error;
@@ -49,6 +50,11 @@ static block_t *FileRead(stream_t *access, bool *restrict eof)
 {
     access_sys_t *sys = access->p_sys;
 
+    if (sys->need_release_res_bak) {
+        msg_Warn(access, "[%s:%s:%d]=zspace=: Relese bak http socket now [%d].", __FILE__ , __FUNCTION__, __LINE__, sys->resource->bak_num);
+        vlc_http_res_destroy_response_bak(sys->resource);
+        sys->need_release_res_bak = false;
+    }
     block_t *b = vlc_http_file_read(sys->resource);
     if (b == NULL) {
         *eof = true;
@@ -110,6 +116,10 @@ static int FileControl(stream_t *access, int query, va_list args)
             break;
 
         case STREAM_SET_PAUSE_STATE:
+            break;
+        case STREAM_SET_CLEAN_BAK_RES:
+            msg_Warn(access, "[%s:%s:%d]=zspace=: Relese bak http socket set flag [%d].", __FILE__ , __FUNCTION__, __LINE__, sys->resource->bak_num);
+            sys->need_release_res_bak = true;
             break;
 
         default:
@@ -175,6 +185,7 @@ static int Open(vlc_object_t *obj)
 
     sys->manager = NULL;
     sys->resource = NULL;
+    sys->need_release_res_bak = false;
 
     void *jar = NULL;
     if (var_InheritBool(obj, "http-forward-cookies"))
@@ -296,6 +307,7 @@ static void Close(vlc_object_t *obj)
     access_sys_t *sys = access->p_sys;
 
     vlc_http_file_setPrintObj((void *) NULL);
+    msg_Err(access, "[%s:%s:%d]=zspace=: Close stream psz_url=[%s]", __FILE__ , __FUNCTION__, __LINE__, access->psz_url);
     vlc_http_res_destroy(sys->resource);
     vlc_http_mgr_destroy(sys->manager);
     free(sys);

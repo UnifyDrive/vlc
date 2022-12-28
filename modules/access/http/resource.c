@@ -173,6 +173,20 @@ int vlc_http_res_get_status(struct vlc_http_resource *res)
     return vlc_http_msg_get_status(res->response);
 }
 
+void vlc_http_res_destroy_response_bak(struct vlc_http_resource *res)
+{
+    for (int i = 0; i < res->bak_num; i++) {
+        if (res->response_bak[i] != NULL && res->response_bak[i] != res->response) {
+            for (int j = i + 1; j < res->bak_num; j++) {
+                if (res->response_bak[i] == res->response_bak[j])
+                    res->response_bak[j] = NULL;
+            }
+            vlc_http_msg_destroy(res->response_bak[i]);
+        }
+    }
+    res->bak_num = 0;
+}
+
 static void vlc_http_res_deinit(struct vlc_http_resource *res)
 {
     free(res->referrer);
@@ -184,16 +198,7 @@ static void vlc_http_res_deinit(struct vlc_http_resource *res)
     free(res->host);
     free(res->token);
 
-    for (int i = 0; i < res->bak_num; i++) {
-        if (res->response_bak[i] != NULL && res->response_bak[i] != res->response) {
-            for (int j = i + 1; j < res->bak_num; j++) {
-                if (res->response_bak[i] == res->response_bak[j])
-                    res->response_bak[j] = NULL;
-            }
-            vlc_http_msg_destroy(res->response_bak[i]);
-        }
-    }
-    res->bak_num = 0;
+    vlc_http_res_destroy_response_bak(res);
 
     if (res->response != NULL)
         vlc_http_msg_destroy(res->response);

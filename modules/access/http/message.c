@@ -225,6 +225,8 @@ vlc_http_req_create(const char *method, const char *scheme,
     m->count = 0;
     m->headers = NULL;
     m->payload = NULL;
+    m->offset_last = 0;
+    m->read_times = 0;
 
     if (unlikely(m->method == NULL
               || (scheme != NULL && m->scheme == NULL)
@@ -252,6 +254,8 @@ struct vlc_http_msg *vlc_http_resp_create(unsigned status)
     m->count = 0;
     m->headers = NULL;
     m->payload = NULL;
+    m->offset_last = 0;
+    m->read_times = 0;
     return m;
 }
 

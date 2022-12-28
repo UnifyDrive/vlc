@@ -39,6 +39,7 @@ struct vlc_http_msg
     char *(*headers)[2];
     unsigned count;
     uintmax_t offset_last;
+    uintmax_t read_times;
     struct vlc_http_stream *payload;
 };
 

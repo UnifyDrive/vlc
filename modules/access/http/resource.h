@@ -106,6 +106,7 @@ int vlc_http_res_set_login(struct vlc_http_resource *res,
 char *vlc_http_res_get_basic_realm(struct vlc_http_resource *res);
 
 void vlc_http_res_setPrintObj(void *);
+void vlc_http_res_destroy_response_bak(struct vlc_http_resource *res);
 
 
 /** @} */
