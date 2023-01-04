@@ -693,6 +693,17 @@ int avformat_OpenDemux( vlc_object_t *p_this )
                 }
             }
 
+            if (!strcmp(p_sys->fmt->name, "sup"))
+            {
+                char* psz_path = NULL;
+                if ( p_demux->psz_file != NULL) {
+                    psz_path = strdup(p_demux->psz_file);
+                } else if (p_demux->psz_location != NULL) {
+                    psz_path = strdup(p_demux->psz_location);
+                }
+                es_fmt.psz_path = psz_path;
+                msg_Dbg( p_demux, "sup psz_path=%s",es_fmt.psz_path  );
+            }
             p_track->p_es = es_out_Add( p_demux->out, &es_fmt );
             if( p_track->p_es && (s->disposition & AV_DISPOSITION_DEFAULT) )
                 es_out_Control( p_demux->out, ES_OUT_SET_ES_DEFAULT, p_track->p_es );
@@ -785,10 +796,15 @@ static int Demux( demux_t *p_demux )
     int64_t     i_start_time;
     int         i_av_ret = 0;
     bool        is_mp4 = false;
+    bool        is_sup = false;
 
     if( !strcmp( p_sys->fmt->name, "mov,mp4,m4a,3gp,3g2,mj2" ) )
     {
         is_mp4 = true;
+    }
+    if( !strcmp( p_sys->fmt->name, "sup" ) )
+    {
+        is_sup = true;
     }
     for( unsigned i = 0; i < p_sys->i_tracks; i++ )
     {
@@ -926,6 +942,12 @@ again:
             }
         }
     }
+
+    if (is_sup)
+    {
+        p_frame->i_dts += i_start_time;
+        p_frame->i_pts += i_start_time;
+    }
 #ifdef AVFORMAT_DEBUG
     msg_Dbg( p_demux, "tk[%d] dts=%"PRId64" pts=%"PRId64,
              pkt.stream_index, p_frame->i_dts, p_frame->i_pts );
@@ -962,8 +984,12 @@ again:
         if( i_ts_min >= p_sys->i_pcr && likely(i_ts_min != INT64_MAX) )
         {
             p_sys->i_pcr = i_ts_min;
-            es_out_SetPCR( p_demux->out, p_sys->i_pcr );
-            UpdateSeekPoint( p_demux, p_sys->i_pcr );
+            /* don't call es_out_SetPCR if format is sup */
+            if (!is_sup)
+            {
+                es_out_SetPCR( p_demux->out, p_sys->i_pcr );
+                UpdateSeekPoint( p_demux, p_sys->i_pcr );
+            }
         }
     }
     if( p_track->p_es != NULL && p_track->b_selected)
@@ -1043,8 +1069,16 @@ static void ResetTime( demux_t *p_demux, int64_t i_time )
 
     if( i_time > VLC_TS_INVALID )
     {
-        es_out_Control( p_demux->out, ES_OUT_SET_NEXT_DISPLAY_TIME, i_time );
-        UpdateSeekPoint( p_demux, i_time );
+        /* don't set ES_OUT_SET_NEXT_DISPLAY_TIME if format is sup */
+        if (!strcmp(p_sys->fmt->name, "sup"))
+        {
+            msg_Dbg( p_demux, "sup time=%lld",i_time);
+        }
+        else
+        {
+            es_out_Control( p_demux->out, ES_OUT_SET_NEXT_DISPLAY_TIME, i_time );
+            UpdateSeekPoint( p_demux, i_time );
+        }
     }
 }
 
