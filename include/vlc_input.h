@@ -255,7 +255,7 @@ typedef enum input_state_e
     PAUSE_S,
     END_S,
     ERROR_S,
-    ERROR_PASST,
+  //  ERROR_PASST,
 } input_state_e;
 
 /**
@@ -305,6 +305,9 @@ typedef enum input_event_type_e
 
     /* "length" has changed */
     INPUT_EVENT_LENGTH,
+
+    /* return PassThrough Error*/
+    INPUT_EVENT_PASSTHROUGHERROR,
 
     /* A title has been added or removed or selected.
      * It implies that the chapter has changed (no chapter event is sent) */

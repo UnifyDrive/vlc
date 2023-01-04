@@ -382,10 +382,10 @@ input_event_changed( vlc_object_t * p_this, char const * psz_cmd,
                 libvlc_state = libvlc_Error;
                 event.type = libvlc_MediaPlayerEncounteredError;
                 break;
-            case ERROR_PASST:
-                libvlc_state = libvlc_Error_PassThrough;
-                event.type = libvlc_MediaPlayerPassThroughError;
-                break;
+         //   case ERROR_PASST:
+         //       libvlc_state = libvlc_Error_PassThrough;
+         //       event.type = libvlc_MediaPlayerPassThroughError;
+         //       break;
             default:
                 return VLC_SUCCESS;
         }
@@ -423,6 +423,12 @@ input_event_changed( vlc_object_t * p_this, char const * psz_cmd,
         event.type = libvlc_MediaPlayerLengthChanged;
         event.u.media_player_length_changed.new_length =
            from_mtime(var_GetInteger( p_input, "length" ));
+        libvlc_event_send( &p_mi->event_manager, &event );
+    }else if( newval.i_int == INPUT_EVENT_PASSTHROUGHERROR)
+    {
+        event.type = libvlc_MediaPlayerPassThroughError;
+        event.u.media_player_passthrougherror_changed.error =
+                var_GetInteger( p_input, "passthrougherror" );
         libvlc_event_send( &p_mi->event_manager, &event );
     }
     else if( newval.i_int == INPUT_EVENT_CACHE )

@@ -208,6 +208,8 @@ void input_ControlVarInit ( input_thread_t *p_input )
 
     var_Create( p_input, "length", VLC_VAR_INTEGER );
 
+    var_Create( p_input, "passthrougherror", VLC_VAR_INTEGER );
+
     var_Create( p_input, "bit-rate", VLC_VAR_INTEGER );
     var_Create( p_input, "sample-rate", VLC_VAR_INTEGER );
 

@@ -396,7 +396,7 @@ static int aout_update_format( decoder_t *p_dec )
              * for 4.0 */
             if( p_dec->fmt_out.i_codec == VLC_CODEC_DTS )
                 var_SetBool( p_aout, "dtshd", p_dec->fmt_out.i_profile > 0 );
-            var_SetBool(p_aout,"isPassthrough",false);
+            var_SetBool(p_aout,"outPassThroughError",false);
             if( aout_DecNew( p_aout, &format,
                              &p_dec->fmt_out.audio_replay_gain,
                              &request_vout ) )
@@ -407,11 +407,26 @@ static int aout_update_format( decoder_t *p_dec )
                     p_aout = NULL;
                     msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: aout_DecNew() failed for dsf/dff!", __FILE__ , __FUNCTION__, __LINE__);
                 }else {
-                   {
-                        bool b_passThrough = var_GetBool(p_aout, "isPassthrough");
-                        if(b_passThrough == true ){
-                            input_SendEventState(p_owner->p_input,ERROR_PASST);
-                        }
+                    {
+                       bool passStatus = var_GetBool( p_aout, "outPassThroughError");
+                       if(passStatus == true){
+                            int  codecStatus;
+                            if(p_dec->fmt_in.i_codec == VLC_CODEC_A52){
+                                codecStatus = 1;
+                            }else if(p_dec->fmt_in.i_codec == VLC_CODEC_EAC3){
+                                codecStatus = 2;
+                            }else if(p_dec->fmt_in.i_codec == VLC_CODEC_DTS){
+                                codecStatus =3;
+                            }else if(p_dec->fmt_in.i_codec == VLC_CODEC_TRUEHD || p_dec->fmt_in.i_codec == VLC_CODEC_MLP ){
+                                codecStatus = 4;
+                            }else {
+                                codecStatus = 0;
+                            }
+                            if(  codecStatus != 0){
+                                msg_Dbg(p_aout,"tdx   create  passthrough  failed    ..  %d ",codecStatus);
+                                input_SendEventPassthroughError(p_owner->p_input,codecStatus);
+                            }
+                       }
                     }
                     input_resource_PutAout( p_owner->p_resource, p_aout );
                     p_aout = NULL;

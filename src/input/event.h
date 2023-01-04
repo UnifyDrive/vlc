@@ -32,6 +32,7 @@
 void input_SendEventDead( input_thread_t *p_input );
 void input_SendEventPosition( input_thread_t *p_input, double f_position, mtime_t i_time );
 void input_SendEventLength( input_thread_t *p_input, mtime_t i_length );
+
 void input_SendEventStatistics( input_thread_t *p_input );
 void input_SendEventRate( input_thread_t *p_input, int i_rate );
 void input_SendEventAudioDelay( input_thread_t *p_input, mtime_t i_delay );
@@ -41,6 +42,7 @@ void input_SendEventTitle( input_thread_t *p_input, int i_title );
 void input_SendEventSeekpoint( input_thread_t *p_input, int i_title, int i_seekpoint );
 void input_SendEventSignal( input_thread_t *p_input, double f_quality, double f_strength );
 void input_SendEventState( input_thread_t *p_input, int i_state );
+void input_SendEventPassthroughError( input_thread_t *p_input,int status);
 void input_SendEventCache( input_thread_t *p_input, double f_level );
 
 /* TODO rename Item* */

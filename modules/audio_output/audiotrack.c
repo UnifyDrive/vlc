@@ -1367,10 +1367,11 @@ Start( audio_output_t *p_aout, audio_sample_format_t *restrict p_fmt )
     {
         i_ret = StartPCM( env, p_aout, i_max_channels );
     }else if( b_try_passthrough ){
+        vlc_fourcc_t i_format_pass = p_sys->fmt.i_format;
         i_ret = StartPassthrough( env, p_aout, false);
         if(i_ret != 0){
-            msg_Dbg(p_aout,"tdx  create  passthrough  failed ");
-            var_SetBool(p_aout,"isPassthrough",true);
+            msg_Dbg(p_aout,"  tdx  create  passthrough  failed ");
+            var_SetBool(p_aout,"outPassThroughError",true);
         }
     }else if(b_try_passthrough_ac3){
         i_ret = StartPassthrough( env, p_aout, true);

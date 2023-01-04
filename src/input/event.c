@@ -83,6 +83,9 @@ void input_SendEventLength( input_thread_t *p_input, mtime_t i_length )
 
     Trigger( p_input, INPUT_EVENT_LENGTH );
 }
+
+
+
 void input_SendEventStatistics( input_thread_t *p_input )
 {
     Trigger( p_input, INPUT_EVENT_STATISTICS );
@@ -178,6 +181,14 @@ void input_SendEventState( input_thread_t *p_input, int i_state )
 
     Trigger( p_input, INPUT_EVENT_STATE );
 }
+
+void input_SendEventPassthroughError( input_thread_t *p_input,int status)
+{
+    var_SetInteger(p_input,"passthrougherror",status);
+    //  var_Change( p_input, "passthrougherror", VLC_VAR_SETVALUE, &val, NULL );
+    Trigger( p_input, INPUT_EVENT_PASSTHROUGHERROR );
+}
+
 
 void input_SendEventCache( input_thread_t *p_input, double f_level )
 {

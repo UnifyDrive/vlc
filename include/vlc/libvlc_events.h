@@ -274,6 +274,13 @@ typedef struct libvlc_event_t
             libvlc_time_t   new_length;
         } media_player_length_changed;
 
+         /* passthrough error changed */
+        struct
+        {
+            int   error;
+        } media_player_passthrougherror_changed;
+
+
         /* VLM media */
         struct
         {
