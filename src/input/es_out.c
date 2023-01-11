@@ -1700,10 +1700,10 @@ static es_out_id_t *EsOutAddSlave( es_out_t *out, const es_format_t *fmt, es_out
 
     TAB_APPEND( p_sys->i_es, p_sys->es, es );
 
+    EsOutUpdateInfo( out, es, &es->fmt, NULL );
+    /* Send EsAdded after EsOutUpdateInfo */
     if( es->p_pgrm == p_sys->p_pgrm )
         EsOutESVarUpdate( out, es, false );
-
-    EsOutUpdateInfo( out, es, &es->fmt, NULL );
     EsOutSelect( out, es, false );
 
     if( es->b_scrambled )
