@@ -1177,7 +1177,7 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
                 p_sys->i_seek_flag = 1;
             }
             p_sys->i_pcr  = VLC_TS_INVALID;
-            p_sys->i_nztime = i64;
+            p_sys->i_nztime = i64 - i_start_time;
             return VLC_SUCCESS;
 
         case DEMUX_GET_LENGTH:
@@ -1210,7 +1210,7 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
                 p_sys->i_seek_flag = 1;
             }
             p_sys->i_pcr  = VLC_TS_INVALID;
-            p_sys->i_nztime = i64;
+            p_sys->i_nztime = i64 - i_start_time;
             return VLC_SUCCESS;
         }
 
