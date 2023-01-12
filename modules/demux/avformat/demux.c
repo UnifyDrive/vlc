@@ -605,7 +605,7 @@ int avformat_OpenDemux( vlc_object_t *p_this )
 #ifdef HAVE_AVUTIL_CODEC_ATTACHMENT
         if( cp->codec_type != AVMEDIA_TYPE_ATTACHMENT )
 #endif
-        if( cp->codec_type != AVMEDIA_TYPE_DATA && cp->codec_id != AV_CODEC_ID_MJPEG)
+        if( cp->codec_type != AVMEDIA_TYPE_DATA )
         {
             const bool    b_ogg = !strcmp( p_sys->fmt->name, "ogg" );
             const uint8_t *p_extra = cp->extradata;
