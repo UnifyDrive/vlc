@@ -490,7 +490,7 @@ static int DequeueOutput(mc_api *api, mtime_t i_timeout)
         return MC_API_INFO_OUTPUT_FORMAT_CHANGED;
     else
     {
-        msg_Warn(api->p_obj, "AMediaCodec.dequeueOutputBuffer failed");
+        msg_Warn(api->p_obj, "AMediaCodec.dequeueOutputBuffer failed[%d]", i_index);
         return MC_API_ERROR;
     }
 }

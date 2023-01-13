@@ -401,7 +401,7 @@ char* MediaCodec_GetName(vlc_object_t *p_obj, const char *psz_mime,
                                                       jmime);
         if (CHECK_EXCEPTION())
         {
-            msg_Warn(p_obj, "[%s:%s:%d]=zspace=: Exception occurred in MediaCodecInfo.getCapabilitiesForType", __FILE__ , __FUNCTION__, __LINE__);
+            msg_Warn(p_obj, "[%s:%s:%d]=zspace=: Exception occurred in MediaCodecInfo.getCapabilitiesForType for [%s]", __FILE__ , __FUNCTION__, __LINE__, name_ptr);
             goto loopclean;
         }
         else if (codec_capabilities)
@@ -420,7 +420,7 @@ char* MediaCodec_GetName(vlc_object_t *p_obj, const char *psz_mime,
                 (*env)->DeleteLocalRef(env, jfeature);
             }
         }
-        msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: Number of profile levels: %d", __FILE__ , __FUNCTION__, __LINE__, profile_levels_len);
+        msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: Number of profile levels len: %d", __FILE__ , __FUNCTION__, __LINE__, profile_levels_len);
 
         types = (*env)->CallObjectMethod(env, info, jfields.get_supported_types);
         num_types = (*env)->GetArrayLength(env, types);
