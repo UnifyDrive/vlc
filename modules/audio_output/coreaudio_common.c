@@ -364,8 +364,8 @@ ca_Play(audio_output_t * p_aout, block_t * p_block)
         const size_t i_avalaible_bytes =
             __MIN(p_block->i_buffer, p_sys->i_out_max_size - p_sys->i_out_size);
 
-        //msg_Warn(p_aout, "[%s:%s:%d]=zspace=: i_avalaible_bytes=%d, p_block->i_buffer=%d.", __FILE__ , __FUNCTION__, __LINE__, i_avalaible_bytes, p_block->i_buffer);
-        if (i_avalaible_bytes <= 0 && p_sys->b_paused == false) {
+        //msg_Warn(p_aout, "[%s:%s:%d]=zspace=: i_avalaible_bytes=%d, p_block->i_buffer=%d, p_sys->i_rate=%d.", __FILE__ , __FUNCTION__, __LINE__, i_avalaible_bytes, p_block->i_buffer, p_sys->i_rate);
+        if (i_avalaible_bytes <= 0 && p_sys->b_paused == false && p_block->i_buffer != 0) {
             msg_Warn(p_aout, "[%s:%s:%d]=zspace=: Force release audio block.", __FILE__ , __FUNCTION__, __LINE__);
             lock_unlock(p_sys);
             block_Release(p_block);
