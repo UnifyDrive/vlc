@@ -120,6 +120,15 @@ if test -z "$BUILD"
 then
 	printf "Guessing build system... "
 	BUILD="`${CC:-cc} -dumpmachine | sed s/windows-gnu/mingw32/`"
+	# for mac arm64 arch
+	if test -n "$HOST"
+	then
+		result=$(echo $HOST | grep "android")
+		if [[ "$result" != "" ]]
+		then
+			BUILD="`echo ${BUILD/arm/aarch}`"
+		fi
+	fi
 	if test -z "$BUILD"; then
 		echo "FAIL!"
 		exit 1
