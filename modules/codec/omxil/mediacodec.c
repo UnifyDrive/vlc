@@ -1473,7 +1473,7 @@ static int QueueBlockLocked(decoder_t *p_dec, block_t *p_in_block,
             {
                 msg_Warn(p_dec, "Decoder stuck: invalidate all buffers");
                 InvalidateAllPictures(p_dec);
-                b_dequeue_timeout = true;
+                //b_dequeue_timeout = true;
                 continue;
             }
             else
