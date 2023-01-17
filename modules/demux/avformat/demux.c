@@ -180,7 +180,7 @@ int avformat_OpenDemux( vlc_object_t *p_this )
     int           error;
 
     /* Init Probe data */
-    pd.buf_size = vlc_stream_Peek( p_demux->s, &peek, 2048 + 213 );
+    pd.buf_size = vlc_stream_Peek( p_demux->s, &peek, 4096 + 213 );
     if( pd.buf_size <= 0 )
     {
         msg_Warn( p_demux, "cannot peek" );
