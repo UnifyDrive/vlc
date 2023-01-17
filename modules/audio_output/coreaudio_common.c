@@ -364,8 +364,14 @@ ca_Play(audio_output_t * p_aout, block_t * p_block)
         const size_t i_avalaible_bytes =
             __MIN(p_block->i_buffer, p_sys->i_out_max_size - p_sys->i_out_size);
 
-        //msg_Warn(p_aout, "[%s:%s:%d]=zspace=: i_avalaible_bytes=%d, p_block->i_buffer=%d, p_sys->i_rate=%d.", __FILE__ , __FUNCTION__, __LINE__, i_avalaible_bytes, p_block->i_buffer, p_sys->i_rate);
-        if (i_avalaible_bytes <= 0 && p_sys->b_paused == false && p_block->i_buffer != 0) {
+        if (i_avalaible_bytes <= 0) {
+            p_sys->i_no_space_times++;
+            //msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: i_avalaible_bytes=%d, p_block->i_buffer=%d, p_sys->i_rate=%d,p_sys->i_no_space_times=%d.", __FILE__ , __FUNCTION__, __LINE__, i_avalaible_bytes, p_block->i_buffer, p_sys->i_rate, p_sys->i_no_space_times);
+        }else {
+            p_sys->i_no_space_times = 0;
+        }
+        
+        if (i_avalaible_bytes <= 0 && p_sys->b_paused == false && p_block->i_buffer != 0 && p_sys->i_no_space_times > 256) {
             msg_Warn(p_aout, "[%s:%s:%d]=zspace=: Force release audio block.", __FILE__ , __FUNCTION__, __LINE__);
             lock_unlock(p_sys);
             block_Release(p_block);
@@ -468,6 +474,7 @@ ca_Initialize(audio_output_t *p_aout, const audio_sample_format_t *fmt,
         /* 2 seconds of buffering */
         p_sys->i_out_max_size = i_audiobuffer_size * 2;
     }
+    p_sys->i_no_space_times = 0;
 
     ca_ClearOutBuffers(p_aout);
     p_sys->b_played = false;
@@ -482,6 +489,7 @@ ca_Uninitialize(audio_output_t *p_aout)
     ca_ClearOutBuffers(p_aout);
     p_sys->i_out_max_size = 0;
     p_sys->chans_to_reorder = 0;
+    p_sys->i_no_space_times = 0;
 }
 
 void

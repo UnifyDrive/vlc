@@ -64,6 +64,7 @@ struct aout_sys_common
     uint64_t            i_render_host_time;
     uint64_t            i_first_render_host_time;
     uint32_t            i_render_frames;
+    uint32_t            i_no_space_times;
 
     vlc_sem_t           flush_sem;
 
