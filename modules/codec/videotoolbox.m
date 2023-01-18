@@ -1393,9 +1393,12 @@ static int OpenDecoder(vlc_object_t *p_this)
 #endif
 
     /* Fail if this module already failed to decode this ES */
-    if (var_Type(p_dec, "videotoolbox-failed") != 0) {
-        msg_Warn(p_dec, "[%s:%s:%d]=zspace=: This module already failed to decode this ES[%d].", __FILE__ , __FUNCTION__, __LINE__, p_dec->fmt_in.i_cat);
-        return VLC_EGENERIC;
+    if (var_Type(p_dec, "videotoolbox-failed") != 0 && p_dec->fmt_in.video.i_visible_width * p_dec->fmt_in.video.i_visible_height < 1920*1080*1.1) {
+        int64_t value = var_GetInteger( p_dec, "videotoolbox-failed");
+        if (value > 3) {
+            msg_Warn(p_dec, "[%s:%s:%d]=zspace=: This module already failed to decode this ES[%d].", __FILE__ , __FUNCTION__, __LINE__, p_dec->fmt_in.i_cat);
+            return VLC_EGENERIC;
+        }
     }
 
     /* check quickly if we can digest the offered data */
@@ -1986,7 +1989,17 @@ static int DecodeBlock(decoder_t *p_dec, block_t *p_block)
         msg_Err(p_dec, "decoder failure, Abort.");
         /* Add an empty variable so that videotoolbox won't be loaded again for
          * this ES */
-        //var_Create(p_dec, "videotoolbox-failed", VLC_VAR_VOID);
+        if (!var_Type(p_dec, "videotoolbox-failed")){
+            var_Create(p_dec, "videotoolbox-failed", VLC_VAR_INTEGER);
+            var_SetInteger( p_dec, "videotoolbox-failed", 1 );
+            msg_Warn(p_dec, "[%s:%s:%d]=zspace=: videotoolbox-failed times = 1.", __FILE__ , __FUNCTION__, __LINE__);
+        }
+        else
+        {
+            int64_t times = var_GetInteger( p_dec, "videotoolbox-failed") + 1;
+            msg_Warn(p_dec, "[%s:%s:%d]=zspace=: videotoolbox-failed times = %d.", __FILE__ , __FUNCTION__, __LINE__, times);
+            var_SetInteger( p_dec, "videotoolbox-failed", times );
+        }
         return VLCDEC_RELOAD;
     }
     else if (p_sys->vtsession_status == VTSESSION_STATUS_VOUT_FAILURE)
