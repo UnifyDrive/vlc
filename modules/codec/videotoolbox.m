@@ -1392,6 +1392,7 @@ static int OpenDecoder(vlc_object_t *p_this)
     }
 #endif
 
+#if !TARGET_OS_IPHONE
     /* Fail if this module already failed to decode this ES */
     if (var_Type(p_dec, "videotoolbox-failed") != 0 && p_dec->fmt_in.video.i_visible_width * p_dec->fmt_in.video.i_visible_height < 1920*1080*1.1) {
         int64_t value = var_GetInteger( p_dec, "videotoolbox-failed");
@@ -1400,6 +1401,7 @@ static int OpenDecoder(vlc_object_t *p_this)
             return VLC_EGENERIC;
         }
     }
+#endif
 
     /* check quickly if we can digest the offered data */
     CMVideoCodecType codec;
