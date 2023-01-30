@@ -1378,6 +1378,7 @@ static void StopVideoToolbox(decoder_t *p_dec, bool closing)
 static int OpenDecoder(vlc_object_t *p_this)
 {
     decoder_t *p_dec = (decoder_t *)p_this;
+    int is_iphone = 0;
 
     msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Begin now for es_format %d.", __FILE__ , __FUNCTION__, __LINE__, p_dec->fmt_in.i_cat);
     if (!var_InheritBool(p_dec, "videotoolbox")) {
@@ -1390,18 +1391,21 @@ static int OpenDecoder(vlc_object_t *p_this)
         msg_Warn(p_dec, "decoder skipped as OS is too old");
         return VLC_EGENERIC;
     }
+    is_iphone = 1;
 #endif
 
-#if !TARGET_OS_IPHONE
     /* Fail if this module already failed to decode this ES */
-    if (var_Type(p_dec, "videotoolbox-failed") != 0 && p_dec->fmt_in.video.i_visible_width * p_dec->fmt_in.video.i_visible_height < 1920*1080*1.1) {
-        int64_t value = var_GetInteger( p_dec, "videotoolbox-failed");
-        if (value > 3) {
-            msg_Warn(p_dec, "[%s:%s:%d]=zspace=: This module already failed to decode this ES[%d].", __FILE__ , __FUNCTION__, __LINE__, p_dec->fmt_in.i_cat);
-            return VLC_EGENERIC;
+    if (!is_iphone || (is_iphone && p_dec->fmt_in.video.i_visible_width * p_dec->fmt_in.video.i_visible_height < 1920*1080*1.1)){
+        if (var_Type(p_dec, "videotoolbox-failed") != 0) {
+            /* Mac and iPhone(when playing 1080p video) need to change soft decoder if videotoolbox failed */
+            int64_t value = var_GetInteger( p_dec, "videotoolbox-failed");
+                msg_Warn(p_dec, "[%s:%s:%d]=zspace=:  times = %d[%d].", __FILE__ , __FUNCTION__, __LINE__, value);
+            if (value > 3) {
+                msg_Warn(p_dec, "[%s:%s:%d]=zspace=: This module already failed to decode this ES[%d].", __FILE__ , __FUNCTION__, __LINE__, p_dec->fmt_in.i_cat);
+                return VLC_EGENERIC;
+            }
         }
     }
-#endif
 
     /* check quickly if we can digest the offered data */
     CMVideoCodecType codec;
