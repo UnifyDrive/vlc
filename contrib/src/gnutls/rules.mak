@@ -81,6 +81,12 @@ ifeq ($(ARCH),aarch64)
 endif
 endif
 
+ifdef HAVE_MACOSX
+ifeq ($(ARCH),aarch64)
+	# Gnutls' aarch64 assembly unconditionally uses ELF specific directives
+	GNUTLS_CONF += --disable-hardware-acceleration
+endif
+endif
 .gnutls: gnutls
 	cd $< && $(GNUTLS_ENV) ./configure $(GNUTLS_CONF)
 	cd $< && $(MAKE) -C gl install
