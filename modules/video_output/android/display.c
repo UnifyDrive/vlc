@@ -1092,6 +1092,18 @@ static void SubtitleGetDirtyBoundsForJiGuang5Pro(vout_display_t *vd,
 
     if (subpicture)
     {
+        if (p_out_bounds->left < 0
+        || p_out_bounds->right < 0
+        || (unsigned int) p_out_bounds->right > sys->p_sub_pic->format.i_width
+        || p_out_bounds->top < 0
+        || p_out_bounds->bottom < 0
+        || (unsigned int) p_out_bounds->top > sys->p_sub_pic->format.i_height)
+        {
+            p_out_bounds->left = 0;
+            p_out_bounds->top = 0;
+            p_out_bounds->right = sys->p_sub_pic->format.i_width;
+            p_out_bounds->bottom = sys->p_sub_pic->format.i_height;
+        }
         if (sys->jg5pro_sub_region.left == -1 && sys->jg5pro_sub_region.right == -1 && sys->jg5pro_sub_region.top == -1 && sys->jg5pro_sub_region.bottom == -1)
         {
             sys->jg5pro_sub_region.left = p_out_bounds->left;
