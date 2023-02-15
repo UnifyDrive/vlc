@@ -363,6 +363,7 @@ struct vlc_list_t
 #define VLC_EBADVAR        (-7) /**< Bad variable value */
 #define VLC_ENOITEM        (-8) /**< Item not found */
 #define VLC_EHTTPCONNECT   (-9) /**< http connect error */
+#define VLC_ENOINPUTBUF    (-10) /**< No input buffer for mediacodec error */
 
 
 /*****************************************************************************

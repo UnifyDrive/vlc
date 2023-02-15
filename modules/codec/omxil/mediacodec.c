@@ -1473,13 +1473,20 @@ static int QueueBlockLocked(decoder_t *p_dec, block_t *p_in_block,
             {
                 msg_Warn(p_dec, "Decoder stuck: invalidate all buffers");
                 InvalidateAllPictures(p_dec);
-                //b_dequeue_timeout = true;
+                b_dequeue_timeout = true;
+                if (p_block != NULL && p_block != p_in_block) {
+                    msg_Warn(p_dec, "Decoder : Send csd data failed!");
+                    p_sys->i_csd_send--;
+                    if (p_sys->i_csd_send < 0)
+                        p_sys->i_csd_send = 0;
+                }
                 continue;
             }
             else
             {
                 msg_Err(p_dec, "dequeue_in timeout: no input available for 2secs");
-                goto error;
+                return VLC_ENOINPUTBUF;
+                //goto error;
             }
         }
         else
@@ -1608,7 +1615,12 @@ static int DecodeBlock(decoder_t *p_dec, block_t *p_in_block)
     /* Abort if MediaCodec is not yet started */
     if (p_sys->api.b_started) {
         //msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: p_in_block = %p.", __FILE__ , __FUNCTION__, __LINE__, p_in_block);
-        QueueBlockLocked(p_dec, p_in_block, false);
+        i_ret = QueueBlockLocked(p_dec, p_in_block, false);
+        if (i_ret == VLC_ENOINPUTBUF) {
+            vlc_mutex_unlock(&p_sys->lock);
+            msg_Warn(p_dec, "Decoder : Send video data failed, reload mediacodec!");
+            return VLCDEC_RELOAD;
+        }
     }
 
 end:
