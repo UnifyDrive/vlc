@@ -273,13 +273,9 @@ static void aout_DecSynchronize (audio_output_t *aout, mtime_t dec_pts,
      * where supported. The other alternative is to flush the buffers
      * completely. */
 
-#ifdef __ANDROID__
-    if (drift > (owner->sync.discontinuity ? 0
-                  : +9 * input_rate * AOUT_MAX_PTS_DELAY / INPUT_RATE_DEFAULT))
-#else
+
     if (drift > (owner->sync.discontinuity ? 0
                   : +3 * input_rate * AOUT_MAX_PTS_DELAY / INPUT_RATE_DEFAULT))
-#endif
     {
         if (!owner->sync.discontinuity)
             msg_Warn (aout, "playback way too late (%"PRId64"): "

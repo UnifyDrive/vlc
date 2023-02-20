@@ -33,13 +33,23 @@
 #include <libavutil/channel_layout.h>
 #include <libswresample/swresample.h>
 #include <libavutil/audio_fifo.h>
-#include "avcodec/avcodec.h"
-
+#include <vlc_avcodec.h>
+#define BLOCK_FLAG_PRIVATE_REALLOCATED (1 << BLOCK_FLAG_PRIVATE_SHIFT)
 static int OpenDecoder(vlc_object_t *);
 static void EndTranscode(vlc_object_t *p_this);
-
+static void Flush( decoder_t *p_dec );
 static int process_decode_audio( decoder_t *p_dec, block_t *pp_block );
 static int open_audio_codec(decoder_t *p_dec);
+
+/*****************************************************************************
+ * Codec fourcc -> libavcodec Codec_id mapping
+ * Sorted by AVCodecID enumeration order
+ *****************************************************************************/
+struct spdif_avcodec_fourcc
+{
+    vlc_fourcc_t i_fourcc;
+    unsigned i_codec;
+};
 
 struct decoder_sys_t
 {
@@ -161,11 +171,11 @@ static int encode_write_frame(decoder_t *p_dec,AVFrame *filt_frame,block_t *p_bl
             block_t     *p_frame;
             p_frame = block_Alloc(enc_pkt.size);
             memcpy( p_frame->p_buffer, enc_pkt.data, enc_pkt.size);
-            p_frame->i_dts = p_block->i_pts;
-            p_frame->i_flags = p_block->i_flags;
+            p_frame->i_pts = date_Get( &p_sys->end_date);
+            p_frame->i_length = date_Increment( &p_sys->end_date,
+                            p_sys->ac3_CodecCtx->frame_size) - p_frame->i_pts;
             p_frame->i_nb_samples =  p_sys->ac3_CodecCtx->frame_size;
-            p_frame->i_pts = p_block->i_pts;
-            p_frame->i_length = 0;
+
             decoder_QueueAudio( p_dec, p_frame);
             av_packet_unref(&enc_pkt);
         }
@@ -269,8 +279,9 @@ DecodeBlock(decoder_t *p_dec, block_t *p_block)
     }else
 #endif
     {
-        if(p_block != NULL)
+        if(p_block != NULL){
             decoder_QueueAudio( p_dec, p_block);
+        }
     }
 
 
@@ -317,7 +328,7 @@ static void init_decoder_config(decoder_t *p_dec, AVCodecContext *p_context)
         if( i_size > 0 )
         {
             p_context->extradata =
-                av_malloc( i_size + FF_INPUT_BUFFER_PADDING_SIZE );
+                av_malloc( i_size + AV_INPUT_BUFFER_PADDING_SIZE );
             if( p_context->extradata )
             {
                 uint8_t *p_dst = p_context->extradata;
@@ -325,7 +336,7 @@ static void init_decoder_config(decoder_t *p_dec, AVCodecContext *p_context)
                 p_context->extradata_size = i_size;
 
                 memcpy( &p_dst[0],            &p_src[i_offset], i_size );
-                memset( &p_dst[i_size], 0, FF_INPUT_BUFFER_PADDING_SIZE );
+                memset( &p_dst[i_size], 0, AV_INPUT_BUFFER_PADDING_SIZE );
             }
         }
     }
@@ -336,16 +347,272 @@ static void init_decoder_config(decoder_t *p_dec, AVCodecContext *p_context)
     }
 }
 
+/*
+ *  Audio Codecs
+ */
+static const struct spdif_avcodec_fourcc audio_codecs[] =
+{
+    /* PCM */
+    { VLC_CODEC_S16L, AV_CODEC_ID_PCM_S16LE },
+    { VLC_CODEC_S16B, AV_CODEC_ID_PCM_S16BE },
+    { VLC_CODEC_U16L, AV_CODEC_ID_PCM_U16LE },
+    { VLC_CODEC_U16B, AV_CODEC_ID_PCM_U16BE },
+    { VLC_CODEC_S8, AV_CODEC_ID_PCM_S8 },
+    { VLC_CODEC_U8, AV_CODEC_ID_PCM_U8 },
+    { VLC_CODEC_MULAW, AV_CODEC_ID_PCM_MULAW },
+    { VLC_CODEC_ALAW, AV_CODEC_ID_PCM_ALAW },
+    { VLC_CODEC_S32L, AV_CODEC_ID_PCM_S32LE },
+    { VLC_CODEC_S32B, AV_CODEC_ID_PCM_S32BE },
+    { VLC_CODEC_U32L, AV_CODEC_ID_PCM_U32LE },
+    { VLC_CODEC_U32B, AV_CODEC_ID_PCM_U32BE },
+    { VLC_CODEC_S24L, AV_CODEC_ID_PCM_S24LE },
+    { VLC_CODEC_S24B, AV_CODEC_ID_PCM_S24BE },
+    { VLC_CODEC_U24L, AV_CODEC_ID_PCM_U24LE },
+    { VLC_CODEC_U24B, AV_CODEC_ID_PCM_U24BE },
+    { VLC_CODEC_S24DAUD, AV_CODEC_ID_PCM_S24DAUD },
+    /* AV_CODEC_ID_PCM_ZORK */
+    { VLC_CODEC_S16L_PLANAR, AV_CODEC_ID_PCM_S16LE_PLANAR },
+    /* AV_CODEC_ID_PCM_DVD */
+    { VLC_CODEC_F32B, AV_CODEC_ID_PCM_F32BE },
+    { VLC_CODEC_F32L, AV_CODEC_ID_PCM_F32LE },
+    { VLC_CODEC_F64B, AV_CODEC_ID_PCM_F64BE },
+    { VLC_CODEC_F64L, AV_CODEC_ID_PCM_F64LE },
+    { VLC_CODEC_BD_LPCM, AV_CODEC_ID_PCM_BLURAY },
+    /* AV_CODEC_ID_PCM_LXF */
+    /* AV_CODEC_ID_S302M */
+    { VLC_CODEC_PCM_S8_PLANAR, AV_CODEC_ID_PCM_S8_PLANAR},
+    { VLC_CODEC_PCM_S24LE_PLANAR, AV_CODEC_ID_PCM_S24LE_PLANAR},
+    { VLC_CODEC_PCM_S32LE_PLANAR, AV_CODEC_ID_PCM_S32LE_PLANAR},
+    { VLC_CODEC_PCM_S16BE_PLANAR, AV_CODEC_ID_PCM_S16BE_PLANAR},
+    /* AV_CODEC_ID_PCM_S24LE_PLANAR */
+    /* AV_CODEC_ID_PCM_S32LE_PLANAR */
+    /* ffmpeg only: AV_CODEC_ID_PCM_S16BE_PLANAR */
+
+    /* ADPCM */
+    { VLC_CODEC_ADPCM_IMA_QT, AV_CODEC_ID_ADPCM_IMA_QT },
+    { VLC_CODEC_ADPCM_IMA_WAV, AV_CODEC_ID_ADPCM_IMA_WAV },
+    /* AV_CODEC_ID_ADPCM_IMA_DK3 */
+    /* AV_CODEC_ID_ADPCM_IMA_DK4 */
+    { VLC_CODEC_ADPCM_IMA_WS, AV_CODEC_ID_ADPCM_IMA_WS },
+    /* AV_CODEC_ID_ADPCM_IMA_SMJPEG */
+    { VLC_CODEC_ADPCM_MS, AV_CODEC_ID_ADPCM_MS },
+    { VLC_CODEC_ADPCM_4XM, AV_CODEC_ID_ADPCM_4XM },
+    { VLC_CODEC_ADPCM_XA, AV_CODEC_ID_ADPCM_XA },
+    { VLC_CODEC_ADPCM_ADX, AV_CODEC_ID_ADPCM_ADX },
+    { VLC_CODEC_ADPCM_EA, AV_CODEC_ID_ADPCM_EA },
+    { VLC_CODEC_ADPCM_G726, AV_CODEC_ID_ADPCM_G726 },
+    { VLC_CODEC_ADPCM_CREATIVE, AV_CODEC_ID_ADPCM_CT },
+    { VLC_CODEC_ADPCM_SWF, AV_CODEC_ID_ADPCM_SWF },
+    { VLC_CODEC_ADPCM_YAMAHA, AV_CODEC_ID_ADPCM_YAMAHA },
+    { VLC_CODEC_ADPCM_SBPRO_4, AV_CODEC_ID_ADPCM_SBPRO_4 },
+    { VLC_CODEC_ADPCM_SBPRO_3, AV_CODEC_ID_ADPCM_SBPRO_3 },
+    { VLC_CODEC_ADPCM_SBPRO_2, AV_CODEC_ID_ADPCM_SBPRO_2 },
+    { VLC_CODEC_ADPCM_THP, AV_CODEC_ID_ADPCM_THP },
+    { VLC_CODEC_ADPCM_IMA_AMV, AV_CODEC_ID_ADPCM_IMA_AMV },
+    { VLC_CODEC_ADPCM_EA_R1, AV_CODEC_ID_ADPCM_EA_R1 },
+    /* AV_CODEC_ID_ADPCM_EA_R3 */
+    /* AV_CODEC_ID_ADPCM_EA_R2 */
+    { VLC_CODEC_ADPCM_IMA_EA_SEAD, AV_CODEC_ID_ADPCM_IMA_EA_SEAD },
+    /* AV_CODEC_ID_ADPCM_IMA_EA_EACS */
+    /* AV_CODEC_ID_ADPCM_EA_XAS */
+    /* AV_CODEC_ID_ADPCM_EA_MAXIS_XA */
+    /* AV_CODEC_ID_ADPCM_IMA_ISS */
+    { VLC_CODEC_ADPCM_G722, AV_CODEC_ID_ADPCM_G722 },
+    { VLC_CODEC_ADPCM_IMA_APC, AV_CODEC_ID_ADPCM_IMA_APC },
+    /* ffmpeg only: AV_CODEC_ID_VIMA */
+    /* ffmpeg only: AV_CODEC_ID_ADPCM_AFC */
+    /* ffmpeg only: AV_CODEC_ID_ADPCM_IMA_OKI */
+    /* ffmpeg only: AV_CODEC_ID_ADPCM_DTK */
+    /* ffmpeg only: AV_CODEC_ID_ADPCM_IMA_RAD */
+    /* ffmpeg only: AV_CODEC_ID_ADPCM_G726LE */
+
+    /* AMR */
+    { VLC_CODEC_AMR_NB, AV_CODEC_ID_AMR_NB },
+    { VLC_CODEC_AMR_WB, AV_CODEC_ID_AMR_WB },
+
+    /* RealAudio */
+    { VLC_CODEC_RA_144, AV_CODEC_ID_RA_144 },
+    { VLC_CODEC_RA_288, AV_CODEC_ID_RA_288 },
+
+    /* DPCM */
+    { VLC_CODEC_ROQ_DPCM, AV_CODEC_ID_ROQ_DPCM },
+    { VLC_CODEC_INTERPLAY_DPCM, AV_CODEC_ID_INTERPLAY_DPCM },
+    /* AV_CODEC_ID_XAN_DPCM */
+    /* AV_CODEC_ID_SOL_DPCM */
+
+    /* audio codecs */
+    { VLC_CODEC_MPGA, AV_CODEC_ID_MP2 },
+    { VLC_CODEC_MP2, AV_CODEC_ID_MP2 },
+    { VLC_CODEC_MP3, AV_CODEC_ID_MP3 },
+    { VLC_CODEC_MP4A, AV_CODEC_ID_AAC },
+    { VLC_CODEC_A52, AV_CODEC_ID_AC3 },
+    { VLC_CODEC_DTS, AV_CODEC_ID_DTS },
+    { VLC_CODEC_VORBIS, AV_CODEC_ID_VORBIS },
+    { VLC_CODEC_DVAUDIO, AV_CODEC_ID_DVAUDIO },
+    { VLC_CODEC_WMA1, AV_CODEC_ID_WMAV1 },
+    { VLC_CODEC_WMA2, AV_CODEC_ID_WMAV2 },
+    { VLC_CODEC_MACE3, AV_CODEC_ID_MACE3 },
+    { VLC_CODEC_MACE6, AV_CODEC_ID_MACE6 },
+    { VLC_CODEC_VMDAUDIO, AV_CODEC_ID_VMDAUDIO },
+    { VLC_CODEC_FLAC, AV_CODEC_ID_FLAC },
+    /* AV_CODEC_ID_MP3ADU */
+    /* AV_CODEC_ID_MP3ON4 */
+    { VLC_CODEC_SHORTEN, AV_CODEC_ID_SHORTEN },
+    { VLC_CODEC_ALAC, AV_CODEC_ID_ALAC },
+    /* AV_CODEC_ID_WESTWOOD_SND1 */
+    { VLC_CODEC_GSM, AV_CODEC_ID_GSM },
+    { VLC_CODEC_QDM2, AV_CODEC_ID_QDM2 },
+    { VLC_CODEC_COOK, AV_CODEC_ID_COOK },
+    { VLC_CODEC_TRUESPEECH, AV_CODEC_ID_TRUESPEECH },
+    { VLC_CODEC_TTA, AV_CODEC_ID_TTA },
+    { VLC_CODEC_SMACKAUDIO, AV_CODEC_ID_SMACKAUDIO },
+    { VLC_CODEC_QCELP, AV_CODEC_ID_QCELP },
+    { VLC_CODEC_WAVPACK, AV_CODEC_ID_WAVPACK },
+    { VLC_CODEC_DSICINAUDIO, AV_CODEC_ID_DSICINAUDIO },
+    { VLC_CODEC_IMC, AV_CODEC_ID_IMC },
+    { VLC_CODEC_MUSEPACK7, AV_CODEC_ID_MUSEPACK7 },
+    { VLC_CODEC_MLP, AV_CODEC_ID_MLP },
+    { VLC_CODEC_GSM_MS, AV_CODEC_ID_GSM_MS },
+    { VLC_CODEC_ATRAC3, AV_CODEC_ID_ATRAC3 },
+    { VLC_CODEC_APE, AV_CODEC_ID_APE },
+    { VLC_CODEC_NELLYMOSER, AV_CODEC_ID_NELLYMOSER },
+    { VLC_CODEC_MUSEPACK8, AV_CODEC_ID_MUSEPACK8 },
+    { VLC_CODEC_SPEEX, AV_CODEC_ID_SPEEX },
+    { VLC_CODEC_WMAS, AV_CODEC_ID_WMAVOICE },
+    { VLC_CODEC_WMAP, AV_CODEC_ID_WMAPRO },
+    { VLC_CODEC_WMAL, AV_CODEC_ID_WMALOSSLESS },
+    { VLC_CODEC_ATRAC3P, AV_CODEC_ID_ATRAC3P },
+    { VLC_CODEC_EAC3, AV_CODEC_ID_EAC3 },
+    { VLC_CODEC_SIPR, AV_CODEC_ID_SIPR },
+    /* AV_CODEC_ID_MP1 */
+    { VLC_CODEC_TWINVQ, AV_CODEC_ID_TWINVQ },
+    { VLC_CODEC_TRUEHD, AV_CODEC_ID_TRUEHD },
+    { VLC_CODEC_ALS, AV_CODEC_ID_MP4ALS },
+    { VLC_CODEC_ATRAC1, AV_CODEC_ID_ATRAC1 },
+    { VLC_CODEC_BINKAUDIO_RDFT, AV_CODEC_ID_BINKAUDIO_RDFT },
+    { VLC_CODEC_BINKAUDIO_DCT, AV_CODEC_ID_BINKAUDIO_DCT },
+    { VLC_CODEC_MP4A, AV_CODEC_ID_AAC_LATM },
+    /* AV_CODEC_ID_QDMC */
+    /* AV_CODEC_ID_CELT */
+    { VLC_CODEC_G723_1, AV_CODEC_ID_G723_1 },
+    /* AV_CODEC_ID_G729 */
+    /* AV_CODEC_ID_8SVX_EXP */
+    /* AV_CODEC_ID_8SVX_FIB */
+    { VLC_CODEC_BMVAUDIO, AV_CODEC_ID_BMV_AUDIO },
+    { VLC_CODEC_RALF, AV_CODEC_ID_RALF },
+    { VLC_CODEC_INDEO_AUDIO, AV_CODEC_ID_IAC },
+    /* AV_CODEC_ID_ILBC */
+    { VLC_CODEC_OPUS, AV_CODEC_ID_OPUS },
+    /* AV_CODEC_ID_COMFORT_NOISE */
+    { VLC_CODEC_TAK, AV_CODEC_ID_TAK },
+    { VLC_CODEC_METASOUND, AV_CODEC_ID_METASOUND },
+    /* AV_CODEC_ID_PAF_AUDIO */
+    { VLC_CODEC_ON2AVC, AV_CODEC_ID_ON2AVC },
+
+    /* ffmpeg only: AV_CODEC_ID_FFWAVESYNTH */
+    /* ffmpeg only: AV_CODEC_ID_SONIC */
+    /* ffmpeg only: AV_CODEC_ID_SONIC_LS */
+    /* ffmpeg only: AV_CODEC_ID_PAF_AUDIO */
+    /* ffmpeg only: AV_CODEC_ID_EVRC */
+    /* ffmpeg only: AV_CODEC_ID_SMV */
+
+    { VLC_CODEC_DSD_LSBF, AV_CODEC_ID_DSD_LSBF },
+    { VLC_CODEC_DSD_MSBF, AV_CODEC_ID_DSD_MSBF },
+    { VLC_CODEC_DSD_LSBF_PLANAR, AV_CODEC_ID_DSD_LSBF_PLANAR },
+    { VLC_CODEC_DSD_MSBF_PLANAR, AV_CODEC_ID_DSD_MSBF_PLANAR },
+};
+
+bool spdifGetFfmpegCodec( enum es_format_category_e cat, vlc_fourcc_t i_fourcc,
+                     unsigned *pi_ffmpeg_codec, const char **ppsz_name )
+{
+    const struct spdif_avcodec_fourcc *base;
+    size_t count;
+
+    switch( cat )
+    {
+        case AUDIO_ES:
+            base = audio_codecs;
+            count = ARRAY_SIZE(audio_codecs);
+            break;
+        default:
+            base = NULL;
+            count = 0;
+    }
+
+    i_fourcc = vlc_fourcc_GetCodec( cat, i_fourcc );
+
+    for( size_t i = 0; i < count; i++ )
+    {
+        if( base[i].i_fourcc == i_fourcc )
+        {
+            if( pi_ffmpeg_codec != NULL )
+                *pi_ffmpeg_codec = base[i].i_codec;
+            if( ppsz_name )
+                *ppsz_name = vlc_fourcc_GetDescription( cat, i_fourcc );
+            return true;
+        }
+    }
+    return false;
+}
+
+AVCodecContext *spdif_ffmpeg_AllocContext( decoder_t *p_dec,
+                                     const AVCodec **restrict codecp )
+{
+    unsigned i_codec_id;
+    const char *psz_namecodec;
+    const AVCodec *p_codec = NULL;
+
+    /* *** determine codec type *** */
+    if( !spdifGetFfmpegCodec( p_dec->fmt_in.i_cat, p_dec->fmt_in.i_codec,
+                         &i_codec_id, &psz_namecodec ) )
+         return NULL;
+
+    /* *** ask ffmpeg for a decoder *** */
+    char *psz_decoder = var_InheritString( p_dec, "avcodec-codec" );
+    if( psz_decoder != NULL )
+    {
+        p_codec = avcodec_find_decoder_by_name( psz_decoder );
+        if( !p_codec )
+            msg_Err( p_dec, "Decoder `%s' not found", psz_decoder );
+        else if( p_codec->id != i_codec_id )
+        {
+            msg_Err( p_dec, "Decoder `%s' can't handle %4.4s",
+                    psz_decoder, (char*)&p_dec->fmt_in.i_codec );
+            p_codec = NULL;
+        }
+        free( psz_decoder );
+    }
+    if( !p_codec )
+        p_codec = avcodec_find_decoder( i_codec_id );
+    if( !p_codec )
+    {
+        msg_Dbg( p_dec, " codec not found (%s)", psz_namecodec );
+        return NULL;
+    }
+
+    *codecp = p_codec;
+
+    /* *** get a p_context *** */
+    AVCodecContext *avctx = avcodec_alloc_context3(p_codec);
+    if( unlikely(avctx == NULL) )
+        return NULL;
+
+    avctx->debug = var_InheritInteger( p_dec, "avcodec-debug" );
+    avctx->opaque = p_dec;
+    return avctx;
+}
+
+
 static int  init_decoder(decoder_t *p_dec)
 {
     const AVCodec *codec;
-    av_register_all();
     decoder_sys_t *p_sys = p_dec->p_sys;
     p_sys->ac3_CodecCtx = NULL;
     p_sys->p_context = NULL;
     p_sys->swr_ctx = NULL;
     p_sys->fifo = NULL;
-    AVCodecContext *avctx = ffmpeg_AllocContext( p_dec, &codec );
+    avcodec_register_all();
+    AVCodecContext *avctx = spdif_ffmpeg_AllocContext( p_dec, &codec );
     if( avctx == NULL ){
         msg_Dbg(p_dec," tdx   alloce  context  failed   ");
         return false;
@@ -364,6 +631,23 @@ static int  init_decoder(decoder_t *p_dec)
     }
     msg_Dbg(p_dec,"tdx    OpenAudioCodec  success ");
     return true;
+}
+
+static int spdif_ffmpeg_OpenCodec( decoder_t *p_dec, AVCodecContext *ctx,
+                      const AVCodec *codec )
+{
+    int ret;
+    vlc_avcodec_lock();
+    ret = avcodec_open2( ctx, codec,  NULL );
+    vlc_avcodec_unlock();
+    if( ret < 0 )
+    {
+        msg_Err( p_dec, "cannot start codec (%s)", codec->name );
+        return VLC_EGENERIC;
+    }
+
+    msg_Dbg( p_dec, "codec (%s) started", codec->name );
+    return VLC_SUCCESS;
 }
 
 static int open_audio_codec( decoder_t *p_dec )
@@ -395,7 +679,7 @@ static int open_audio_codec( decoder_t *p_dec )
         ctx->sample_rate >  0)
         ctx->bits_per_coded_sample = ctx->bit_rate / ctx->sample_rate;
 
-    return ffmpeg_OpenCodec( p_dec, ctx, codec );
+    return spdif_ffmpeg_OpenCodec( p_dec, ctx, codec );
 }
 
 static int
@@ -407,6 +691,39 @@ process_decode_audio( decoder_t *p_dec, block_t *p_block )
     
     bool b_error = false;
     int ret;
+
+    if( p_block->i_flags & BLOCK_FLAG_CORRUPTED )
+    {
+        Flush( p_dec );
+        goto drop;
+    }
+
+    if( p_block->i_flags & BLOCK_FLAG_DISCONTINUITY )
+    {
+        date_Set( &p_sys->end_date, VLC_TS_INVALID );
+    }
+
+    /* We've just started the stream, wait for the first PTS. */
+    if( !date_Get( &p_sys->end_date ) && p_block->i_pts <= VLC_TS_INVALID )
+        goto drop;
+
+    if( p_block->i_buffer <= 0 )
+        goto drop;
+
+    if( (p_block->i_flags & BLOCK_FLAG_PRIVATE_REALLOCATED) == 0 )
+    {
+        p_block = block_Realloc( p_block, 0, p_block->i_buffer + AV_INPUT_BUFFER_PADDING_SIZE );
+        if( !p_block )
+            goto end;
+        p_block->i_buffer -= AV_INPUT_BUFFER_PADDING_SIZE;
+        memset( &p_block->p_buffer[p_block->i_buffer], 0, AV_INPUT_BUFFER_PADDING_SIZE );
+
+        p_block->i_flags |= BLOCK_FLAG_PRIVATE_REALLOCATED;
+    }
+
+
+
+
     frame = av_frame_alloc();
     if (unlikely(frame == NULL))
         goto end;
@@ -422,7 +739,10 @@ process_decode_audio( decoder_t *p_dec, block_t *p_block )
     
     if( ret >= 0 ) /* Block has been consumed */
     {
-
+        if( date_Get( &p_sys->end_date ) == 0)
+        {
+            date_Set( &p_sys->end_date, p_block->i_pts );
+        }
     }
     else if ( ret != AVERROR(EAGAIN) ) /* Errors other than buffer full */
     {
@@ -480,8 +800,6 @@ static int open_ac3_encoder(decoder_t *p_dec)
     decoder_sys_t *p_sys = p_dec->p_sys;
     AVCodec *codec = NULL;
     int  ret ;
-    avcodec_register_all();
-	av_register_all();
     codec = avcodec_find_encoder(AV_CODEC_ID_AC3);
     /* check we got the codec */
     if (!codec)
@@ -496,6 +814,9 @@ static int open_ac3_encoder(decoder_t *p_dec)
     p_sys->ac3_CodecCtx->sample_rate = 48000;
     p_sys->ac3_CodecCtx->channel_layout =   AV_CH_LAYOUT_5POINT1_BACK;
     p_sys->ac3_CodecCtx->channels = av_get_channel_layout_nb_channels(p_sys->ac3_CodecCtx->channel_layout);
+
+    date_Set( &p_sys->end_date, VLC_TS_INVALID );
+    date_Init( &p_sys->end_date, p_sys->ac3_CodecCtx->sample_rate, 1 );
 
   /* open the codec */
   ret = avcodec_open2( p_sys->ac3_CodecCtx, codec,  NULL );
@@ -520,6 +841,7 @@ static void Flush( decoder_t *p_dec )
     if(p_dec->p_sys->b_AC3_passthrough == true){
         if(p_dec->fmt_in.i_codec != VLC_CODEC_A52){
             decoder_sys_t *p_sys = p_dec->p_sys;
+            date_Set( &p_sys->end_date, VLC_TS_INVALID );
             AVCodecContext *ctx = p_sys->p_context;
             AVCodecContext *ac3ctx = p_sys->ac3_CodecCtx;
             if( avcodec_is_open( ctx ) )
@@ -681,6 +1003,14 @@ OpenDecoder(vlc_object_t *p_this)
     p_dec->p_sys->b_AC3_passthrough = var_InheritBool(p_dec, "spdif-ac3");
     if(p_dec->p_sys->b_AC3_passthrough == true){
         if(p_dec->fmt_in.i_codec != VLC_CODEC_A52){
+            p_dec->fmt_out.i_codec = VLC_CODEC_A52;
+            p_dec->fmt_out.audio = p_dec->fmt_in.audio;
+            p_dec->fmt_out.i_profile = p_dec->fmt_in.i_profile;
+            p_dec->fmt_out.audio.i_format = p_dec->fmt_out.i_codec;
+            p_dec->fmt_out.audio.i_channels = 6;
+            p_dec->fmt_out.audio.i_rate = 48000;
+            p_dec->fmt_out.audio.i_frame_length = 1536;
+            p_dec->fmt_out.audio.i_bytes_per_frame = 2560;
             if(!init_decoder(p_dec))
                 return VLC_EGENERIC;
             if(!open_ac3_encoder(p_dec))

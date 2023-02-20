@@ -173,6 +173,8 @@ struct aout_sys_t {
             } bytebuffer;
         } u;
     } circular;
+
+    bool  isjiguang4pro;
 };
 
 
@@ -470,6 +472,7 @@ InitJNIFields( audio_output_t *p_aout, JNIEnv* env )
     {
         GET_CONST_INT( AudioFormat.ENCODING_IEC61937, "ENCODING_IEC61937", false );
         jfields.AudioFormat.has_ENCODING_IEC61937 =  GetAndroidSupport(env,p_aout,48000,jfields.AudioFormat.CHANNEL_OUT_STEREO,jfields.AudioFormat.ENCODING_IEC61937,false);
+        msg_Dbg(p_aout,"tdx     iec61937   %d \n",jfields.AudioFormat.has_ENCODING_IEC61937);
     }
     else{
         jfields.AudioFormat.has_ENCODING_IEC61937 = false;
@@ -595,7 +598,6 @@ AudioTrack_getPlaybackHeadPosition( JNIEnv *env, audio_output_t *p_aout )
 
     /* int32_t to uint32_t */
     i_pos = 0xFFFFFFFFL & JNI_AT_CALL_INT( getPlaybackHeadPosition );
-
     /* uint32_t to uint64_t */
     if( p_sys->headpos.i_last > i_pos )
         p_sys->headpos.i_wrap_count++;
@@ -669,11 +671,12 @@ AudioTrack_GetSmoothPositionUs( JNIEnv *env, audio_output_t *p_aout )
     if( i_now - p_sys->smoothpos.i_last_time >= SMOOTHPOS_INTERVAL_US )
     {
         i_audiotrack_us = FRAMES_TO_US( AudioTrack_getPlaybackHeadPosition( env, p_aout ) );
-
         p_sys->smoothpos.i_last_time = i_now;
+
 
         /* Base the position off the current time */
         p_sys->smoothpos.p_us[p_sys->smoothpos.i_idx] = i_audiotrack_us - i_now;
+
         p_sys->smoothpos.i_idx = (p_sys->smoothpos.i_idx + 1)
                                  % SMOOTHPOS_SAMPLE_COUNT;
         if( p_sys->smoothpos.i_count < SMOOTHPOS_SAMPLE_COUNT )
@@ -691,15 +694,15 @@ AudioTrack_GetSmoothPositionUs( JNIEnv *env, audio_output_t *p_aout )
                                          jfields.AudioSystem.clazz,
                                          jfields.AudioSystem.getOutputLatency,
                                          jfields.AudioManager.STREAM_MUSIC );
-
             p_sys->smoothpos.i_latency_us = i_latency_ms > 0 ?
                                             i_latency_ms * 1000L : 0;
         }
     }
-    if( p_sys->smoothpos.i_us != 0 )
+    if( p_sys->smoothpos.i_us != 0 ){
         return p_sys->smoothpos.i_us + i_now - p_sys->smoothpos.i_latency_us;
-    else
+    }else{
         return 0;
+    }
 }
 
 static mtime_t
@@ -757,8 +760,9 @@ AudioTrack_GetTimestampPositionUs( JNIEnv *env, audio_output_t *p_aout )
         jlong i_time_diff = i_now - p_sys->timestamp.i_frame_us;
         jlong i_frames_diff = i_time_diff * p_sys->fmt.i_rate / CLOCK_FREQ;
         return FRAMES_TO_US( p_sys->timestamp.i_frame_pos + i_frames_diff );
-    } else
+    } else{
         return 0;
+    }
 }
 
 static int
@@ -768,8 +772,8 @@ TimeGet( audio_output_t *p_aout, mtime_t *restrict p_delay )
     mtime_t i_audiotrack_us;
     JNIEnv *env;
 
-    if( p_sys->b_passthrough )
-        return -1;
+ //  if( p_sys->b_passthrough )
+ //      return -1;
 
     vlc_mutex_lock( &p_sys->lock );
 
@@ -778,9 +782,9 @@ TimeGet( audio_output_t *p_aout, mtime_t *restrict p_delay )
 
     i_audiotrack_us = AudioTrack_GetTimestampPositionUs( env, p_aout );
 
-    if( i_audiotrack_us <= 0 )
+    if( i_audiotrack_us <= 0 ){
         i_audiotrack_us = AudioTrack_GetSmoothPositionUs(env, p_aout );
-
+    }
 /* Debug log for both delays */
 #if 0
 {
@@ -800,7 +804,6 @@ TimeGet( audio_output_t *p_aout, mtime_t *restrict p_delay )
                     p_sys->smoothpos.i_latency_us );
 }
 #endif
-
     if( i_audiotrack_us > 0 )
     {
         /* AudioTrack delay */
@@ -809,6 +812,7 @@ TimeGet( audio_output_t *p_aout, mtime_t *restrict p_delay )
         if( i_delay >= 0 )
         {
             /* Circular buffer delay */
+
             i_delay += BYTES_TO_US( p_sys->circular.i_write
                                     - p_sys->circular.i_read );
             *p_delay = i_delay;
@@ -817,7 +821,7 @@ TimeGet( audio_output_t *p_aout, mtime_t *restrict p_delay )
         }
         else
         {
-            msg_Warn( p_aout, "timing screwed, reset positions" );
+	     msg_Warn( p_aout, "timing screwed, reset positions" );
             AudioTrack_ResetPositions( env, p_aout );
         }
     }
@@ -1049,7 +1053,11 @@ AudioTrack_Create( JNIEnv *env, audio_output_t *p_aout,
         msg_Warn( p_aout, "getMinBufferSize returned an invalid size" ) ;
         return -1;
     }
-    i_size = i_min_buffer_size *4;
+    if(p_sys->isjiguang4pro){
+        i_size = i_min_buffer_size * 8;
+    }else{
+        i_size = i_min_buffer_size * 4;
+    }
     /* create AudioTrack object */
     if( AudioTrack_New( env, p_aout, i_rate, i_channel_config,
                         i_format , i_size ) != 0 )
@@ -1132,15 +1140,30 @@ StartPassthrough( JNIEnv *env, audio_output_t *p_aout, bool ac3)
                 i_at_format = jfields.AudioFormat.ENCODING_AC3;
                 break;
         }
-        p_sys->fmt.i_bytes_per_frame = 4;
+        if(p_sys->isjiguang4pro){
+            p_sys->fmt.i_bytes_per_frame = 16;
+        }else{
+            p_sys->fmt.i_bytes_per_frame = 4;
+        }
+
         p_sys->fmt.i_frame_length = 1;
         p_sys->fmt.i_physical_channels = AOUT_CHANS_STEREO;
         p_sys->fmt.i_channels = 2;
-        p_sys->fmt.i_format = VLC_CODEC_SPDIFB;
         p_sys->fmt.i_rate = 48000;
+        if( jfields.AudioFormat.has_ENCODING_IEC61937 ){
+            i_at_format = jfields.AudioFormat.ENCODING_IEC61937;
+      //    p_sys->fmt.i_frame_length = 1;
+            p_sys->fmt.i_channels = aout_FormatNbChannels( &p_sys->fmt );
+            p_sys->fmt.i_format = VLC_CODEC_SPDIFL;
+        }else{
+            p_sys->fmt.i_format = VLC_CODEC_SPDIFB;
+        }
+
     }else {
-        if( !AudioTrack_HasEncoding( p_aout, p_sys->fmt.i_format, &b_dtshd,ac3) )
+        if( !AudioTrack_HasEncoding( p_aout, p_sys->fmt.i_format, &b_dtshd,ac3) ){
+            msg_Dbg(p_aout,"tdx  AudioTrack_HasEncoding  error ");
             return VLC_EGENERIC;
+        }
 
         if( jfields.AudioFormat.has_ENCODING_IEC61937 )
         {
@@ -1151,7 +1174,6 @@ StartPassthrough( JNIEnv *env, audio_output_t *p_aout, bool ac3)
                 case VLC_CODEC_MLP:
                     p_sys->fmt.i_rate = 192000;
                     p_sys->fmt.i_bytes_per_frame = 16;
-
                     /* AudioFormat.ENCODING_IEC61937 documentation says that the
                     * channel layout must be stereo. Well, not for TrueHD
                     * apparently */
@@ -1160,14 +1182,16 @@ StartPassthrough( JNIEnv *env, audio_output_t *p_aout, bool ac3)
                 case VLC_CODEC_DTS:
                     p_sys->fmt.i_bytes_per_frame = 4;
                     p_sys->fmt.i_physical_channels = AOUT_CHANS_STEREO;
-                    if( b_dtshd )
+                /*  if( b_dtshd )
                     {
                         p_sys->fmt.i_rate = 192000;
                         p_sys->fmt.i_bytes_per_frame = 16;
                     }
+                */
                     break;
                 case VLC_CODEC_EAC3:
                     p_sys->fmt.i_rate = 192000;
+                  //  p_sys->fmt.i_bytes_per_frame = 4;
                 case VLC_CODEC_A52:
                     p_sys->fmt.i_physical_channels = AOUT_CHANS_STEREO;
                     p_sys->fmt.i_bytes_per_frame = 4;
@@ -1209,16 +1233,16 @@ StartPassthrough( JNIEnv *env, audio_output_t *p_aout, bool ac3)
         }
     }
     p_sys->b_passthrough = true;
+
     int i_ret = AudioTrack_Create( env, p_aout, p_sys->fmt.i_rate, i_at_format,
                                    p_sys->fmt.i_physical_channels );
     if( i_ret != VLC_SUCCESS )
     {
         p_sys->b_passthrough = false;
-        msg_Warn( p_aout, " SPDIF configuration failed" );
+        msg_Warn( p_aout, "  tdx   SPDIF configuration failed");
     }
     else
         p_sys->i_chans_to_reorder = 0;
-
     return i_ret;
 }
 
@@ -1334,6 +1358,7 @@ Start( audio_output_t *p_aout, audio_sample_format_t *restrict p_fmt )
     bool b_try_passthrough_ac3;
     unsigned i_max_channels;
 
+    p_sys->isjiguang4pro = false;
     if( p_sys->at_dev == AT_DEV_ENCODED )
     {
         b_try_passthrough = true;
@@ -1344,6 +1369,8 @@ Start( audio_output_t *p_aout, audio_sample_format_t *restrict p_fmt )
         b_try_passthrough = var_InheritBool( p_aout, "spdif" );
         i_max_channels = p_sys->at_dev == AT_DEV_STEREO ? 2 : AT_DEV_MAX_CHANNELS;
         b_try_passthrough_ac3 = var_InheritBool( p_aout, "spdif-ac3");
+        if(b_try_passthrough_ac3)
+            p_sys->isjiguang4pro = var_InheritBool( p_aout, "spdif-isjiguang4pro");
     }
 
     if( !( env = GET_ENV() ) )
@@ -1445,6 +1472,10 @@ Start( audio_output_t *p_aout, audio_sample_format_t *restrict p_fmt )
                                / CLOCK_FREQ * 10;
     }
 
+    if(p_sys->isjiguang4pro){
+        if(low_latency == false)
+            p_sys->circular.i_size = p_sys->circular.i_size/10;
+    }
     /* Allocate circular buffer */
     switch( p_sys->i_write_type )
     {
@@ -1496,6 +1527,7 @@ Start( audio_output_t *p_aout, audio_sample_format_t *restrict p_fmt )
                 p_sys->circular.u.p_floatarray = (*env)->NewGlobalRef( env, p_floatarray );
                 (*env)->DeleteLocalRef( env, p_floatarray );
             }
+
             if( !p_sys->circular.u.p_floatarray )
             {
                 msg_Err(p_aout, "float array allocation failed");
@@ -1823,6 +1855,7 @@ AudioTrack_Play( JNIEnv *env, audio_output_t *p_aout, size_t i_data_size,
         }
     } else
         p_sys->i_samples_written += BYTES_TO_FRAMES( i_ret );
+
     return i_ret;
 }
 
@@ -1964,7 +1997,8 @@ ConvertFromIEC61937( audio_output_t *p_aout, block_t *p_buffer )
             i_length_mul = 1;
             break;
         default:
-            vlc_assert_unreachable();
+            return 0;
+           // vlc_assert_unreachable();
     }
     uint16_t i_length = GetWBE( &p_buffer->p_buffer[6] );
     if( i_length == 0 )
