@@ -1427,6 +1427,8 @@ static int QueueBlockLocked(decoder_t *p_dec, block_t *p_in_block,
                     i_ts = p_block->i_pts;
                     if (!i_ts && p_block->i_dts)
                         i_ts = p_block->i_dts;
+                    if (i_ts < 0)
+                        i_ts = 0 - i_ts;
                 }
                 p_buf = p_block->p_buffer;
                 i_size = p_block->i_buffer;
