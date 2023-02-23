@@ -550,6 +550,7 @@ static int OpenDecoder(vlc_object_t *p_this, pf_MediaCodecApi_init pf_init)
         return VLC_EGENERIC;
     }
 
+    msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: FmtIn [%4.4s][%4.4s] info (Profile:%d,Level:%d).", __FILE__ , __FUNCTION__, __LINE__, (char *)&p_dec->fmt_in.i_codec, (char *)&p_dec->fmt_in.i_original_fourcc, i_profile, p_dec->fmt_in.i_level);
     /* Fail if this module already failed to decode this ES */
     if (var_Type(p_dec, "mediacodec-failed") != 0) {
         msg_Warn(p_dec, "[%s:%s:%d]=zspace=: This module already failed to decode this ES[%d].", __FILE__ , __FUNCTION__, __LINE__, p_dec->fmt_in.i_cat);
@@ -558,7 +559,7 @@ static int OpenDecoder(vlc_object_t *p_this, pf_MediaCodecApi_init pf_init)
 
     if (p_dec->fmt_in.i_cat == VIDEO_ES)
     {
-        msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: It is VIDEO_ES, check mime.", __FILE__ , __FUNCTION__, __LINE__);
+        msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: It is VIDEO_ES.", __FILE__ , __FUNCTION__, __LINE__);
         /*
          * ZQG: ISO 蓝光经常这样，无法判断是硬解或者软解，不如直接跳过这个策略。
          */
@@ -640,7 +641,7 @@ static int OpenDecoder(vlc_object_t *p_this, pf_MediaCodecApi_init pf_init)
 
     if (!mime)
     {
-        msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: codec %4.4s not supported.", __FILE__ , __FUNCTION__, __LINE__, (char *)&p_dec->fmt_in.i_codec);
+        msg_Warn(p_dec, "[%s:%s:%d]=zspace=: codec %4.4s not supported.", __FILE__ , __FUNCTION__, __LINE__, (char *)&p_dec->fmt_in.i_codec);
         return VLC_EGENERIC;
     }
 

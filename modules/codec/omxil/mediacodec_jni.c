@@ -401,7 +401,7 @@ char* MediaCodec_GetName(vlc_object_t *p_obj, const char *psz_mime,
                                                       jmime);
         if (CHECK_EXCEPTION())
         {
-            msg_Warn(p_obj, "[%s:%s:%d]=zspace=: Exception occurred in MediaCodecInfo.getCapabilitiesForType for [%s]", __FILE__ , __FUNCTION__, __LINE__, name_ptr);
+            msg_Warn(p_obj, "[%s:%s:%d]=zspace=: Get Capabilities of [%s] failed for type [%s]", __FILE__ , __FUNCTION__, __LINE__, name_ptr, psz_mime);
             goto loopclean;
         }
         else if (codec_capabilities)
@@ -420,7 +420,7 @@ char* MediaCodec_GetName(vlc_object_t *p_obj, const char *psz_mime,
                 (*env)->DeleteLocalRef(env, jfeature);
             }
         }
-        msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: Number of profile levels len: %d", __FILE__ , __FUNCTION__, __LINE__, profile_levels_len);
+        msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: [%s] support %d profile levels.", __FILE__ , __FUNCTION__, __LINE__, name_ptr, profile_levels_len);
 
         types = (*env)->CallObjectMethod(env, info, jfields.get_supported_types);
         num_types = (*env)->GetArrayLength(env, types);
@@ -457,20 +457,20 @@ char* MediaCodec_GetName(vlc_object_t *p_obj, const char *psz_mime,
                             {
                                 case 0x1: /* OMX_VIDEO_HEVCProfileMain */
                                     codec_profile = HEVC_PROFILE_MAIN;
-                                    msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: %s decoder support profile \"Main\"", __FILE__ , __FUNCTION__, __LINE__, name_ptr);
+                                    msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: [%s] support omx_profile 0x%x \"Main\"", __FILE__ , __FUNCTION__, __LINE__, name_ptr, omx_profile);
                                     break;
                                 case 0x2:    /* OMX_VIDEO_HEVCProfileMain10 */
                                 case 0x1000: /* OMX_VIDEO_HEVCProfileMain10HDR10 */
                                     codec_profile = HEVC_PROFILE_MAIN_10;
-                                    msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: %s decoder support profile \"Main 10\"", __FILE__ , __FUNCTION__, __LINE__, name_ptr);
+                                    msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: [%s] support omx_profile 0x%x \"Main 10\"", __FILE__ , __FUNCTION__, __LINE__, name_ptr, omx_profile);
                                     break;
                             }
                         }
                         if (codec_profile != profile) {
-                            msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: codec profile *can't* match, get: %d, for : %d, decoder: \"%.*s\"", __FILE__ , __FUNCTION__, __LINE__, codec_profile, profile, name_len, name_ptr);
+                            msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: The profile is not match, get=%d, require=%d, from codec[%s]", __FILE__ , __FUNCTION__, __LINE__, codec_profile, profile, name_ptr);
                             continue;
                         }else {
-                            msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: codec profile matched !!! get: %d, for %d, decoder: \"%.*s\"", __FILE__ , __FUNCTION__, __LINE__, codec_profile, profile, name_len, name_ptr);
+                            msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: The profile matched. get=%d, require=%d, from codec[%s]", __FILE__ , __FUNCTION__, __LINE__, codec_profile, profile, name_ptr);
                         }
                         /* Some encoders set the level too high, thus we ignore it for the moment.
                            We could try to guess the actual profile based on the resolution. */
@@ -484,7 +484,7 @@ char* MediaCodec_GetName(vlc_object_t *p_obj, const char *psz_mime,
         }
         if (found)
         {
-            msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: using decoder %.*s", __FILE__ , __FUNCTION__, __LINE__, name_len, name_ptr);
+            msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: Use codec %.*s", __FILE__ , __FUNCTION__, __LINE__, name_len, name_ptr);
             psz_name = malloc(name_len + 1);
             if (psz_name)
             {
