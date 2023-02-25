@@ -41,6 +41,7 @@ static void Flush( decoder_t *p_dec );
 static int process_decode_audio( decoder_t *p_dec, block_t *pp_block );
 static int open_audio_codec(decoder_t *p_dec);
 
+#if defined(__ANDROID__) || defined(__linux__)
 /*****************************************************************************
  * Codec fourcc -> libavcodec Codec_id mapping
  * Sorted by AVCodecID enumeration order
@@ -50,6 +51,7 @@ struct spdif_avcodec_fourcc
     vlc_fourcc_t i_fourcc;
     unsigned i_codec;
 };
+#endif
 
 struct decoder_sys_t
 {
@@ -88,7 +90,7 @@ vlc_module_begin()
 vlc_module_end()
 
 
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) || defined(__linux__)
 
 static int add_samples_to_fifo(decoder_t *p_dec,AVAudioFifo *fifo,
                                uint8_t **converted_input_samples,
@@ -267,7 +269,7 @@ static int  process_ac3_encod(decoder_t *p_dec,AVFrame  *inputframe,block_t *p_b
 static int
 DecodeBlock(decoder_t *p_dec, block_t *p_block)
 {
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) || defined(__linux__)
     if(p_dec->p_sys->b_AC3_passthrough == true){
         if(p_dec->fmt_in.i_codec == VLC_CODEC_A52){
             if(p_block != NULL)
@@ -301,7 +303,7 @@ DecodeBlock(decoder_t *p_dec, block_t *p_block)
 #endif
 }
 
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) || defined(__linux__)
 static void init_decoder_config(decoder_t *p_dec, AVCodecContext *p_context)
 {
     if( p_dec->fmt_in.i_extra > 0 )
@@ -837,7 +839,7 @@ static int open_ac3_encoder(decoder_t *p_dec)
  *****************************************************************************/
 static void Flush( decoder_t *p_dec )
 {
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) || defined(__linux__)
     if(p_dec->p_sys->b_AC3_passthrough == true){
         if(p_dec->fmt_in.i_codec != VLC_CODEC_A52){
             decoder_sys_t *p_sys = p_dec->p_sys;
@@ -913,7 +915,7 @@ static void Flush( decoder_t *p_dec )
 static void 
 EndTranscode(vlc_object_t *p_this)
 {
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) || defined(__linux__)
     decoder_t *p_dec = (decoder_t*)p_this;
     if(p_dec->p_sys->b_AC3_passthrough == true){
         if(p_dec->fmt_in.i_codec != VLC_CODEC_A52){
@@ -999,7 +1001,7 @@ OpenDecoder(vlc_object_t *p_this)
     {
         return VLC_EGENERIC;
     }
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) || defined(__linux__)
     p_dec->p_sys->b_AC3_passthrough = var_InheritBool(p_dec, "spdif-ac3");
     if(p_dec->p_sys->b_AC3_passthrough == true){
         if(p_dec->fmt_in.i_codec != VLC_CODEC_A52){

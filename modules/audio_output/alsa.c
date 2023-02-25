@@ -287,10 +287,16 @@ static int Start (audio_output_t *aout, audio_sample_format_t *restrict fmt)
     aout_sys_t *sys = aout->sys;
     snd_pcm_format_t pcm_format; /* ALSA sample format */
     bool spdif = false;
+    spdif = var_InheritBool (aout, "spdif");
+    if(spdif == false){
+	spdif = var_InheritBool (aout, "spdif-ac3");
+    }
 
-    if (aout_FormatNbChannels(fmt) == 0)
+    if (aout_FormatNbChannels(fmt) == 0 && spdif == false)
+    {
         return VLC_EGENERIC;
-
+    }
+    spdif = false;
     switch (fmt->i_format)
     {
         case VLC_CODEC_FL64:
@@ -309,8 +315,11 @@ static int Start (audio_output_t *aout, audio_sample_format_t *restrict fmt)
             pcm_format = SND_PCM_FORMAT_U8;
             break;
         default:
-            if (AOUT_FMT_SPDIF(fmt))
+       //   if (AOUT_FMT_SPDIF(fmt))
                 spdif = var_InheritBool (aout, "spdif");
+	    if(spdif == false){
+		spdif = var_InheritBool (aout, "spdif-ac3");
+	    }
             if (spdif)
             {
                 fmt->i_format = VLC_CODEC_SPDIFL;
@@ -336,14 +345,15 @@ static int Start (audio_output_t *aout, audio_sample_format_t *restrict fmt)
     if (spdif)
     {
         const char *opt = NULL;
-
-        if (!strcmp (device, "default"))
-            device = "iec958"; /* TODO: hdmi */
-
-        if (!strncmp (device, "iec958", 6))
+        if (!strcmp (device, "default")){
+            device = "hdmi"; /* TODO: hdmi */
+        }
+        if (!strncmp (device, "iec958", 6)){
             opt = device + 6;
-        if (!strncmp (device, "hdmi", 4))
-            opt = device + 4;
+        }
+        if (!strncmp (device, "hdmi", 4)){
+           opt = device + 4;
+        }
 
         if (opt != NULL)
             switch (*opt)
@@ -374,11 +384,11 @@ static int Start (audio_output_t *aout, audio_sample_format_t *restrict fmt)
 
         if (asprintf (&devbuf, "%s%cAES0=0x%x,AES1=0x%x,AES2=0x%x,AES3=0x%x",
                       device, sep,
-                      IEC958_AES0_CON_EMPHASIS_NONE | IEC958_AES0_NONAUDIO,
+                      6,  //   IEC958_AES0_CON_EMPHASIS_NONE | IEC958_AES0_NONAUDIO,
                       IEC958_AES1_CON_ORIGINAL | IEC958_AES1_CON_PCM_CODER,
-                      0, aes3) == -1)
+                      0, 9) == -1)
             return VLC_ENOMEM;
-        device = devbuf;
+	 device = devbuf;
     }
 
     /* Open the device */

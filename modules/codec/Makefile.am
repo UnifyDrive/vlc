@@ -14,6 +14,13 @@ endif
 
 ### Audio codecs ###
 libspdif_plugin_la_SOURCES = codec/spdif.c
+if HAVE_LINUX
+libspdif_plugin_la_CFLAGS = $(AVCODEC_CFLAGS) $(SWRESAMPLE_CFLAGS) $(AVFORMAT_CFLAGS) $(AM_CFLAGS)
+libspdif_plugin_la_LIBADD = $(AVCODEC_LIBS) $(SWRESAMPLE_LIBS) $(AVFORMAT_LIBS) $(LIBM)
+libspdif_plugin_la_LDFLAGS = $(AM_LDFLAGS) $(SYMBOLIC_LDFLAGS)
+libspdif_plugin_la_CFLAGS += -DMERGE_FFMPEG
+endif
+
 codec_LTLIBRARIES += libspdif_plugin.la
 
 liba52_plugin_la_SOURCES = codec/a52.c

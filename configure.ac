@@ -2606,6 +2606,8 @@ AS_IF([test "${enable_avformat}" != "no"], [
 ])
 AM_CONDITIONAL([HAVE_AVFORMAT], [test "${enable_avformat}" != "no"])
 
+
+
 dnl
 dnl  swscale image scaling and conversion plugin
 dnl
@@ -2654,6 +2656,35 @@ then
       AC_MSG_WARN([${POSTPROC_PKG_ERRORS}.])
   ])
 fi
+
+dnl
+dnl  swresample plugin
+dnl
+
+AC_ARG_ENABLE(swresample,
+  AS_HELP_STRING([--enable-swresample],[libswresample audo resample
+          (default enabled)]))
+if test "${enable_swresample}" != "no" -a "$SYS" = "linux"
+then
+  PKG_CHECK_MODULES(SWRESAMPLE,[libswresample],
+    [
+      VLC_SAVE_FLAGS
+      CPPFLAGS="${CPPFLAGS} ${SWRESAMPLE_CFLAGS}"
+      CFLAGS="${CFLAGS} ${SWRESAMPLE_CFLAGS}"
+      AC_CHECK_HEADERS(libswresample/swresample.h)
+      AC_CHECK_HEADERS(libavutil/avutil.h)
+      VLC_ADD_PLUGIN([swresample])
+      VLC_ADD_LIBS([swresample],[$SWRESAMPLE_LIBS])
+      VLC_ADD_CFLAGS([swresample],[$SWRESAMPLE_CFLAGS])
+      AS_IF([test -n "${ac_cv_ld_bsymbolic}"], [
+        VLC_ADD_LIBS([swresample],[${ac_cv_ld_bsymbolic}])
+      ])
+      VLC_RESTORE_FLAGS
+    ],[
+      AC_MSG_ERROR([${SWRESAMPLE_PKG_ERRORS}. Pass --disable-swresample to ignore this error. Proper software swresample and some audio chroma conversion will be missing.])
+  ])
+fi
+
 
 dnl
 dnl  faad decoder plugin
