@@ -813,6 +813,7 @@ static int DecodeSidedata( decoder_t *p_dec, const AVFrame *frame, picture_t *p_
                                     AV_FRAME_DATA_MASTERING_DISPLAY_METADATA );
     if ( metadata )
     {
+        msg_Dbg( p_dec, "[%s:%s:%d]=zspace=: Find AVMasteringDisplayMetadata.", __FILE__ , __FUNCTION__, __LINE__);
         const AVMasteringDisplayMetadata *hdr_meta =
                 (const AVMasteringDisplayMetadata *) metadata->data;
         if ( hdr_meta->has_luminance )

@@ -99,6 +99,11 @@ union mc_api_args
         int i_angle;
         bool b_tunneled_playback;
         bool b_adaptive_playback;
+        video_color_primaries_t primaries;                  /**< color primaries */
+        video_transfer_func_t transfer;                   /**< transfer function */
+        #define MAX_CSD_COUNT 3
+        block_t *pp_csd[MAX_CSD_COUNT];
+        size_t i_csd_count;
     } video;
     struct
     {

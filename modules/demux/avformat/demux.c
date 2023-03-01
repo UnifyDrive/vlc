@@ -94,6 +94,9 @@ struct demux_sys_t
     int i_seek_flag;
     /* tzj */
     uint64_t     i_nztime;
+    AVCodecParserContext *m_parser;
+    AVCodecContext *m_context;
+    bool m_parser_split;
 };
 
 #define DEMUX_INCREMENT (CLOCK_FREQ / 4) /* How far the pcr will go, each round */
@@ -302,6 +305,9 @@ int avformat_OpenDemux( vlc_object_t *p_this )
     TAB_INIT( p_sys->i_attachments, p_sys->attachments);
     p_sys->p_title = NULL;
     p_sys->i_seek_flag = 0;
+    p_sys->m_context = NULL;
+    p_sys->m_parser = NULL;
+    p_sys->m_parser_split = false;
 
     /* Create I/O wrapper */
     unsigned char * p_io_buffer = av_malloc( AVFORMAT_IOBUFFER_SIZE );
@@ -497,6 +503,70 @@ int avformat_OpenDemux( vlc_object_t *p_this )
             else
                 es_fmt.video.i_sar_den = 0;
             p_track->codec_type = cp->codec_type;
+
+            switch( cp->color_primaries )
+            {
+                case AVCOL_PRI_BT709:
+                    es_fmt.video.primaries = COLOR_PRIMARIES_BT709;
+                    break;
+                case AVCOL_PRI_BT470BG:
+                    es_fmt.video.primaries = COLOR_PRIMARIES_BT601_625;
+                    break;
+                case AVCOL_PRI_SMPTE170M:
+                case AVCOL_PRI_SMPTE240M:
+                    es_fmt.video.primaries = COLOR_PRIMARIES_BT601_525;
+                    break;
+                case AVCOL_PRI_BT2020:
+                    es_fmt.video.primaries = COLOR_PRIMARIES_BT2020;
+                    break;
+                default:
+                    break;
+            }
+
+            switch( cp->color_trc )
+            {
+                case AVCOL_TRC_LINEAR:
+                    es_fmt.video.transfer = TRANSFER_FUNC_LINEAR;
+                    break;
+                case AVCOL_TRC_GAMMA22:
+                    es_fmt.video.transfer = TRANSFER_FUNC_SRGB;
+                    break;
+                case AVCOL_TRC_BT709:
+                    es_fmt.video.transfer = TRANSFER_FUNC_BT709;
+                    break;
+                case AVCOL_TRC_SMPTE170M:
+                case AVCOL_TRC_BT2020_10:
+                case AVCOL_TRC_BT2020_12:
+                    es_fmt.video.transfer = TRANSFER_FUNC_BT2020;
+                    break;
+#if LIBAVUTIL_VERSION_CHECK( 55, 14, 0, 31, 100)
+                case AVCOL_TRC_ARIB_STD_B67:
+                    es_fmt.video.transfer = TRANSFER_FUNC_ARIB_B67;
+                    break;
+#endif
+#if LIBAVUTIL_VERSION_CHECK( 55, 17, 0, 37, 100)
+                case AVCOL_TRC_SMPTE2084:
+                    es_fmt.video.transfer = TRANSFER_FUNC_SMPTE_ST2084;
+                    break;
+                case AVCOL_TRC_SMPTE240M:
+                    es_fmt.video.transfer = TRANSFER_FUNC_SMPTE_240;
+                    break;
+                case AVCOL_TRC_GAMMA28:
+                    es_fmt.video.transfer = TRANSFER_FUNC_BT470_BG;
+                    break;
+#endif
+                default:
+                    break;
+            }
+
+            int i_size;
+            msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Video side data number [%d]", __FILE__ , __FUNCTION__, __LINE__, s->nb_side_data);
+            uint8_t* side_data = av_stream_get_side_data(s, AV_PKT_DATA_MASTERING_DISPLAY_METADATA, &i_size);
+            if (i_size > 0 && side_data)
+            {
+                msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Find AV_PKT_DATA_MASTERING_DISPLAY_METADATA for video at [%p]", __FILE__ , __FUNCTION__, __LINE__, side_data);
+            }
+
             break;
 
         case AVMEDIA_TYPE_SUBTITLE:
@@ -881,6 +951,63 @@ again:
             return 0;
         }
         memcpy( p_frame->p_buffer, pkt.data, pkt.size );
+        if( p_stream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO ) {
+            if (p_sys->m_context == NULL) {
+                AVCodec *codec = avcodec_find_decoder(p_stream->codecpar->codec_id);
+                if (codec == NULL)
+                {
+                    msg_Warn( p_demux, "[%s:%s:%d]=zspace=: Can not find video decoder to parser packet!", __FILE__ , __FUNCTION__, __LINE__);
+                }else {
+                    p_sys->m_context = avcodec_alloc_context3(codec);
+                    if (p_sys->m_context == NULL) {
+                        msg_Warn( p_demux, "[%s:%s:%d]=zspace=: Can not allocate context to parser packet!", __FILE__ , __FUNCTION__, __LINE__);
+                    }else {
+                        p_sys->m_context->time_base.num = 1;
+                        p_sys->m_context->time_base.den = 1000000;
+                        msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Alloc context3 success.", __FILE__ , __FUNCTION__, __LINE__);
+                    }
+                }
+            }
+            if (p_sys->m_parser == NULL) {
+                p_sys->m_parser = av_parser_init(p_stream->codecpar->codec_id);
+                if (p_sys->m_parser)
+                    p_sys->m_parser->flags |= PARSER_FLAG_COMPLETE_FRAMES;
+            }
+
+            #define FF_MAX_EXTRADATA_SIZE ((1 << 28) - AV_INPUT_BUFFER_PADDING_SIZE)
+            if (p_sys->m_context && p_sys->m_parser) {
+                int len = p_sys->m_parser->parser->split(p_sys->m_context, pkt.data, pkt.size);
+                if (len > 0 && len < FF_MAX_EXTRADATA_SIZE)
+                {
+                    msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Meet extra data.", __FILE__ , __FUNCTION__, __LINE__);
+
+                    // Allow ffmpeg to transport codec information to p_sys->m_context
+                    if (!avcodec_open2(p_sys->m_context, p_sys->m_context->codec, NULL))
+                    {
+                        AVPacket avpkt;
+                        av_init_packet(&avpkt);
+                        avpkt.data = pkt.data;
+                        avpkt.size = pkt.size;
+                        avpkt.dts = avpkt.pts = AV_NOPTS_VALUE;
+                        avcodec_send_packet(p_sys->m_context, &avpkt);
+                        avcodec_close(p_sys->m_context);
+                    }
+                }
+
+                uint8_t *outbuf = NULL;
+                int outbuf_size = 0;
+                len = av_parser_parse2(p_sys->m_parser,
+                                         p_sys->m_context, &outbuf, &outbuf_size,
+                                         pkt.data, pkt.size,
+                                         (int64_t)(pkt.pts * 1000000),
+                                         (int64_t)(pkt.dts * 1000000),
+                                         0);
+                if (len >= 0) {
+                    msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Profile=%d, Level=%d.", __FILE__ , __FUNCTION__, __LINE__, p_sys->m_context->profile, p_sys->m_context->level);
+                    msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: width=%d, height=%d.", __FILE__ , __FUNCTION__, __LINE__, p_sys->m_parser->width, p_sys->m_parser->height);
+                }
+            }
+        }
     }
 
     if( pkt.flags & AV_PKT_FLAG_KEY )

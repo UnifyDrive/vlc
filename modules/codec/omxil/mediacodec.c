@@ -504,6 +504,16 @@ static int StartMediaCodec(decoder_t *p_dec)
         if (p_sys->b_adaptive)
             msg_Dbg(p_dec, "mediacodec configured for adaptative playback");
         args.video.b_adaptive_playback = p_sys->b_adaptive;
+        args.video.primaries = p_dec->fmt_in.video.primaries;
+        args.video.transfer = p_dec->fmt_in.video.transfer;
+        args.video.i_csd_count = 0;
+        if (p_sys->i_csd_count > 0) {
+            args.video.i_csd_count = p_sys->i_csd_count;
+            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Video i_csd_count = %d.", __FILE__ , __FUNCTION__, __LINE__, p_sys->i_csd_count);
+            for(int i =0; i < p_sys->i_csd_count; i++) {
+                args.video.pp_csd[i] = p_sys->pp_csd[i];
+            }
+        }
     }
     else
     {
@@ -768,8 +778,10 @@ static int OpenDecoder(vlc_object_t *p_this, pf_MediaCodecApi_init pf_init)
             p_dec->fmt_out.video.i_visible_width = p_dec->fmt_out.video.i_width;
             p_sys->video.i_input_height =
             p_dec->fmt_out.video.i_visible_height = p_dec->fmt_out.video.i_height;
-            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: MediaCodec video output size %d x %d", __FILE__ , __FUNCTION__, __LINE__, 
-                p_dec->fmt_out.video.i_width, p_dec->fmt_out.video.i_height);
+            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: MediaCodec video output size [%d x %d], primaries=[%d], transfer=[%d]", __FILE__ , __FUNCTION__, __LINE__, 
+                p_dec->fmt_out.video.i_width, p_dec->fmt_out.video.i_height, p_dec->fmt_in.video.primaries, p_dec->fmt_in.video.transfer);
+            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: White[%d %d], MaxCLL=[%d], MaxFALL=[%d]", __FILE__ , __FUNCTION__, __LINE__, 
+                p_dec->fmt_in.video.mastering.white_point[0], p_dec->fmt_in.video.mastering.white_point[1], p_dec->fmt_in.video.lighting.MaxCLL, p_dec->fmt_in.video.lighting.MaxFALL);
 
             if (UpdateVout(p_dec) != VLC_SUCCESS)
             {

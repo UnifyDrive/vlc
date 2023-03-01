@@ -36,6 +36,7 @@
 #include <OMX_Component.h>
 #include "omxil_utils.h"
 
+#include <vlc_block_helper.h>
 #include "mediacodec.h"
 
 static_assert(MC_API_NO_QUIRKS == OMXCODEC_NO_QUIRKS
@@ -175,6 +176,10 @@ typedef void (*pf_AMediaFormat_setInt32)(AMediaFormat*,
 typedef bool (*pf_AMediaFormat_getInt32)(AMediaFormat*,
         const char *name, int32_t *out);
 
+typedef void  (*pf_AMediaFormat_setBuffer)(AMediaFormat *, 
+        const char *name, void *data, size_t size);
+
+
 struct syms
 {
     struct {
@@ -200,6 +205,7 @@ struct syms
         pf_AMediaFormat_setString setString;
         pf_AMediaFormat_setInt32 setInt32;
         pf_AMediaFormat_getInt32 getInt32;
+        pf_AMediaFormat_setBuffer setBuffer;
     } AMediaFormat;
 };
 static struct syms syms;
@@ -235,6 +241,7 @@ static struct members members[] =
     { "AMediaFormat_setString", OFF(setString), true },
     { "AMediaFormat_setInt32", OFF(setInt32), true },
     { "AMediaFormat_getInt32", OFF(getInt32), true },
+    { "AMediaFormat_setBuffer", OFF(setBuffer), true },
 #undef OFF
     { NULL, 0, false }
 };
@@ -365,6 +372,45 @@ static int Start(mc_api *api, union mc_api_args *p_args)
             if (p_args->video.b_adaptive_playback)
                 syms.AMediaFormat.setInt32(p_sys->p_format,
                                            "feature-adaptive-playback", 1);
+        }
+
+        switch (p_args->video.primaries)
+        {
+            case COLOR_PRIMARIES_BT709:
+              syms.AMediaFormat.setInt32(p_sys->p_format, "color-standard", 1);
+              msg_Dbg(api->p_obj, "[%s:%s:%d]=zspace=: Set COLOR_PRIMARIES_BT709 to AMediaFormat.", __FILE__ , __FUNCTION__, __LINE__);
+              break;
+            case COLOR_PRIMARIES_BT2020:
+              syms.AMediaFormat.setInt32(p_sys->p_format, "color-standard", 6);
+              msg_Dbg(api->p_obj, "[%s:%s:%d]=zspace=: Set COLOR_PRIMARIES_BT2020 to AMediaFormat.", __FILE__ , __FUNCTION__, __LINE__);
+              break;
+            default:; // do nothing
+        }
+
+        switch (p_args->video.transfer)
+        {
+            case TRANSFER_FUNC_LINEAR:
+              syms.AMediaFormat.setInt32(p_sys->p_format, "color-transfer", 1);// COLOR_TRANSFER_LINEAR
+              msg_Dbg(api->p_obj, "[%s:%s:%d]=zspace=: Set TRANSFER_FUNC_LINEAR to AMediaFormat.", __FILE__ , __FUNCTION__, __LINE__);
+              break;
+            case TRANSFER_FUNC_BT2020:
+              syms.AMediaFormat.setInt32(p_sys->p_format, "color-transfer", 3);// COLOR_TRANSFER_SDR_VIDEO
+              msg_Dbg(api->p_obj, "[%s:%s:%d]=zspace=: Set TRANSFER_FUNC_BT2020(SDR) to AMediaFormat.", __FILE__ , __FUNCTION__, __LINE__);
+              break;
+            case TRANSFER_FUNC_SMPTE_ST2084:
+              syms.AMediaFormat.setInt32(p_sys->p_format, "color-transfer", 6);// COLOR_TRANSFER_ST2084
+              msg_Dbg(api->p_obj, "[%s:%s:%d]=zspace=: Set TRANSFER_FUNC_SMPTE_ST2084(HDR) to AMediaFormat.", __FILE__ , __FUNCTION__, __LINE__);
+              break;
+            case TRANSFER_FUNC_ARIB_B67:
+              syms.AMediaFormat.setInt32(p_sys->p_format, "color-transfer", 7);// COLOR_TRANSFER_HLG
+              msg_Dbg(api->p_obj, "[%s:%s:%d]=zspace=: Set TRANSFER_FUNC_ARIB_B67(HLG) to AMediaFormat.", __FILE__ , __FUNCTION__, __LINE__);
+              break;
+            default:; // do nothing
+        }
+
+        if (p_args->video.i_csd_count > 0) {
+            syms.AMediaFormat.setBuffer(p_sys->p_format, "csd-0", p_args->video.pp_csd[0]->p_buffer, p_args->video.pp_csd[0]->i_buffer);
+            msg_Dbg(api->p_obj, "[%s:%s:%d]=zspace=: Set csd-0 size(%d) to AMediaFormat.", __FILE__ , __FUNCTION__, __LINE__, p_args->video.pp_csd[0]->i_buffer);
         }
     }
     else

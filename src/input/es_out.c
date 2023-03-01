@@ -3453,6 +3453,7 @@ static void EsOutUpdateInfo( es_out_t *out, es_out_id_t *es, const es_format_t *
        }
        if ( fmt->video.lighting.MaxFALL )
        {
+           msg_Dbg( p_input, "[%s:%s:%d]=zspace=: AddInfo MaxFALL=[%d] for video.", __FILE__ , __FUNCTION__, __LINE__, fmt->video.lighting.MaxFALL);
            info_category_AddInfo( p_cat, "MaxFALL", "%d cd/m²",
                                   fmt->video.lighting.MaxFALL );
        }
