@@ -382,6 +382,7 @@ char* MediaCodec_GetName(vlc_object_t *p_obj, const char *psz_mime,
         const char *name_ptr = NULL;
         bool found = false;
         bool b_adaptive = false;
+        bool b_tunneled_playback = true;
 
         info = (*env)->CallStaticObjectMethod(env, jfields.media_codec_list_class,
                                               jfields.get_codec_info_at, i);
@@ -418,9 +419,17 @@ char* MediaCodec_GetName(vlc_object_t *p_obj, const char *psz_mime,
                                               jfeature);
                 CHECK_EXCEPTION();
                 (*env)->DeleteLocalRef(env, jfeature);
+
+                jfeature = JNI_NEW_STRING("tunneled-playback");
+                b_tunneled_playback =
+                    (*env)->CallBooleanMethod(env, codec_capabilities,
+                                              jfields.is_feature_supported,
+                                              jfeature);
+                CHECK_EXCEPTION();
+                (*env)->DeleteLocalRef(env, jfeature);
             }
         }
-        msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: [%s] support %d profile levels.", __FILE__ , __FUNCTION__, __LINE__, name_ptr, profile_levels_len);
+        msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: [%s] support %d profile levels, b_tunneled_playback=%d.", __FILE__ , __FUNCTION__, __LINE__, name_ptr, profile_levels_len, b_tunneled_playback);
 
         types = (*env)->CallObjectMethod(env, info, jfields.get_supported_types);
         num_types = (*env)->GetArrayLength(env, types);

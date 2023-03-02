@@ -1002,7 +1002,7 @@ again:
                                          (int64_t)(pkt.pts * 1000000),
                                          (int64_t)(pkt.dts * 1000000),
                                          0);
-                if (len >= 0) {
+                if (len >= 0 && (p_sys->m_context->profile != -99 || p_sys->m_context->level != -99 || p_sys->m_parser->width > 0 || p_sys->m_parser->height > 0)) {
                     msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Profile=%d, Level=%d.", __FILE__ , __FUNCTION__, __LINE__, p_sys->m_context->profile, p_sys->m_context->level);
                     msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: width=%d, height=%d.", __FILE__ , __FUNCTION__, __LINE__, p_sys->m_parser->width, p_sys->m_parser->height);
                 }
