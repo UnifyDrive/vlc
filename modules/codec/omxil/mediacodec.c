@@ -599,6 +599,7 @@ static int OpenDecoder(vlc_object_t *p_this, pf_MediaCodecApi_init pf_init)
                     i_profile = i_hevc_profile;
             }
             mime = "video/hevc";
+            //mime = "video/dolby-vision";
             break;
         case VLC_CODEC_H264:
             if (i_profile == -1)

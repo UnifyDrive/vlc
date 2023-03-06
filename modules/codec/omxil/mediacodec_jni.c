@@ -370,6 +370,7 @@ char* MediaCodec_GetName(vlc_object_t *p_obj, const char *psz_mime,
                                              jfields.media_codec_list_class,
                                              jfields.get_codec_count);
 
+    msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: Find %d codecs on this device.", __FILE__ , __FUNCTION__, __LINE__, num_codecs);
     for (int i = 0; i < num_codecs; i++)
     {
         jobject codec_capabilities = NULL;
@@ -390,6 +391,7 @@ char* MediaCodec_GetName(vlc_object_t *p_obj, const char *psz_mime,
         name = (*env)->CallObjectMethod(env, info, jfields.get_name);
         name_len = (*env)->GetStringUTFLength(env, name);
         name_ptr = (*env)->GetStringUTFChars(env, name, NULL);
+        //msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: Check %d [%s] for [%s].", __FILE__ , __FUNCTION__, __LINE__, i, name_ptr, psz_mime);
 
         if (OMXCodec_IsBlacklisted(name_ptr, name_len))
             goto loopclean;
@@ -429,14 +431,15 @@ char* MediaCodec_GetName(vlc_object_t *p_obj, const char *psz_mime,
                 (*env)->DeleteLocalRef(env, jfeature);
             }
         }
-        msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: [%s] support %d profile levels, b_tunneled_playback=%d.", __FILE__ , __FUNCTION__, __LINE__, name_ptr, profile_levels_len, b_tunneled_playback);
 
         types = (*env)->CallObjectMethod(env, info, jfields.get_supported_types);
         num_types = (*env)->GetArrayLength(env, types);
         found = false;
+        msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: [%s] support %d profile levels %d mimeTypes, b_tunneled_playback=%d.", __FILE__ , __FUNCTION__, __LINE__, name_ptr, profile_levels_len, num_types, b_tunneled_playback);
 
         for (int j = 0; j < num_types && !found; j++)
         {
+            //msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: Check %d mimeType for [%s].", __FILE__ , __FUNCTION__, __LINE__, j, psz_mime);
             jobject type = (*env)->GetObjectArrayElement(env, types, j);
             if (!jstrcmp(env, type, psz_mime))
             {
@@ -449,11 +452,12 @@ char* MediaCodec_GetName(vlc_object_t *p_obj, const char *psz_mime,
                      * profile capable */
                     if (!strncmp(name_ptr, "OMX.LUMEVideoDecoder", __MIN(20, name_len)))
                         found = true;
-
+                    
                     for (int i = 0; i < profile_levels_len && !found; ++i)
                     {
                         jobject profile_level = (*env)->GetObjectArrayElement(env, profile_levels, i);
 
+                        msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: Check %d profile_level for [%s].", __FILE__ , __FUNCTION__, __LINE__, i, psz_mime);
                         int omx_profile = (*env)->GetIntField(env, profile_level, jfields.profile_field);
                         (*env)->DeleteLocalRef(env, profile_level);
 
