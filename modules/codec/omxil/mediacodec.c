@@ -598,8 +598,12 @@ static int OpenDecoder(vlc_object_t *p_this, pf_MediaCodecApi_init pf_init)
                 if (hevc_get_profile_level(&p_dec->fmt_in, &i_hevc_profile, NULL, NULL))
                     i_profile = i_hevc_profile;
             }
-            mime = "video/hevc";
-            //mime = "video/dolby-vision";
+            
+            if (p_dec->fmt_in.video.hdr_type == HDR_TYPE_DOLBYVISION) {
+                mime = "video/dolby-vision";
+            }else {
+                mime = "video/hevc";
+            }
             break;
         case VLC_CODEC_H264:
             if (i_profile == -1)

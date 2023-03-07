@@ -667,11 +667,16 @@ static int Configure(mc_api * api, int i_profile)
 {
     free(api->psz_name);
 
+find_codec_again:
     api->i_quirks = 0;
     api->psz_name = MediaCodec_GetName(api->p_obj, api->psz_mime,
                                        i_profile, &api->i_quirks);
     if (!api->psz_name) {
         msg_Err(api->p_obj, "[%s:%s:%d]=zspace=: Can't found decoder for mime:\"%s\", profile: \"%d\"", __FILE__ , __FUNCTION__, __LINE__, api->psz_mime, i_profile);
+        if (strcmp(api->psz_mime, "video/dolby-vision") == 0) {
+            api->psz_mime = "video/hevc";
+            goto find_codec_again;
+        }
         return MC_API_ERROR;
     }
     msg_Dbg(api->p_obj, "[%s:%s:%d]=zspace=: Found decoder \"%s\" for mime:\"%s\", profile: \"%d\"", __FILE__ , __FUNCTION__, __LINE__, api->psz_name, api->psz_mime, i_profile);
