@@ -542,11 +542,13 @@ int avformat_OpenDemux( vlc_object_t *p_this )
 #if LIBAVUTIL_VERSION_CHECK( 55, 14, 0, 31, 100)
                 case AVCOL_TRC_ARIB_STD_B67:
                     es_fmt.video.transfer = TRANSFER_FUNC_ARIB_B67;
+                    es_fmt.video.hdr_type = HDR_TYPE_HLG;
                     break;
 #endif
 #if LIBAVUTIL_VERSION_CHECK( 55, 17, 0, 37, 100)
                 case AVCOL_TRC_SMPTE2084:
                     es_fmt.video.transfer = TRANSFER_FUNC_SMPTE_ST2084;
+                    es_fmt.video.hdr_type = HDR_TYPE_HDR10;
                     break;
                 case AVCOL_TRC_SMPTE240M:
                     es_fmt.video.transfer = TRANSFER_FUNC_SMPTE_240;
@@ -559,12 +561,20 @@ int avformat_OpenDemux( vlc_object_t *p_this )
                     break;
             }
 
-            int i_size;
+            int i_size = 0;
             msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Video side data number [%d]", __FILE__ , __FUNCTION__, __LINE__, s->nb_side_data);
             uint8_t* side_data = av_stream_get_side_data(s, AV_PKT_DATA_MASTERING_DISPLAY_METADATA, &i_size);
             if (i_size > 0 && side_data)
             {
-                msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Find AV_PKT_DATA_MASTERING_DISPLAY_METADATA for video at [%p]", __FILE__ , __FUNCTION__, __LINE__, side_data);
+                es_fmt.video.hdr_type = HDR_TYPE_HDR10;
+                msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Find AV_PKT_DATA_MASTERING_DISPLAY_METADATA for video, size=%d", __FILE__ , __FUNCTION__, __LINE__, i_size);
+            }
+            i_size = 0;
+            side_data = av_stream_get_side_data(s, AV_PKT_DATA_DOVI_CONF, &i_size);
+            if (i_size > 0 && side_data)
+            {
+                es_fmt.video.hdr_type = HDR_TYPE_DOLBYVISION;
+                msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Find AV_PKT_DATA_DOVI_CONF for video, size=%d", __FILE__ , __FUNCTION__, __LINE__, i_size);
             }
 
             break;
@@ -975,7 +985,7 @@ again:
             }
 
             #define FF_MAX_EXTRADATA_SIZE ((1 << 28) - AV_INPUT_BUFFER_PADDING_SIZE)
-            if (p_sys->m_context && p_sys->m_parser) {
+            if (p_sys->m_context && p_sys->m_parser && p_sys->m_parser->parser && p_sys->m_parser->parser->split) {
                 int len = p_sys->m_parser->parser->split(p_sys->m_context, pkt.data, pkt.size);
                 if (len > 0 && len < FF_MAX_EXTRADATA_SIZE)
                 {

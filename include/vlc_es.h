@@ -320,6 +320,18 @@ typedef enum video_chroma_location_t
 } video_chroma_location_t;
 
 /**
+ * Video HDR type
+ */
+typedef enum video_hdr_type_t
+{
+    HDR_TYPE_UNDEF,
+    HDR_TYPE_HDR10, ///< <b>HDR10</b>, returns `hdr10` when used in infolabels
+    HDR_TYPE_DOLBYVISION, ///< <b>Dolby Vision</b>, returns `dolbyvision` when used in infolabels
+    HDR_TYPE_HLG ///< <b>HLG</b>, returns `hlg` when used in infolabels
+} video_hdr_type_t;
+
+
+/**
  * video format description
  */
 struct video_format_t
@@ -370,6 +382,7 @@ struct video_format_t
         uint16_t MaxFALL; /* max frame average light level */
     } lighting;
     uint32_t i_cubemap_padding; /**< padding in pixels of the cube map faces */
+    video_hdr_type_t hdr_type;
 };
 
 /**
