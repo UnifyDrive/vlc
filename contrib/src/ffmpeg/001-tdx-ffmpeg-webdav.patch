@@ -1,11 +1,20 @@
+From e79f64464e9d69ddad4c162a24461a9eb3962660 Mon Sep 17 00:00:00 2001
+From: shixuehui <shixuehui@zspace.cn>
+Date: Tue, 7 Mar 2023 16:32:13 +0800
+Subject: [PATCH] Add bluray dir read.
+
+---
+ libavformat/http.c | 341 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 341 insertions(+)
+
 diff --git a/libavformat/http.c b/libavformat/http.c
-index cf86adc..180ce75 100644
+index c5c48c7900..e6dddf02fb 100644
 --- a/libavformat/http.c
 +++ b/libavformat/http.c
-@@ -25,6 +25,11 @@
+@@ -26,6 +26,11 @@
  #include <zlib.h>
  #endif /* CONFIG_ZLIB */
-
+ 
 +#define TDX_BLURAY_STREAM
 +#ifdef TDX_BLURAY_STREAM
 +#include <libxml/parser.h>
@@ -13,11 +22,11 @@ index cf86adc..180ce75 100644
 +
  #include "libavutil/avassert.h"
  #include "libavutil/avstring.h"
- #include "libavutil/opt.h"
-@@ -58,6 +63,184 @@ typedef enum {
+ #include "libavutil/bprint.h"
+@@ -63,6 +68,184 @@ typedef enum {
      FINISH
  }HandshakeState;
-
+ 
 +#ifdef TDX_BLURAY_STREAM
 +#define MAX_ENTRYNAME (1024*4-1)
 +
@@ -199,20 +208,20 @@ index cf86adc..180ce75 100644
  typedef struct HTTPContext {
      const AVClass *class;
      URLContext *hd;
-@@ -124,6 +307,9 @@ typedef struct HTTPContext {
-     int is_multi_client;
-     HandshakeState handshake_step;
-     int is_connected_server;
+@@ -136,6 +319,9 @@ typedef struct HTTPContext {
+     char *new_location;
+     AVDictionary *redirect_cache;
+     uint64_t filesize_from_content_range;
 +#ifdef TDX_BLURAY_STREAM
 +    WebDavPropfindContext webdavPropfindCtxt;
 +#endif
  } HTTPContext;
-
+ 
  #define OFFSET(x) offsetof(HTTPContext, x)
-@@ -1660,6 +1846,144 @@ static int http_get_short_seek(URLContext *h)
+@@ -1982,6 +2168,144 @@ static int http_get_short_seek(URLContext *h)
      return ffurl_get_short_seek(s->hd);
  }
-
+ 
 +#ifdef TDX_BLURAY_STREAM
 +static int http_webdav_opendir(URLContext *h) {
 +    HTTPContext *s = h->priv_data;
@@ -354,7 +363,7 @@ index cf86adc..180ce75 100644
  #define HTTP_CLASS(flavor)                          \
  static const AVClass flavor ## _context_class = {   \
      .class_name = # flavor,                         \
-@@ -1680,6 +2004,11 @@ const URLProtocol ff_http_protocol = {
+@@ -2002,6 +2326,11 @@ const URLProtocol ff_http_protocol = {
      .url_write           = http_write,
      .url_seek            = http_seek,
      .url_close           = http_close,
@@ -366,7 +375,7 @@ index cf86adc..180ce75 100644
      .url_get_file_handle = http_get_file_handle,
      .url_get_short_seek  = http_get_short_seek,
      .url_shutdown        = http_shutdown,
-@@ -1700,6 +2029,11 @@ const URLProtocol ff_https_protocol = {
+@@ -2022,6 +2351,12 @@ const URLProtocol ff_https_protocol = {
      .url_write           = http_write,
      .url_seek            = http_seek,
      .url_close           = http_close,
@@ -375,10 +384,11 @@ index cf86adc..180ce75 100644
 +    .url_read_dir        = http_webdav_readdir,
 +    .url_close_dir       = http_webdav_closedir,
 +#endif
++
      .url_get_file_handle = http_get_file_handle,
      .url_get_short_seek  = http_get_short_seek,
      .url_shutdown        = http_shutdown,
-@@ -1815,6 +2149,11 @@ const URLProtocol ff_httpproxy_protocol = {
+@@ -2136,6 +2471,12 @@ const URLProtocol ff_httpproxy_protocol = {
      .url_read            = http_buf_read,
      .url_write           = http_proxy_write,
      .url_close           = http_proxy_close,
@@ -387,6 +397,10 @@ index cf86adc..180ce75 100644
 +    .url_read_dir        = http_webdav_readdir,
 +    .url_close_dir       = http_webdav_closedir,
 +#endif
++
      .url_get_file_handle = http_get_file_handle,
      .priv_data_size      = sizeof(HTTPContext),
      .flags               = URL_PROTOCOL_FLAG_NETWORK,
+-- 
+2.33.0
+

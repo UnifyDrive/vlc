@@ -5,8 +5,10 @@
 #USE_FFMPEG ?= 1
 
 ifndef USE_LIBAV
-FFMPEG_HASH=dc91b913b6260e85e1304c74ff7bb3c22a8c9fb1
-FFMPEG_BRANCH=release/4.4
+#FFMPEG_HASH=dc91b913b6260e85e1304c74ff7bb3c22a8c9fb1
+#FFMPEG_BRANCH=release/4.4
+FFMPEG_HASH=2953c6381afc3d52f3c97692228a5120fad4e0dd
+FFMPEG_BRANCH=release/5.1
 FFMPEG_SNAPURL := http://git.videolan.org/?p=ffmpeg.git;a=snapshot;h=$(FFMPEG_HASH);sf=tgz
 FFMPEG_GITURL := http://git.videolan.org/git/ffmpeg.git
 FFMPEG_LAVC_MIN := 57.37.100
@@ -42,7 +44,6 @@ FFMPEGCONF = \
 	--disable-bsfs \
 	--disable-bzlib \
 	--disable-libvpx \
-	--disable-avresample \
 	--enable-bsf=vp9_superframe \
 	--enable-decoder=dsd_lsbf \
 	--enable-decoder=dsd_lsbf_planar \
@@ -257,7 +258,6 @@ ifdef USE_FFMPEG
 	$(APPLY) $(SRC)/ffmpeg/0002-avcodec-mpeg12dec-don-t-end-a-slice-without-first_sl.patch
 	$(APPLY) $(SRC)/ffmpeg/0001-fix-MediaFoundation-compilation-if-WINVER-was-forced.patch
 	$(APPLY) $(SRC)/ffmpeg/0001-bring-back-XP-support.patch
-	$(APPLY) $(SRC)/ffmpeg/0001-avcodec-vp9-Do-not-destroy-uninitialized-mutexes-con.patch
 	$(APPLY) $(SRC)/ffmpeg/001-tdx-ffmpeg-webdav.patch
 	$(APPLY) $(SRC)/ffmpeg/002-tdx-ffmpeg-bluray-remote-iso-and-bdmv-dir.patch
 	$(APPLY) $(SRC)/ffmpeg/003-tdx-ffmpeg-mov.patch
@@ -269,6 +269,7 @@ endif
 	$(APPLY) $(SRC)/ffmpeg/patch-as-patch-can.patch
 	$(MOVE)
 #endif
+#$(APPLY) $(SRC)/ffmpeg/0001-avcodec-vp9-Do-not-destroy-uninitialized-mutexes-con.patch
 
 .ffmpeg: ffmpeg
 	cd $< && $(HOSTVARS) ./configure \

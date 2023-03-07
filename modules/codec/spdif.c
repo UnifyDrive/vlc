@@ -613,7 +613,7 @@ static int  init_decoder(decoder_t *p_dec)
     p_sys->p_context = NULL;
     p_sys->swr_ctx = NULL;
     p_sys->fifo = NULL;
-    avcodec_register_all();
+    //avcodec_register_all();
     AVCodecContext *avctx = spdif_ffmpeg_AllocContext( p_dec, &codec );
     if( avctx == NULL ){
         msg_Dbg(p_dec," tdx   alloce  context  failed   ");
