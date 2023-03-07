@@ -562,7 +562,6 @@ int avformat_OpenDemux( vlc_object_t *p_this )
             }
 
             int i_size = 0;
-            msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Video side data number [%d]", __FILE__ , __FUNCTION__, __LINE__, s->nb_side_data);
             uint8_t* side_data = av_stream_get_side_data(s, AV_PKT_DATA_MASTERING_DISPLAY_METADATA, &i_size);
             if (i_size > 0 && side_data)
             {
@@ -576,7 +575,7 @@ int avformat_OpenDemux( vlc_object_t *p_this )
                 es_fmt.video.hdr_type = HDR_TYPE_DOLBYVISION;
                 msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Find AV_PKT_DATA_DOVI_CONF for video, size=%d", __FILE__ , __FUNCTION__, __LINE__, i_size);
             }
-
+            msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Video side data number [%d], hdr_type=%d", __FILE__ , __FUNCTION__, __LINE__, s->nb_side_data, es_fmt.video.hdr_type);
             break;
 
         case AVMEDIA_TYPE_SUBTITLE:
@@ -862,6 +861,15 @@ void avformat_CloseDemux( vlc_object_t *p_this )
     if( p_sys->p_title )
         vlc_input_title_Delete( p_sys->p_title );
 
+    if (p_sys->m_context) {
+        avcodec_free_context(&p_sys->m_context);
+    }
+
+    if (p_sys->m_parser) {
+        av_parser_close(p_sys->m_parser);
+        p_sys->m_parser = NULL;
+    }
+
     free( p_sys );
 }
 
@@ -980,13 +988,17 @@ again:
             }
             if (p_sys->m_parser == NULL) {
                 p_sys->m_parser = av_parser_init(p_stream->codecpar->codec_id);
-                if (p_sys->m_parser)
+                if (p_sys->m_parser) {
                     p_sys->m_parser->flags |= PARSER_FLAG_COMPLETE_FRAMES;
+                    msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: av_parser_init run success.", __FILE__ , __FUNCTION__, __LINE__);
+                }
             }
 
             #define FF_MAX_EXTRADATA_SIZE ((1 << 28) - AV_INPUT_BUFFER_PADDING_SIZE)
-            if (p_sys->m_context && p_sys->m_parser && p_sys->m_parser->parser && p_sys->m_parser->parser->split) {
-                int len = p_sys->m_parser->parser->split(p_sys->m_context, pkt.data, pkt.size);
+            if (p_sys->m_context && p_sys->m_parser && p_sys->m_parser->parser) {
+                int len = 0;
+                if (p_sys->m_parser->parser->split)
+                    len = p_sys->m_parser->parser->split(p_sys->m_context, pkt.data, pkt.size);
                 if (len > 0 && len < FF_MAX_EXTRADATA_SIZE)
                 {
                     msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Meet extra data.", __FILE__ , __FUNCTION__, __LINE__);
