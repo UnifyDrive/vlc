@@ -105,6 +105,7 @@ union mc_api_args
         #define MAX_CSD_COUNT 3
         block_t *pp_csd[MAX_CSD_COUNT];
         size_t i_csd_count;
+        video_format_t v_fmt;     /**< description of video format */
     } video;
     struct
     {

@@ -412,6 +412,21 @@ static int Start(mc_api *api, union mc_api_args *p_args)
             syms.AMediaFormat.setBuffer(p_sys->p_format, "csd-0", p_args->video.pp_csd[0]->p_buffer, p_args->video.pp_csd[0]->i_buffer);
             msg_Dbg(api->p_obj, "[%s:%s:%d]=zspace=: Set csd-0 size(%d) to AMediaFormat.", __FILE__ , __FUNCTION__, __LINE__, p_args->video.pp_csd[0]->i_buffer);
         }
+
+        // for more information, see CTA+861.3-A standard document
+        size_t len1 = sizeof(p_args->video.v_fmt.mastering);
+        size_t len2 = sizeof(p_args->video.v_fmt.lighting);
+        size_t len = len1 + len2;
+        uint8_t *p_data = (uint8_t *)malloc(len);
+        if(p_data) {
+            memcpy(p_data, (uint8_t *)&(p_args->video.v_fmt.mastering), len1);
+            memcpy(p_data+len1, (uint8_t *)&(p_args->video.v_fmt.lighting), len2);
+            syms.AMediaFormat.setBuffer(p_sys->p_format, "hdr-static-info", p_data, len);
+            msg_Dbg(api->p_obj, "[%s:%s:%d]=zspace=: Set hdr-static-info size(%d) to AMediaFormat.", __FILE__ , __FUNCTION__, __LINE__, len);
+            for(int i =0; i < len; i++)
+                msg_Dbg(api->p_obj, "[%s:%s:%d]=zspace=: HDR[%d] = 0x%x.", __FILE__ , __FUNCTION__, __LINE__, i, p_data[i]);
+            free(p_data);
+        }
     }
     else
     {

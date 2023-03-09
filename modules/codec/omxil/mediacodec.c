@@ -514,6 +514,7 @@ static int StartMediaCodec(decoder_t *p_dec)
                 args.video.pp_csd[i] = p_sys->pp_csd[i];
             }
         }
+        args.video.v_fmt = p_dec->fmt_in.video;
     }
     else
     {

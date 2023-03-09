@@ -22,6 +22,7 @@
 #endif
 
 #include <vlc_common.h>
+#include <vlc_codec.h>
 #include <vlc_bits.h>
 #include <vlc_block.h>
 
@@ -183,6 +184,7 @@ void HxxxParseSEI(const uint8_t *p_buf, size_t i_buf,
                 if ( bs_remain( &s ) < (16*6+16*2+32+32) )
                     /* not enough data */
                     break;
+                msg_Warn((decoder_t *)cbdata,"[%s:%s:%d]=zspace=: Find HXXX_SEI_MASTERING_DISPLAY_COLOUR_VOLUME.", __FILE__ , __FUNCTION__, __LINE__);
                 for ( size_t i = 0; i < 6 ; ++i)
                     sei_data.colour_volume.primaries[i] = bs_read( &s, 16 );
                 for ( size_t i = 0; i < 2 ; ++i)
@@ -197,6 +199,7 @@ void HxxxParseSEI(const uint8_t *p_buf, size_t i_buf,
                 if ( bs_remain( &s ) < (16+16) )
                     /* not enough data */
                     break;
+                msg_Warn((decoder_t *)cbdata,"[%s:%s:%d]=zspace=: Find HXXX_SEI_CONTENT_LIGHT_LEVEL.", __FILE__ , __FUNCTION__, __LINE__);
                 sei_data.content_light_lvl.MaxCLL = bs_read( &s, 16 );
                 sei_data.content_light_lvl.MaxFALL = bs_read( &s, 16 );
                 b_continue = pf_callback( &sei_data, cbdata );
