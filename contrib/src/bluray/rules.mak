@@ -28,7 +28,6 @@ DEPS_bluray = libxml2 $(DEPS_libxml2) freetype2 $(DEPS_freetype2)
 
 BLURAY_CONF = --disable-examples  \
               --with-libxml2      \
-              --enable-udf        \
               --disable-bdjava-jar
 
 ifneq ($(WITH_FONTCONFIG), 0)
@@ -52,6 +51,7 @@ bluray: libbluray-$(BLURAY_VERSION).tar.bz2 .sum-bluray
 	$(APPLY) $(SRC)/bluray/001-tdx-bluray-file-size.patch
 	$(APPLY) $(SRC)/bluray/002-tdx-disable-dadisk-call.patch
 	$(APPLY) $(SRC)/bluray/003-tdx-disable-bdjava.patch
+	$(APPLY) $(SRC)/bluray/004-tdx-Add-hdr-dolby-info-to-BLURAY_DISC_INFO.patch
 	$(call pkg_static,"src/libbluray.pc.in")
 	$(MOVE)
 

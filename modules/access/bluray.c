@@ -1149,6 +1149,7 @@ static int blurayOpen(vlc_object_t *object)
     /* Warning the user about AACS/BD+ */
     const BLURAY_DISC_INFO *disc_info = bd_get_disc_info(p_sys->bluray);
     p_sys->di = disc_info;
+    msg_Dbg(p_demux, "[%s:%s:%d]=zspace=: hdrplus_flag=%d, dv_flag=%d hdr_flags=%d.", __FILE__ , __FUNCTION__, __LINE__, disc_info->hdrplus_flag, disc_info->dv_flag, disc_info->hdr_flags);
 
     /* Is it a bluray? */
     if (!disc_info->bluray_detected) {
@@ -1510,6 +1511,15 @@ static es_out_id_t *bluray_esOutAdd(es_out_t *p_out, const es_format_t *p_fmt)
         }
         b_select = (p_fmt->i_id == 0x1011);
         fmt.i_priority = ES_PRIORITY_NOT_SELECTABLE;
+        if (p_sys->di->dv_flag > 0) {
+            fmt.video.hdr_type = HDR_TYPE_DOLBYVISION;
+        }else if (p_sys->di->hdrplus_flag > 0) {
+            fmt.video.hdr_type = HDR_TYPE_HDR10;
+        }else if (p_sys->di->hdr_flags > 0) {
+            fmt.video.hdr_type = HDR_TYPE_HDR10;
+        }else {
+            fmt.video.hdr_type = HDR_TYPE_UNDEF;
+        }
         break;
     case AUDIO_ES:
         b_select = (esout_sys->selected.i_audio_pid == p_fmt->i_id);
@@ -2472,7 +2482,7 @@ static void blurayInitTitles(demux_t *p_demux, uint32_t menu_titles)
     if (!p_sys->b_menu) {
         i_title = bd_get_titles(p_sys->bluray, TITLES_RELEVANT, 60);
         p_sys->i_longest_title = bd_get_main_title(p_sys->bluray);
-        msg_Dbg(p_demux, "[%s:%s:%d]=zspace=: Get p_sys->i_longest_title=%d, titles=%d.", __FILE__ , __FUNCTION__, __LINE__, p_sys->i_longest_title, i_title);
+        msg_Dbg(p_demux, "[%s:%s:%d]=zspace=: Get p_sys->i_longest_title=%d, titles=%d, initial_dynamic_range_type=%d.", __FILE__ , __FUNCTION__, __LINE__, p_sys->i_longest_title, i_title, di->initial_dynamic_range_type);
     }
 
     uint64_t duration = 0;

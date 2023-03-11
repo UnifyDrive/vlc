@@ -1,0 +1,42 @@
+From ec9337ebe3b68176f4fd4fbae81b26cb8b39a0fe Mon Sep 17 00:00:00 2001
+From: shixuehui <shixuehui@zspace.cn>
+Date: Sat, 11 Mar 2023 17:28:23 +0800
+Subject: [PATCH] Add hdr/dolby info to BLURAY_DISC_INFO.
+
+---
+ src/libbluray/bluray.c | 3 +++
+ src/libbluray/bluray.h | 4 ++++
+ 2 files changed, 7 insertions(+)
+
+diff --git a/src/libbluray/bluray.c b/src/libbluray/bluray.c
+index 86b47f5e..538e17e7 100644
+--- a/src/libbluray/bluray.c
++++ b/src/libbluray/bluray.c
+@@ -1038,6 +1038,9 @@ static void _fill_disc_info(BLURAY *bd, BD_ENC_INFO *enc_info)
+         bd->disc_info.content_exist_3D                  = index->app_info.content_exist_flag;
+         bd->disc_info.initial_output_mode_preference    = index->app_info.initial_output_mode_preference;
+         memcpy(bd->disc_info.provider_data, index->app_info.user_data, sizeof(bd->disc_info.provider_data));
++        bd->disc_info.hdrplus_flag                      = index->hdrplus_flag;
++        bd->disc_info.hdr_flags                         = index->hdr_flags;
++        bd->disc_info.dv_flag                           = index->dv_flag;
+ 
+         /* allocate array for title info */
+         BLURAY_TITLE **titles = (BLURAY_TITLE**)array_alloc(index->num_titles + 2, sizeof(BLURAY_TITLE));
+diff --git a/src/libbluray/bluray.h b/src/libbluray/bluray.h
+index 01d46711..f87bed63 100644
+--- a/src/libbluray/bluray.h
++++ b/src/libbluray/bluray.h
+@@ -123,6 +123,10 @@ typedef struct {
+     /* disc application info (libbluray > 1.2.0) */
+     uint8_t initial_dynamic_range_type; /* bd_dynamic_range_type_e */
+ 
++    /* UHD extension */
++    uint8_t        hdrplus_flag;
++    uint8_t        dv_flag;
++    uint8_t        hdr_flags;
+ } BLURAY_DISC_INFO;
+ 
+ /*
+-- 
+2.33.0
+
