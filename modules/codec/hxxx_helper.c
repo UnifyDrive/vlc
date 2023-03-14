@@ -323,7 +323,8 @@ hevc_helper_parse_nal(struct hxxx_helper *hh, const uint8_t *p_buf, size_t i_buf
                      hevc_video_parameter_set_t,
                      hevc_decode_vps,
                      hevc_rbsp_release_vps);
-            msg_Dbg(hh->p_obj, "[%s:%s:%d]=zspace=: Find VPS id=%u", __FILE__ , __FUNCTION__, __LINE__, i_id);
+            if (hh->p_obj != NULL)
+                msg_Dbg(hh->p_obj, "[%s:%s:%d]=zspace=: Find VPS id=%u", __FILE__ , __FUNCTION__, __LINE__, i_id);
         }
         else if (i_nal_type == HEVC_NAL_SPS)
         {
@@ -335,7 +336,8 @@ hevc_helper_parse_nal(struct hxxx_helper *hh, const uint8_t *p_buf, size_t i_buf
                      hevc_sequence_parameter_set_t,
                      hevc_decode_sps,
                      hevc_rbsp_release_sps);
-            msg_Dbg(hh->p_obj, "[%s:%s:%d]=zspace=: Find SPS id=%u", __FILE__ , __FUNCTION__, __LINE__, i_id);
+            if (hh->p_obj != NULL)
+                msg_Dbg(hh->p_obj, "[%s:%s:%d]=zspace=: Find SPS id=%u", __FILE__ , __FUNCTION__, __LINE__, i_id);
         }
         else if (i_nal_type == HEVC_NAL_PPS)
         {
@@ -347,11 +349,13 @@ hevc_helper_parse_nal(struct hxxx_helper *hh, const uint8_t *p_buf, size_t i_buf
                      hevc_picture_parameter_set_t,
                      hevc_decode_pps,
                      hevc_rbsp_release_pps);
-            msg_Dbg(hh->p_obj, "[%s:%s:%d]=zspace=: Find PPS id=%u", __FILE__ , __FUNCTION__, __LINE__, i_id);
+            if (hh->p_obj != NULL)
+                msg_Dbg(hh->p_obj, "[%s:%s:%d]=zspace=: Find PPS id=%u", __FILE__ , __FUNCTION__, __LINE__, i_id);
         }
         else if (i_nal_type <= HEVC_NAL_IRAP_VCL23)
         {
-            msg_Dbg(hh->p_obj, "[%s:%s:%d]=zspace=: Not find valid nalType %d.", __FILE__ , __FUNCTION__, __LINE__, i_nal_type);
+            if (hh->p_obj != NULL)
+                msg_Dbg(hh->p_obj, "[%s:%s:%d]=zspace=: Not find valid nalType %d.", __FILE__ , __FUNCTION__, __LINE__, i_nal_type);
             if (hh->hevc.i_sps_count > 1 || hh->hevc.i_vps_count > 1)
             {
                 /* Get the PPS id from the slice: inspirated from
@@ -388,7 +392,8 @@ hevc_helper_parse_nal(struct hxxx_helper *hh, const uint8_t *p_buf, size_t i_buf
         else if(i_nal_type == HEVC_NAL_PREF_SEI||
                 i_nal_type == HEVC_NAL_SUFF_SEI)
         {
-            msg_Dbg(hh->p_obj, "[%s:%s:%d]=zspace=: Find SEI data.", __FILE__ , __FUNCTION__, __LINE__);
+            if (hh->p_obj != NULL)
+                msg_Dbg(hh->p_obj, "[%s:%s:%d]=zspace=: Find SEI data.", __FILE__ , __FUNCTION__, __LINE__);
             helper_load_sei(hh, p_nal, i_nal);
         }
     }
