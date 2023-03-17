@@ -220,7 +220,8 @@ h264_helper_parse_nal(struct hxxx_helper *hh, const uint8_t *p_buf, size_t i_buf
                      h264_decode_sps,
                      h264_release_sps);
             hh->h264.i_current_sps = ((h264_sequence_parameter_set_t*)p_xps)->i_id;
-            msg_Dbg(hh->p_obj, "new SPS parsed: %u", hh->h264.i_current_sps);
+            if (hh->p_obj != NULL)
+                msg_Dbg(hh->p_obj, "new SPS parsed: %u", hh->h264.i_current_sps);
         }
         else if (i_nal_type == H264_NAL_PPS)
         {
@@ -229,7 +230,8 @@ h264_helper_parse_nal(struct hxxx_helper *hh, const uint8_t *p_buf, size_t i_buf
                      h264_picture_parameter_set_t,
                      h264_decode_pps,
                      h264_release_pps);
-            msg_Dbg(hh->p_obj, "new PPS parsed: %u", ((h264_picture_parameter_set_t*)p_xps)->i_id);
+            if (hh->p_obj != NULL)
+                msg_Dbg(hh->p_obj, "new PPS parsed: %u", ((h264_picture_parameter_set_t*)p_xps)->i_id);
         }
         else if(i_nal_type == H264_NAL_SPS_EXT)
         {
@@ -238,11 +240,14 @@ h264_helper_parse_nal(struct hxxx_helper *hh, const uint8_t *p_buf, size_t i_buf
                      h264_sequence_parameter_set_extension_t,
                      h264_decode_sps_extension,
                      h264_release_sps_extension);
-            msg_Dbg(hh->p_obj, "new SPSEXT parsed: %u", ((h264_sequence_parameter_set_extension_t*)p_xps)->i_sps_id);
+            if (hh->p_obj != NULL)
+                msg_Dbg(hh->p_obj, "new SPSEXT parsed: %u", ((h264_sequence_parameter_set_extension_t*)p_xps)->i_sps_id);
         }
         else if (i_nal_type <= H264_NAL_SLICE_IDR
               && i_nal_type != H264_NAL_UNKNOWN)
         {
+            if (hh->p_obj != NULL)
+                msg_Dbg(hh->p_obj, "[%s:%s:%d]=zspace=: Find nalType %d.", __FILE__ , __FUNCTION__, __LINE__, i_nal_type);
             if (hh->h264.i_sps_count > 1)
             {
                 /* There is more than one SPS. Get the PPS id of the current
@@ -525,6 +530,8 @@ hevc_helper_set_extra(struct hxxx_helper *hh, const void *p_extra,
         if (!helper_nal_length_valid(hh))
             return VLC_EGENERIC;
         hh->b_is_xvcC = true;
+        if (hh->p_obj)
+            msg_Warn(hh->p_obj, "[%s:%s:%d]=zspace=: NAL type is xvcC, length_size=%d!", __FILE__ , __FUNCTION__, __LINE__, hh->i_nal_length_size);
 
         return helper_process_hvcC_hevc( hh, p_extra, i_extra );
     }
@@ -532,6 +539,8 @@ hevc_helper_set_extra(struct hxxx_helper *hh, const void *p_extra,
     {
         hh->i_nal_length_size = 4;
         bool unused;
+        if (hh->p_obj)
+            msg_Warn(hh->p_obj, "[%s:%s:%d]=zspace=: NAL type is annexb, length_size=%d!", __FILE__ , __FUNCTION__, __LINE__, hh->i_nal_length_size);
         return i_extra == 0 ? VLC_SUCCESS :
                hevc_helper_parse_nal(hh, p_extra, i_extra, 0, &unused);
     }
@@ -587,6 +596,17 @@ helper_process_block_xvcc2annexb(struct hxxx_helper *hh, block_t *p_block,
                        hh->i_nal_length_size);
     return helper_process_block_h264_annexb(hh, p_block, p_config_changed);
 }
+
+static block_t *
+helper_process_block_hevc_xvcc2annexb(struct hxxx_helper *hh, block_t *p_block,
+                              bool *p_config_changed)
+{
+ assert(helper_nal_length_valid(hh));
+ h264_AVC_to_AnnexB(p_block->p_buffer, p_block->i_buffer,
+                    hh->i_nal_length_size);
+ return helper_process_block_hevc_annexb(hh, p_block, p_config_changed);
+}
+
 
 static block_t *
 helper_process_block_h264_annexb2avcc(struct hxxx_helper *hh, block_t *p_block,
@@ -658,8 +678,11 @@ hxxx_helper_set_extra(struct hxxx_helper *hh, const void *p_extra,
         default:
             vlc_assert_unreachable();
     }
-    if (i_ret != VLC_SUCCESS)
+    if (i_ret != VLC_SUCCESS) {
+        if (hh->p_obj)
+            msg_Warn(hh->p_obj, "[%s:%s:%d]=zspace=: Find or parser extradata failed!", __FILE__ , __FUNCTION__, __LINE__);
         return i_ret;
+    }
 
     switch (hh->i_codec)
     {
@@ -685,7 +708,7 @@ hxxx_helper_set_extra(struct hxxx_helper *hh, const void *p_extra,
                 if (hh->b_need_xvcC)
                     hh->pf_process_block = helper_process_block_hevc_hvcc;
                 else
-                    hh->pf_process_block = helper_process_block_xvcc2annexb;
+                    hh->pf_process_block = helper_process_block_hevc_xvcc2annexb;
             }
             else /* AnnexB */
             {

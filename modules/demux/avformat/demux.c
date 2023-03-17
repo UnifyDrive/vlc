@@ -971,65 +971,75 @@ again:
         }
         memcpy( p_frame->p_buffer, pkt.data, pkt.size );
         if( p_stream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO ) {
-            if (p_sys->m_context == NULL) {
-                AVCodec *codec = avcodec_find_decoder(p_stream->codecpar->codec_id);
-                if (codec == NULL)
-                {
-                    msg_Warn( p_demux, "[%s:%s:%d]=zspace=: Can not find video decoder to parser packet!", __FILE__ , __FUNCTION__, __LINE__);
-                }else {
-                    p_sys->m_context = avcodec_alloc_context3(codec);
-                    if (p_sys->m_context == NULL) {
-                        msg_Warn( p_demux, "[%s:%s:%d]=zspace=: Can not allocate context to parser packet!", __FILE__ , __FUNCTION__, __LINE__);
-                    }else {
-                        p_sys->m_context->time_base.num = 1;
-                        p_sys->m_context->time_base.den = 1000000;
-                        msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Alloc context3 success.", __FILE__ , __FUNCTION__, __LINE__);
-                    }
-                }
-            }
-            if (p_sys->m_parser == NULL) {
-                p_sys->m_parser = av_parser_init(p_stream->codecpar->codec_id);
-                if (p_sys->m_parser) {
-                    p_sys->m_parser->flags |= PARSER_FLAG_COMPLETE_FRAMES;
-                    msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: av_parser_init run success.", __FILE__ , __FUNCTION__, __LINE__);
-                }
-            }
-
-            #define FF_MAX_EXTRADATA_SIZE ((1 << 28) - AV_INPUT_BUFFER_PADDING_SIZE)
-            if (p_sys->m_context && p_sys->m_parser && p_sys->m_parser->parser) {
-                int len = 0;
-                if (p_sys->m_parser->parser->split)
-                    len = p_sys->m_parser->parser->split(p_sys->m_context, pkt.data, pkt.size);
-                if (len > 0 && len < FF_MAX_EXTRADATA_SIZE)
-                {
-                    msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Meet extra data.", __FILE__ , __FUNCTION__, __LINE__);
-
-                    // Allow ffmpeg to transport codec information to p_sys->m_context
-                    if (!avcodec_open2(p_sys->m_context, p_sys->m_context->codec, NULL))
+            //uint8_t *sd = NULL;
+            //size_t sd_size = 0;
+            //sd = av_packet_get_side_data(&pkt, AV_PKT_DATA_DOVI_CONF, &sd_size);
+            //msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Pkt has [%d] AV_PKT_DATA_DOVI_CONF", __FILE__ , __FUNCTION__, __LINE__, sd_size);
+            do {
+                //msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Now video side data number [%d]", __FILE__ , __FUNCTION__, __LINE__, p_stream->nb_side_data);
+                //break;
+                if (p_sys->m_context == NULL) {
+                    AVCodec *codec = avcodec_find_decoder(p_stream->codecpar->codec_id);
+                    if (codec == NULL)
                     {
-                        AVPacket avpkt;
-                        av_init_packet(&avpkt);
-                        avpkt.data = pkt.data;
-                        avpkt.size = pkt.size;
-                        avpkt.dts = avpkt.pts = AV_NOPTS_VALUE;
-                        avcodec_send_packet(p_sys->m_context, &avpkt);
-                        avcodec_close(p_sys->m_context);
+                        msg_Warn( p_demux, "[%s:%s:%d]=zspace=: Can not find video decoder to parser packet!", __FILE__ , __FUNCTION__, __LINE__);
+                    }else {
+                        p_sys->m_context = avcodec_alloc_context3(codec);
+                        if (p_sys->m_context == NULL) {
+                            msg_Warn( p_demux, "[%s:%s:%d]=zspace=: Can not allocate context to parser packet!", __FILE__ , __FUNCTION__, __LINE__);
+                        }else {
+                            p_sys->m_context->time_base.num = 1;
+                            p_sys->m_context->time_base.den = 1000000;
+                            msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Alloc context3 success.", __FILE__ , __FUNCTION__, __LINE__);
+                        }
+                    }
+                }
+                if (p_sys->m_parser == NULL) {
+                    p_sys->m_parser = av_parser_init(p_stream->codecpar->codec_id);
+                    if (p_sys->m_parser) {
+                        p_sys->m_parser->flags |= PARSER_FLAG_COMPLETE_FRAMES;
+                        msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: av_parser_init run success.", __FILE__ , __FUNCTION__, __LINE__);
                     }
                 }
 
-                uint8_t *outbuf = NULL;
-                int outbuf_size = 0;
-                len = av_parser_parse2(p_sys->m_parser,
-                                         p_sys->m_context, &outbuf, &outbuf_size,
-                                         pkt.data, pkt.size,
-                                         (int64_t)(pkt.pts * 1000000),
-                                         (int64_t)(pkt.dts * 1000000),
-                                         0);
-                if (len >= 0 && (p_sys->m_context->profile != -99 || p_sys->m_context->level != -99 || p_sys->m_parser->width > 0 || p_sys->m_parser->height > 0)) {
-                    msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Profile=%d, Level=%d.", __FILE__ , __FUNCTION__, __LINE__, p_sys->m_context->profile, p_sys->m_context->level);
-                    msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: width=%d, height=%d.", __FILE__ , __FUNCTION__, __LINE__, p_sys->m_parser->width, p_sys->m_parser->height);
+                #define FF_MAX_EXTRADATA_SIZE ((1 << 28) - AV_INPUT_BUFFER_PADDING_SIZE)
+                if (p_sys->m_context && p_sys->m_parser && p_sys->m_parser->parser) {
+                    int len = 0;
+                    if (p_sys->m_parser->parser->split)
+                        len = p_sys->m_parser->parser->split(p_sys->m_context, pkt.data, pkt.size);
+                    //msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: split len=%d, FF_MAX_EXTRADATA_SIZE=%d.", __FILE__ , __FUNCTION__, __LINE__, len, FF_MAX_EXTRADATA_SIZE);
+                    if (len > 0 && len < FF_MAX_EXTRADATA_SIZE)
+                    {
+                        msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Meet extra data.", __FILE__ , __FUNCTION__, __LINE__);
+
+                        // Allow ffmpeg to transport codec information to p_sys->m_context
+                        if (!avcodec_open2(p_sys->m_context, p_sys->m_context->codec, NULL))
+                        {
+                            AVPacket avpkt;
+                            av_init_packet(&avpkt);
+                            avpkt.data = pkt.data;
+                            avpkt.size = pkt.size;
+                            avpkt.dts = avpkt.pts = AV_NOPTS_VALUE;
+                            avcodec_send_packet(p_sys->m_context, &avpkt);
+                            avcodec_close(p_sys->m_context);
+                        }
+                    }
+
+                    uint8_t *outbuf = NULL;
+                    int outbuf_size = 0;
+                    len = av_parser_parse2(p_sys->m_parser,
+                                             p_sys->m_context, &outbuf, &outbuf_size,
+                                             pkt.data, pkt.size,
+                                             (int64_t)(pkt.pts * 1000000),
+                                             (int64_t)(pkt.dts * 1000000),
+                                             0);
+                    if (len >= 0 && (p_sys->m_context->profile != -99 || p_sys->m_context->level != -99 || p_sys->m_parser->width > 0 || p_sys->m_parser->height > 0)) {
+                        msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Profile=%d, Level=%d.", __FILE__ , __FUNCTION__, __LINE__, p_sys->m_context->profile, p_sys->m_context->level);
+                        msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: width=%d, height=%d.", __FILE__ , __FUNCTION__, __LINE__, p_sys->m_parser->width, p_sys->m_parser->height);
+                        msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Now video side data number [%d]", __FILE__ , __FUNCTION__, __LINE__, p_stream->nb_side_data);
+                    }
                 }
-            }
+            }while(0);
         }
     }
 

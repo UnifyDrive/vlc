@@ -838,7 +838,7 @@ static int OpenDecoder(vlc_object_t *p_this, pf_MediaCodecApi_init pf_init)
         p_dec->fmt_out.audio = p_dec->fmt_in.audio;
     }
 
-    msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Run ParseExtra().", __FILE__ , __FUNCTION__, __LINE__);
+    msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Run ParseExtra(),size=%d.", __FILE__ , __FUNCTION__, __LINE__, p_dec->fmt_in.i_extra);
     /* Try first to configure CSD */
     if (ParseExtra(p_dec) != VLC_SUCCESS) {
         msg_Warn(p_dec, "[%s:%s:%d]=zspace=: Run ParseExtra() failed, goto bailout!", __FILE__ , __FUNCTION__, __LINE__);
