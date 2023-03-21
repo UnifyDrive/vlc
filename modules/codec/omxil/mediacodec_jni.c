@@ -344,6 +344,91 @@ end:
     return manufacturer;
 }
 
+bool MediaCodecJni_SupportsMimeType(vlc_object_t *p_obj, const char *psz_mime)
+{
+    JNIEnv *env;
+    int num_codecs;
+    jstring jmime;
+    bool  state = false;
+    char *psz_name = NULL;
+    if (!(env = android_getEnv(p_obj, THREAD_NAME)))
+        return NULL;
+
+    if (!InitJNIFields(p_obj, env))
+        return NULL;
+
+    jmime = JNI_NEW_STRING(psz_mime);
+    if (!jmime)
+        return NULL;
+
+    num_codecs = (*env)->CallStaticIntMethod(env,
+                                             jfields.media_codec_list_class,
+                                             jfields.get_codec_count);
+
+    for (int i = 0; i < num_codecs; i++)
+    {
+        jobject info = NULL;
+        jobject name = NULL;
+        jobject types = NULL;
+        jsize name_len = 0;
+        int  num_types = 0;
+        const char *name_ptr = NULL;
+        bool found = false;
+        bool b_adaptive = false;
+
+        info = (*env)->CallStaticObjectMethod(env, jfields.media_codec_list_class,
+                                              jfields.get_codec_info_at, i);
+
+        name = (*env)->CallObjectMethod(env, info, jfields.get_name);
+        name_len = (*env)->GetStringUTFLength(env, name);
+        name_ptr = (*env)->GetStringUTFChars(env, name, NULL);
+
+        if (OMXCodec_IsBlacklisted(name_ptr, name_len))
+            goto loopclean;
+
+        if ((*env)->CallBooleanMethod(env, info, jfields.is_encoder))
+            goto loopclean;
+
+        if (CHECK_EXCEPTION())
+        {
+            msg_Warn(p_obj, "[%s:%s:%d]=zspace=: Exception occurred in MediaCodecInfo.getCapabilitiesForType for [%s]", __FILE__ , __FUNCTION__, __LINE__, name_ptr);
+            goto loopclean;
+        }
+
+        types = (*env)->CallObjectMethod(env, info, jfields.get_supported_types);
+        num_types = (*env)->GetArrayLength(env, types);
+        found = false;
+
+        for (int j = 0; j < num_types && !found; j++)
+        {
+            jobject type = (*env)->GetObjectArrayElement(env, types, j);
+            if (!jstrcmp(env, type, psz_mime))
+            {
+                found = true;
+            }
+            (*env)->DeleteLocalRef(env, type);
+        }
+loopclean:
+        if (name)
+        {
+            (*env)->ReleaseStringUTFChars(env, name, name_ptr);
+            (*env)->DeleteLocalRef(env, name);
+        }
+        if (types)
+            (*env)->DeleteLocalRef(env, types);
+
+        if (info)
+            (*env)->DeleteLocalRef(env, info);
+        if (found){
+            state = true;
+            break;
+        }
+    }
+    (*env)->DeleteLocalRef(env, jmime);
+
+    return state;
+}
+
 /*****************************************************************************
  * MediaCodec_GetName
  *****************************************************************************/
@@ -478,9 +563,6 @@ char* MediaCodec_GetName(vlc_object_t *p_obj, const char *psz_mime,
                                     msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: [%s] support omx_profile 0x%x \"Main 10\"", __FILE__ , __FUNCTION__, __LINE__, name_ptr, omx_profile);
                                     break;
                             }
-                        }else if (strcmp(psz_mime, "video/dolby-vision") == 0) {
-                            found = true;
-                            break;
                         }
                         if (codec_profile != profile) {
                             msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: The profile is not match, get=%d, require=%d, from codec[%s]", __FILE__ , __FUNCTION__, __LINE__, codec_profile, profile, name_ptr);

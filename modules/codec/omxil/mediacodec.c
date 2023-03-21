@@ -592,17 +592,41 @@ static int OpenDecoder(vlc_object_t *p_this, pf_MediaCodecApi_init pf_init)
 
         switch (p_dec->fmt_in.i_codec) {
         case VLC_CODEC_HEVC:
-            if (i_profile == -1)
+            mime = "video/hevc";
             {
-                uint8_t i_hevc_profile;
-                if (hevc_get_profile_level(&p_dec->fmt_in, &i_hevc_profile, NULL, NULL))
-                    i_profile = i_hevc_profile;
-            }
-            
-            if (p_dec->fmt_in.video.hdr_type == HDR_TYPE_DOLBYVISION) {
-                mime = "video/dolby-vision";
-            }else {
-                mime = "video/hevc";
+                bool isDvhe=false;
+                bool isDvh1=false;
+                if(p_dec->fmt_in.i_original_fourcc == VLC_FOURCC('d', 'v', 'h', '1'))
+                {
+                    isDvhe = true;
+                }
+
+                if(p_dec->fmt_in.i_original_fourcc == VLC_FOURCC('d', 'v', 'h', 'e')){
+                    isDvh1 = true;
+                }
+                 // some files don't have dvhe or dvh1 tag set up but have Dolby Vision side data
+                if (!isDvhe && !isDvh1 && p_dec->fmt_in.video.hdr_type == HDR_TYPE_DOLBYVISION)
+                {
+                    // page 10, table 2 from https://professional.dolby.com/siteassets/content-creation/dolby-vision-for-content-creators/dolby-vision-streams-within-the-http-live-streaming-format-v2.0-13-november-2018.pdf
+                    if (p_dec->fmt_in.i_original_fourcc == VLC_FOURCC('h', 'v', 'c', '1'))
+                        isDvh1 = true;
+                    else
+                        isDvhe = true;
+                }
+
+                if (isDvhe || isDvh1)
+                {
+                    bool mediaCodecSupportsDovi =MediaCodecJni_SupportsMimeType(p_this,"video/dolby-vision");
+                    if (mediaCodecSupportsDovi)
+                    {
+                        mime = "video/dolby-vision";
+                    }
+                }else  if (i_profile == -1)
+                {
+                    uint8_t i_hevc_profile;
+                    if (hevc_get_profile_level(&p_dec->fmt_in, &i_hevc_profile, NULL, NULL))
+                        i_profile = i_hevc_profile;
+                }
             }
             break;
         case VLC_CODEC_H264:

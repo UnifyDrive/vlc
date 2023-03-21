@@ -561,21 +561,22 @@ int avformat_OpenDemux( vlc_object_t *p_this )
                     break;
             }
 
-            int i_size = 0;
-            uint8_t* side_data = av_stream_get_side_data(s, AV_PKT_DATA_MASTERING_DISPLAY_METADATA, &i_size);
-            if (i_size > 0 && side_data)
-            {
-                es_fmt.video.hdr_type = HDR_TYPE_HDR10;
-                msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Find AV_PKT_DATA_MASTERING_DISPLAY_METADATA for video, size=%d", __FILE__ , __FUNCTION__, __LINE__, i_size);
-            }
-            i_size = 0;
-            side_data = av_stream_get_side_data(s, AV_PKT_DATA_DOVI_CONF, &i_size);
-            if (i_size > 0 && side_data)
-            {
+            if (av_stream_get_side_data( s, AV_PKT_DATA_DOVI_CONF, NULL)){ // DoVi
                 es_fmt.video.hdr_type = HDR_TYPE_DOLBYVISION;
-                msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Find AV_PKT_DATA_DOVI_CONF for video, size=%d", __FILE__ , __FUNCTION__, __LINE__, i_size);
-            }
-            msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Video side data number [%d], hdr_type=%d", __FILE__ , __FUNCTION__, __LINE__, s->nb_side_data, es_fmt.video.hdr_type);
+                msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Find AV_PKT_DATA_DOVI_CONF for video.", __FILE__ , __FUNCTION__, __LINE__);
+            }else if (s->codecpar->color_trc == AVCOL_TRC_SMPTE2084){ // HDR10
+                msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Find AVCOL_TRC_SMPTE2084 for video.", __FILE__ , __FUNCTION__, __LINE__);
+                es_fmt.video.hdr_type = HDR_TYPE_HDR10;
+            }else if (s->codecpar->color_trc == AVCOL_TRC_ARIB_STD_B67){ // HLG
+                msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Find AVCOL_TRC_ARIB_STD_B67 for video.", __FILE__ , __FUNCTION__, __LINE__);
+                es_fmt.video.hdr_type = HDR_TYPE_HLG;
+             // file could be SMPTE2086 which FFmpeg currently returns as unknown
+             // so use the presence of static metadata to detect it
+             }else if (av_stream_get_side_data(s, AV_PKT_DATA_MASTERING_DISPLAY_METADATA, NULL)){
+                msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Find AV_PKT_DATA_MASTERING_DISPLAY_METADATA for video.", __FILE__ , __FUNCTION__, __LINE__);
+                es_fmt.video.hdr_type = HDR_TYPE_HDR10;
+             }
+            msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Video side data number, hdr_type=%d", __FILE__ , __FUNCTION__, __LINE__, es_fmt.video.hdr_type);
             break;
 
         case AVMEDIA_TYPE_SUBTITLE:
