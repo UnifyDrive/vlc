@@ -108,6 +108,7 @@ enum vtsession_status
     VTSESSION_STATUS_RESTART_CHROMA,
     VTSESSION_STATUS_ABORT,
     VTSESSION_STATUS_VOUT_FAILURE,
+    VTSESSION_STATUS_CREATE_FAILURE,
 };
 
 static int ConfigureVout(decoder_t *);
@@ -250,13 +251,13 @@ static bool HXXXGetBestChroma(decoder_t *p_dec)
              * bit rendering */
             p_sys->i_cvpx_format = kCVPixelFormatType_32BGRA;
         }else {
-			return false;
+            return false;
         }
     }else {
-		return false;
+        return false;
     }
 
-	return true;
+    return true;
 }
 
 static void GetxPSH264(uint8_t i_pps_id, void *priv,
@@ -597,6 +598,8 @@ static bool VideoToolboxNeedsToRestartH264(decoder_t *p_dec,
 static bool InitHEVC(decoder_t *p_dec)
 {
     decoder_sys_t *p_sys = p_dec->p_sys;
+    msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: [%p]i_extra=%d, b_is_xvcC=%d.", __FILE__ , __FUNCTION__, __LINE__, p_dec, p_dec->fmt_in.i_extra, p_sys->hh.b_is_xvcC);
+    msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: [%p]i_pps_count=%d, i_sps_count=%d, i_vps_count=%d.", __FILE__ , __FUNCTION__, __LINE__, p_sys, p_sys->hh.hevc.i_pps_count, p_sys->hh.hevc.i_sps_count, p_sys->hh.hevc.i_vps_count);
     hevc_poc_cxt_init(&p_sys->hevc_pocctx);
     hxxx_helper_init(&p_sys->hh, VLC_OBJECT(p_dec),
                      p_dec->fmt_in.i_codec, true);
@@ -774,6 +777,8 @@ static CFMutableDictionaryRef GetDecoderExtradataHEVC(decoder_t *p_dec)
 {
     decoder_sys_t *p_sys = p_dec->p_sys;
 
+    msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: [%p]i_extra=%d, b_is_xvcC=%d.", __FILE__ , __FUNCTION__, __LINE__, p_dec, p_dec->fmt_in.i_extra, p_sys->hh.b_is_xvcC);
+    msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: [%p]i_pps_count=%d, i_sps_count=%d, i_vps_count=%d.", __FILE__ , __FUNCTION__, __LINE__, p_sys, p_sys->hh.hevc.i_pps_count, p_sys->hh.hevc.i_sps_count, p_sys->hh.hevc.i_vps_count);
     CFMutableDictionaryRef extradata = nil;
     if (p_dec->fmt_in.i_extra && p_sys->hh.b_is_xvcC)
     {
@@ -790,6 +795,7 @@ static CFMutableDictionaryRef GetDecoderExtradataHEVC(decoder_t *p_dec)
         block_t *p_hvcC = hevc_helper_get_hvcc_config(&p_sys->hh);
         if (p_hvcC)
         {
+            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Create CFMutableDictionaryRef with sps/pps/vps from stream.", __FILE__ , __FUNCTION__, __LINE__);
             extradata = ExtradataInfoCreate(CFSTR("hvcC"),
                                             p_hvcC->p_buffer,
                                             p_hvcC->i_buffer);
@@ -1130,6 +1136,8 @@ static CFMutableDictionaryRef CreateSessionDescriptionFormat(decoder_t *p_dec,
                              kCMFormatDescriptionExtension_SampleDescriptionExtensionAtoms,
                              extradata);
         CFRelease(extradata);
+    }else {
+        msg_Warn(p_dec, "[%s:%s:%d]=zspace=: Get CFMutableDictionaryRef with extradata failed.", __FILE__ , __FUNCTION__, __LINE__);
     }
 
     CFDictionarySetValue(decoderConfiguration,
@@ -1322,8 +1330,14 @@ static int StartVideoToolbox(decoder_t *p_dec)
     CFRelease(decoderConfiguration);
     CFRelease(destinationPixelBufferAttributes);
 
-    if (HandleVTStatus(p_dec, status, NULL) != VLC_SUCCESS) {
-        msg_Warn(p_dec, "[%s:%s:%d]=zspace=: HandleVTStatus() failed.", __FILE__ , __FUNCTION__, __LINE__);
+    enum vtsession_status vtsession_status;
+    if (HandleVTStatus(p_dec, status, &vtsession_status) != VLC_SUCCESS) {
+        msg_Warn(p_dec, "[%s:%s:%d]=zspace=: HandleVTStatus(%d) failed.", __FILE__ , __FUNCTION__, __LINE__, vtsession_status);
+        if (vtsession_status == VTSESSION_STATUS_CREATE_FAILURE) {
+            vlc_mutex_lock(&p_sys->lock);
+            p_sys->vtsession_status = vtsession_status;
+            vlc_mutex_unlock(&p_sys->lock);
+        }
         return VLC_EGENERIC;
     }
 
@@ -1446,7 +1460,7 @@ static int OpenDecoder(vlc_object_t *p_this)
         p_sys->b_cvpx_format_forced = true;
         free(cvpx_chroma);
     }else {
-        msg_Warn(p_dec, "[%s:%s:%d]=zspace=: cvpx_chroma not get!", __FILE__ , __FUNCTION__, __LINE__);
+        msg_Warn(p_dec, "[%s:%s:%d]=zspace=: User not set force cvpx_chroma!", __FILE__ , __FUNCTION__, __LINE__);
     }
 
     p_sys->pic_holder = malloc(sizeof(struct pic_holder));
@@ -1530,9 +1544,15 @@ static int OpenDecoder(vlc_object_t *p_this)
         msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Using Video Toolbox to decode '%4.4s'", __FILE__ , __FUNCTION__, __LINE__,
                         (char *)&p_dec->fmt_in.i_codec);
     } else {
-        CloseDecoder(p_this);
-        msg_Warn(p_dec, "[%s:%s:%d]=zspace=: Can not using Video Toolbox to decode '%4.4s'", __FILE__ , __FUNCTION__, __LINE__,
+        if (p_dec->fmt_in.i_extra > 23 && p_sys->vtsession_status != VTSESSION_STATUS_CREATE_FAILURE) {
+            CloseDecoder(p_this);
+            msg_Warn(p_dec, "[%s:%s:%d]=zspace=: Can not using Video Toolbox to decode '%4.4s'", __FILE__ , __FUNCTION__, __LINE__,
                         (char *)&p_dec->fmt_in.i_codec);
+        }else {
+            i_ret = VLC_SUCCESS;
+            p_dec->fmt_in.i_extra = 0;
+            p_sys->vtsession_status = VTSESSION_STATUS_OK;
+        }
     }
 
     return i_ret;
@@ -1856,6 +1876,9 @@ static int HandleVTStatus(decoder_t *p_dec, OSStatus status,
             case kVTInvalidSessionErr:
                 *p_vtsession_status = VTSESSION_STATUS_RESTART;
                 break;
+            case -6:
+                *p_vtsession_status = VTSESSION_STATUS_CREATE_FAILURE;
+                break;
             case -8969 /* codecBadDataErr */:
             case kVTVideoDecoderBadDataErr:
             default:
@@ -2064,6 +2087,7 @@ static int DecodeBlock(decoder_t *p_dec, block_t *p_block)
             if ((p_sys->pf_codec_supported && !p_sys->pf_codec_supported(p_dec))
               || StartVideoToolbox(p_dec) != VLC_SUCCESS)
             {
+                msg_Warn(p_dec, "[%s:%s:%d]=zspace=: VTB start failed!", __FILE__ , __FUNCTION__, __LINE__);
                 /* The current device doesn't handle the profile/level, abort */
                 vlc_mutex_lock(&p_sys->lock);
                 p_sys->vtsession_status = VTSESSION_STATUS_ABORT;
