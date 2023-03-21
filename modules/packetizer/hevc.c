@@ -45,6 +45,8 @@
 
 #include <limits.h>
 
+#define ZSPACE_PASER_DEBUG 0
+
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
@@ -627,7 +629,8 @@ static void ParseStoredSEI( decoder_t *p_dec )
 
         if( hevc_getNALType(&p_nal->p_buffer[4]) == HEVC_NAL_PREF_SEI )
         {
-            msg_Warn(p_dec,"[%s:%s:%d]=zspace=: HEVC_NAL_PREF_SEI.", __FILE__ , __FUNCTION__, __LINE__);
+            if (ZSPACE_PASER_DEBUG)
+                msg_Dbg(p_dec,"[%s:%s:%d]=zspace=: HEVC_NAL_PREF_SEI.", __FILE__ , __FUNCTION__, __LINE__);
             HxxxParse_AnnexB_SEI( p_nal->p_buffer, p_nal->i_buffer,
                                   2 /* nal header */, ParseSEICallback, p_dec );
         }
@@ -782,7 +785,8 @@ static block_t * ParseAUTail(decoder_t *p_dec, uint8_t i_nal_type, block_t *p_na
             break;
 
         case HEVC_NAL_SUFF_SEI:
-            msg_Warn(p_dec,"[%s:%s:%d]=zspace=: HEVC_NAL_SUFF_SEI.", __FILE__ , __FUNCTION__, __LINE__);
+            if (ZSPACE_PASER_DEBUG)
+                msg_Dbg(p_dec,"[%s:%s:%d]=zspace=: HEVC_NAL_SUFF_SEI.", __FILE__ , __FUNCTION__, __LINE__);
             HxxxParse_AnnexB_SEI( p_nalb->p_buffer, p_nalb->i_buffer,
                                   2 /* nal header */, ParseSEICallback, p_dec );
             break;
@@ -1013,7 +1017,8 @@ static bool ParseSEICallback( const hxxx_sei_data_t *p_sei_data, void *cbdata )
         } break;
         case HXXX_SEI_MASTERING_DISPLAY_COLOUR_VOLUME:
         {
-            msg_Warn(p_dec,"[%s:%s:%d]=zspace=: Find HXXX_SEI_MASTERING_DISPLAY_COLOUR_VOLUME.", __FILE__ , __FUNCTION__, __LINE__);
+            if (ZSPACE_PASER_DEBUG)
+                msg_Dbg(p_dec,"[%s:%s:%d]=zspace=: Find HXXX_SEI_MASTERING_DISPLAY_COLOUR_VOLUME.", __FILE__ , __FUNCTION__, __LINE__);
             video_format_t *p_fmt = &p_dec->fmt_out.video;
             for (size_t i=0; i<ARRAY_SIZE(p_sei_data->colour_volume.primaries); ++i)
                 p_fmt->mastering.primaries[i] = p_sei_data->colour_volume.primaries[i];
@@ -1024,7 +1029,8 @@ static bool ParseSEICallback( const hxxx_sei_data_t *p_sei_data, void *cbdata )
         } break;
         case HXXX_SEI_CONTENT_LIGHT_LEVEL:
         {
-            msg_Warn(p_dec,"[%s:%s:%d]=zspace=: Find HXXX_SEI_CONTENT_LIGHT_LEVEL.", __FILE__ , __FUNCTION__, __LINE__);
+            if (ZSPACE_PASER_DEBUG)
+                msg_Dbg(p_dec,"[%s:%s:%d]=zspace=: Find HXXX_SEI_CONTENT_LIGHT_LEVEL.", __FILE__ , __FUNCTION__, __LINE__);
             video_format_t *p_fmt = &p_dec->fmt_out.video;
             p_fmt->lighting.MaxCLL = p_sei_data->content_light_lvl.MaxCLL;
             p_fmt->lighting.MaxFALL = p_sei_data->content_light_lvl.MaxFALL;

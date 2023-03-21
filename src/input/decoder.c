@@ -594,7 +594,7 @@ static int vout_update_format( decoder_t *p_dec )
         }
     }
 
-    msg_Dbg( p_dec, "[%s:%s:%d]=zspace=: Decoder fmt_out MaxFALL=[%d] for video.", __FILE__ , __FUNCTION__, __LINE__, p_dec->fmt_out.video.lighting.MaxFALL);
+    //msg_Dbg( p_dec, "[%s:%s:%d]=zspace=: Decoder fmt_out MaxFALL=[%d] for video.", __FILE__ , __FUNCTION__, __LINE__, p_dec->fmt_out.video.lighting.MaxFALL);
     if ( memcmp( &p_dec->fmt_out.video.mastering,
                  &p_owner->fmt.video.mastering,
                  sizeof(p_owner->fmt.video.mastering)) ||

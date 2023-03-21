@@ -62,6 +62,8 @@
 # define AVF_MAYBE_CONST
 #endif
 
+#define ZSPACE_AV_DEMUX_DEBUG 0
+
 struct avformat_track_s
 {
     es_out_id_t *p_es;
@@ -1033,7 +1035,7 @@ again:
                                              (int64_t)(pkt.pts * 1000000),
                                              (int64_t)(pkt.dts * 1000000),
                                              0);
-                    if (len >= 0 && (p_sys->m_context->profile != -99 || p_sys->m_context->level != -99 || p_sys->m_parser->width > 0 || p_sys->m_parser->height > 0)) {
+                    if (ZSPACE_AV_DEMUX_DEBUG && len >= 0 && (p_sys->m_context->profile != -99 || p_sys->m_context->level != -99 || p_sys->m_parser->width > 0 || p_sys->m_parser->height > 0)) {
                         msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Profile=%d, Level=%d.", __FILE__ , __FUNCTION__, __LINE__, p_sys->m_context->profile, p_sys->m_context->level);
                         msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: width=%d, height=%d.", __FILE__ , __FUNCTION__, __LINE__, p_sys->m_parser->width, p_sys->m_parser->height);
                         msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Now video side data number [%d]", __FILE__ , __FUNCTION__, __LINE__, p_stream->nb_side_data);

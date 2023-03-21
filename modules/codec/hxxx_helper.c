@@ -32,6 +32,8 @@
 #include "../packetizer/hxxx_nal.h"
 #include "../packetizer/h264_slice.h"
 
+#define ZSPACE_HELPER_DEBUG 0
+
 void
 hxxx_helper_init(struct hxxx_helper *hh, vlc_object_t *p_obj,
                  vlc_fourcc_t i_codec, bool b_need_xvcC)
@@ -246,7 +248,7 @@ h264_helper_parse_nal(struct hxxx_helper *hh, const uint8_t *p_buf, size_t i_buf
         else if (i_nal_type <= H264_NAL_SLICE_IDR
               && i_nal_type != H264_NAL_UNKNOWN)
         {
-            if (hh->p_obj != NULL)
+            if (hh->p_obj != NULL && ZSPACE_HELPER_DEBUG)
                 msg_Dbg(hh->p_obj, "[%s:%s:%d]=zspace=: Find nalType %d.", __FILE__ , __FUNCTION__, __LINE__, i_nal_type);
             if (hh->h264.i_sps_count > 1)
             {
@@ -359,7 +361,7 @@ hevc_helper_parse_nal(struct hxxx_helper *hh, const uint8_t *p_buf, size_t i_buf
         }
         else if (i_nal_type <= HEVC_NAL_IRAP_VCL23)
         {
-            if (hh->p_obj != NULL)
+            if (hh->p_obj != NULL && ZSPACE_HELPER_DEBUG)
                 msg_Dbg(hh->p_obj, "[%s:%s:%d]=zspace=: Not find valid nalType %d.", __FILE__ , __FUNCTION__, __LINE__, i_nal_type);
             if (hh->hevc.i_sps_count > 1 || hh->hevc.i_vps_count > 1)
             {
@@ -397,7 +399,7 @@ hevc_helper_parse_nal(struct hxxx_helper *hh, const uint8_t *p_buf, size_t i_buf
         else if(i_nal_type == HEVC_NAL_PREF_SEI||
                 i_nal_type == HEVC_NAL_SUFF_SEI)
         {
-            if (hh->p_obj != NULL)
+            if (hh->p_obj != NULL && ZSPACE_HELPER_DEBUG)
                 msg_Dbg(hh->p_obj, "[%s:%s:%d]=zspace=: Find SEI data.", __FILE__ , __FUNCTION__, __LINE__);
             helper_load_sei(hh, p_nal, i_nal);
         }
