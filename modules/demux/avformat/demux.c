@@ -972,7 +972,7 @@ again:
             return 0;
         }
         memcpy( p_frame->p_buffer, pkt.data, pkt.size );
-        if( p_stream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO ) {
+        if( p_stream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO && ZSPACE_AV_DEMUX_DEBUG) {
             //uint8_t *sd = NULL;
             //size_t sd_size = 0;
             //sd = av_packet_get_side_data(&pkt, AV_PKT_DATA_DOVI_CONF, &sd_size);

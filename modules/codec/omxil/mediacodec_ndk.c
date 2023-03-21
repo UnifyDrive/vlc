@@ -373,7 +373,7 @@ static int Start(mc_api *api, union mc_api_args *p_args)
                 syms.AMediaFormat.setInt32(p_sys->p_format,
                                            "feature-adaptive-playback", 1);
         }
-
+#if 0
         switch (p_args->video.primaries)
         {
             case COLOR_PRIMARIES_BT709:
@@ -427,6 +427,7 @@ static int Start(mc_api *api, union mc_api_args *p_args)
                 msg_Dbg(api->p_obj, "[%s:%s:%d]=zspace=: HDR[%d] = 0x%x.", __FILE__ , __FUNCTION__, __LINE__, i, p_data[i]);
             free(p_data);
         }
+#endif
     }
     else
     {

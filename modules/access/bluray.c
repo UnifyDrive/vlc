@@ -1511,6 +1511,7 @@ static es_out_id_t *bluray_esOutAdd(es_out_t *p_out, const es_format_t *p_fmt)
         }
         b_select = (p_fmt->i_id == 0x1011);
         fmt.i_priority = ES_PRIORITY_NOT_SELECTABLE;
+        #if 0
         if (p_sys->di->dv_flag > 0) {
             fmt.video.hdr_type = HDR_TYPE_DOLBYVISION;
         }else if (p_sys->di->hdrplus_flag > 0) {
@@ -1520,6 +1521,7 @@ static es_out_id_t *bluray_esOutAdd(es_out_t *p_out, const es_format_t *p_fmt)
         }else {
             fmt.video.hdr_type = HDR_TYPE_UNDEF;
         }
+        #endif
         break;
     case AUDIO_ES:
         b_select = (esout_sys->selected.i_audio_pid == p_fmt->i_id);
