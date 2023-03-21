@@ -175,6 +175,7 @@ struct aout_sys_t {
     } circular;
 
     bool  isjiguang4pro;
+    bool  isz9x;
 };
 
 
@@ -774,6 +775,10 @@ TimeGet( audio_output_t *p_aout, mtime_t *restrict p_delay )
 
  //  if( p_sys->b_passthrough )
  //      return -1;
+    if(p_sys->isz9x){
+        if(p_sys->b_passthrough)
+            return -1;
+    }
 
     vlc_mutex_lock( &p_sys->lock );
 
@@ -1359,6 +1364,7 @@ Start( audio_output_t *p_aout, audio_sample_format_t *restrict p_fmt )
     unsigned i_max_channels;
 
     p_sys->isjiguang4pro = false;
+    p_sys->isz9x = false;
     if( p_sys->at_dev == AT_DEV_ENCODED )
     {
         b_try_passthrough = true;
@@ -1371,6 +1377,10 @@ Start( audio_output_t *p_aout, audio_sample_format_t *restrict p_fmt )
         b_try_passthrough_ac3 = var_InheritBool( p_aout, "spdif-ac3");
         if(b_try_passthrough_ac3)
             p_sys->isjiguang4pro = var_InheritBool( p_aout, "spdif-isjiguang4pro");
+        p_sys->isz9x = var_InheritBool( p_aout, "spdif-isz9x");
+        if(p_sys->isz9x){
+            jfields.AudioFormat.has_ENCODING_IEC61937 = false;
+        }
     }
 
     if( !( env = GET_ENV() ) )
