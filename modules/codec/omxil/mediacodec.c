@@ -1315,6 +1315,7 @@ static void *OutThread(void *data)
         if (p_sys->b_flush_out)
         {
             if (p_sys->b_mediacodec_error == true) {
+                msg_Warn(p_dec, "[%s:%s:%d]=zspace=: Get outbuf failed, restart mediacodec.", __FILE__ , __FUNCTION__, __LINE__);
                 StopMediaCodec(p_dec);
                 StartMediaCodec(p_dec);
                 p_sys->b_mediacodec_error = false;
@@ -1337,6 +1338,9 @@ static void *OutThread(void *data)
             p_sys->b_mediacodec_error = true;
             p_sys->i_mediacodec_try_times++;
             msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Get out index error = %d, i_mediacodec_try_times=%d.", __FILE__ , __FUNCTION__, __LINE__, i_index, p_sys->i_mediacodec_try_times);
+        }else if (p_sys->i_mediacodec_try_times > 0){
+            p_sys->i_mediacodec_try_times = 0;
+            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Get out index = %d, reset i_mediacodec_try_times to 0.", __FILE__ , __FUNCTION__, __LINE__, i_index);
         }
 
         vlc_mutex_lock(&p_sys->lock);
@@ -1537,7 +1541,8 @@ static int QueueBlockLocked(decoder_t *p_dec, block_t *p_in_block,
         else
         {
             msg_Err(p_dec, "dequeue_in failed");
-            goto error;
+            return VLC_ENOINPUTBUF;
+            //goto error;
         }
     }
 

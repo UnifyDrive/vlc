@@ -486,7 +486,7 @@ static int DequeueInput(mc_api *api, mtime_t i_timeout)
         return MC_API_INFO_TRYAGAIN;
     else
     {
-        msg_Err(api->p_obj, "AMediaCodec.dequeueInputBuffer failed");
+        msg_Err(api->p_obj, "AMediaCodec.dequeueInputBuffer failed[%d].", i_index);
         return MC_API_ERROR;
     }
 }
