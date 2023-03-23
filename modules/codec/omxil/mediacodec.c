@@ -1090,7 +1090,7 @@ static int Video_ProcessOutput(decoder_t *p_dec, mc_api_out *p_out,
             return -1;
         }
 
-        msg_Err(p_dec, "output: %d %s, %dx%d stride %d %d, crop %d %d %d %d",
+        msg_Err(p_dec, "[%s:%s:%d]=zspace=: output: %d %s, %dx%d stride %d %d, crop %d %d %d %d", __FILE__ , __FUNCTION__, __LINE__,
                 p_sys->video.i_pixel_format, name,
                 p_out->conf.video.width, p_out->conf.video.height,
                 p_out->conf.video.stride, p_out->conf.video.slice_height,
@@ -1107,7 +1107,7 @@ static int Video_ProcessOutput(decoder_t *p_dec, mc_api_out *p_out,
             i_height = p_out->conf.video.height;
         }
 
-        if (!(p_sys->api.i_quirks & MC_API_VIDEO_QUIRKS_IGNORE_SIZE))
+        if ( !(p_sys->api.i_quirks & MC_API_VIDEO_QUIRKS_IGNORE_SIZE) && strcmp(p_sys->api.psz_mime, "video/dolby-vision"))
         {
             p_dec->fmt_out.video.i_visible_width =
             p_dec->fmt_out.video.i_width = i_width;
