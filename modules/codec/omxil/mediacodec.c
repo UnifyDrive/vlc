@@ -51,6 +51,8 @@
 
 #define DECODE_FLAG_RESTART (0x01)
 #define DECODE_FLAG_DRAIN (0x02)
+#define ZSPACE_NAL_INFO_DEBUG (0)
+
 /**
  * Callback called when a new block is processed from DecodeBlock.
  * It returns -1 in case of error, 0 if block should be dropped, 1 otherwise.
@@ -1334,9 +1336,11 @@ static void *OutThread(void *data)
         /* Wait for an output buffer. This function returns when a new output
          * is available or if output is flushed. */
         i_index = p_sys->api.dequeue_out(&p_sys->api, -1);
-        if (i_index == MC_API_ERROR && p_sys->i_mediacodec_try_times <= 3) {
-            p_sys->b_mediacodec_error = true;
+        if (i_index == MC_API_ERROR) {
             p_sys->i_mediacodec_try_times++;
+            if (p_sys->i_mediacodec_try_times >= 2) {
+                p_sys->b_mediacodec_error = true;
+            }
             msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Get out index error = %d, i_mediacodec_try_times=%d.", __FILE__ , __FUNCTION__, __LINE__, i_index, p_sys->i_mediacodec_try_times);
         }else if (p_sys->i_mediacodec_try_times > 0){
             p_sys->i_mediacodec_try_times = 0;
@@ -1435,7 +1439,9 @@ static int QueueBlockLocked(decoder_t *p_dec, block_t *p_in_block,
 
     assert(p_sys->api.b_started);
 
-    //msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: p_sys->i_csd_count=%d,p_sys->i_csd_send=%d,p_in_block->i_buffer=%d,p_in_block->i_flags=%d,p_sys->b_flush_out=%d.", __FILE__ , __FUNCTION__, __LINE__, p_sys->i_csd_count, p_sys->i_csd_send, p_in_block->i_buffer, p_in_block->i_flags, p_sys->b_flush_out);
+    if (p_sys && p_in_block && ZSPACE_NAL_INFO_DEBUG) {
+        msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: p_sys->i_csd_count=%d,p_sys->i_csd_send=%d,p_in_block->i_buffer=%d,p_in_block->i_flags=%d,p_sys->b_flush_out=%d.", __FILE__ , __FUNCTION__, __LINE__, p_sys->i_csd_count, p_sys->i_csd_send, p_in_block->i_buffer, p_in_block->i_flags, p_sys->b_flush_out);
+    }
     if ((p_sys->api.i_quirks & MC_API_QUIRKS_NEED_CSD) && !p_sys->i_csd_count
      && !p_sys->b_adaptive)
         return VLC_EGENERIC; /* Wait for CSDs */
@@ -1462,7 +1468,9 @@ static int QueueBlockLocked(decoder_t *p_dec, block_t *p_in_block,
         const void *p_buf = NULL;
         size_t i_size = 0;
 
-        //msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: i_index=%d.", __FILE__ , __FUNCTION__, __LINE__, i_index);
+        if (p_dec && ZSPACE_NAL_INFO_DEBUG) {
+            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: i_index=%d.", __FILE__ , __FUNCTION__, __LINE__, i_index);
+        }
         if (i_index >= 0)
         {
             assert(b_drain || p_block != NULL);
@@ -1479,8 +1487,10 @@ static int QueueBlockLocked(decoder_t *p_dec, block_t *p_in_block,
                 }
                 p_buf = p_block->p_buffer;
                 i_size = p_block->i_buffer;
-                /*msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: i_size=%d, i_ts=%lld [%02x %02x %02x %02x %02x].", __FILE__ , __FUNCTION__, __LINE__, i_size, i_ts,
-                    p_block->p_buffer[0], p_block->p_buffer[1], p_block->p_buffer[2], p_block->p_buffer[3], p_block->p_buffer[4]);*/
+                if (p_dec && p_block && ZSPACE_NAL_INFO_DEBUG) {
+                    msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: i_size=%d, i_ts=%lld [%02x %02x %02x %02x %02x].", __FILE__ , __FUNCTION__, __LINE__, i_size, i_ts,
+                        p_block->p_buffer[0], p_block->p_buffer[1], p_block->p_buffer[2], p_block->p_buffer[3], p_block->p_buffer[4]);
+                }
             }
 
             if (p_sys->api.queue_in(&p_sys->api, i_index, p_buf, i_size,
