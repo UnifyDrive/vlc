@@ -110,6 +110,7 @@ struct decoder_sys_t
     int             i_decode_flags;
     bool            b_mediacodec_error;
     int             i_mediacodec_try_times;
+    bool            b_is_jg5pro;
 
     union
     {
@@ -708,6 +709,7 @@ static int OpenDecoder(vlc_object_t *p_this, pf_MediaCodecApi_init pf_init)
     p_sys->video.i_mpeg_dar_den = 0;
     p_sys->b_mediacodec_error = false;
     p_sys->i_mediacodec_try_times = 0;
+    p_sys->b_is_jg5pro = var_InheritBool(p_dec, "support-jiguang5pro-subtitles");
 
     if (pf_init(&p_sys->api) != 0)
     {
@@ -716,7 +718,7 @@ static int OpenDecoder(vlc_object_t *p_this, pf_MediaCodecApi_init pf_init)
         return VLC_EGENERIC;
     }
 
-    msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Run p_sys->api.configure(), profile=%d.", __FILE__ , __FUNCTION__, __LINE__, i_profile);
+    msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Run p_sys->api.configure(), profile=%d, p_sys->b_is_jg5pro=%d.", __FILE__ , __FUNCTION__, __LINE__, i_profile, p_sys->b_is_jg5pro);
     if (p_sys->api.configure(&p_sys->api, i_profile) != 0)
     {
         msg_Warn(p_dec, "[%s:%s:%d]=zspace=: p_sys->api.configure failed!", __FILE__ , __FUNCTION__, __LINE__);
@@ -1311,23 +1313,25 @@ static void *OutThread(void *data)
 
     vlc_mutex_lock(&p_sys->lock);
     mutex_cleanup_push(&p_sys->lock);
+    int i_index = -1;
     for (;;)
     {
-        int i_index;
 
+        i_index = -1;
         /* Wait for output ready */
         while (!p_sys->b_flush_out && !p_sys->b_output_ready) {
-            //msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: In while b_output_ready=(%s).", __FILE__ , __FUNCTION__, __LINE__, p_sys->b_output_ready?"True":"False");
+            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: In while b_output_ready=(%s).", __FILE__ , __FUNCTION__, __LINE__, p_sys->b_output_ready?"True":"False");
             vlc_cond_wait(&p_sys->cond, &p_sys->lock);
         }
 
         if (p_sys->b_flush_out)
         {
-            if (p_sys->b_mediacodec_error == true) {
-                msg_Warn(p_dec, "[%s:%s:%d]=zspace=: Get outbuf failed, restart mediacodec.", __FILE__ , __FUNCTION__, __LINE__);
+            if (p_sys->b_mediacodec_error == true || p_sys->b_is_jg5pro) {
+                msg_Warn(p_dec, "[%s:%s:%d]=zspace=: Get outbuf failed, restart mediacodec(%d).", __FILE__ , __FUNCTION__, __LINE__, p_sys->b_is_jg5pro);
                 StopMediaCodec(p_dec);
                 StartMediaCodec(p_dec);
                 p_sys->b_mediacodec_error = false;
+                p_sys->b_is_jg5pro = false;
             }
             /* Acknowledge flushed state */
             p_sys->b_flush_out = false;
@@ -1342,6 +1346,9 @@ static void *OutThread(void *data)
 
         /* Wait for an output buffer. This function returns when a new output
          * is available or if output is flushed. */
+        if (p_dec && ZSPACE_NAL_INFO_DEBUG) {
+            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Will run dequeue_out index = %d.", __FILE__ , __FUNCTION__, __LINE__, i_index);
+        }
         i_index = p_sys->api.dequeue_out(&p_sys->api, -1);
         if (i_index == MC_API_ERROR) {
             p_sys->i_mediacodec_try_times++;
@@ -1352,6 +1359,8 @@ static void *OutThread(void *data)
         }else if (p_sys->i_mediacodec_try_times > 0){
             p_sys->i_mediacodec_try_times = 0;
             msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Get out index = %d, reset i_mediacodec_try_times to 0.", __FILE__ , __FUNCTION__, __LINE__, i_index);
+        }else if(p_dec && ZSPACE_NAL_INFO_DEBUG){
+            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Get out index = %d.", __FILE__ , __FUNCTION__, __LINE__, i_index);
         }
 
         vlc_mutex_lock(&p_sys->lock);
