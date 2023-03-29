@@ -308,6 +308,11 @@ typedef enum input_event_type_e
 
     /* return PassThrough Error*/
     INPUT_EVENT_PASSTHROUGHERROR,
+    /* return Support Audio effect */
+    INPUT_EVENT_SUPPORTAUDIOCODECTYPE,
+    /* return Spport  Video effect */
+    INPUT_EVENT_SUPPORTVIDEOCODECTYPE,
+
 
     /* A title has been added or removed or selected.
      * It implies that the chapter has changed (no chapter event is sent) */

@@ -185,10 +185,20 @@ void input_SendEventState( input_thread_t *p_input, int i_state )
 void input_SendEventPassthroughError( input_thread_t *p_input,int status)
 {
     var_SetInteger(p_input,"passthrougherror",status);
-    //  var_Change( p_input, "passthrougherror", VLC_VAR_SETVALUE, &val, NULL );
     Trigger( p_input, INPUT_EVENT_PASSTHROUGHERROR );
 }
 
+void input_SendEventSupportAudioCodecType( input_thread_t *p_input,char *status)
+{
+    var_SetString(p_input,"supportaudiocodectype",status);
+    Trigger( p_input, INPUT_EVENT_SUPPORTAUDIOCODECTYPE );
+}
+
+void input_SendEventSupportVideoCodecType( input_thread_t *p_input,char *status)
+{
+    var_SetString(p_input,"supportvideocodectype",status);
+    Trigger( p_input, INPUT_EVENT_SUPPORTVIDEOCODECTYPE );
+}
 
 void input_SendEventCache( input_thread_t *p_input, double f_level )
 {

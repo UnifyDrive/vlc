@@ -430,8 +430,19 @@ input_event_changed( vlc_object_t * p_this, char const * psz_cmd,
         event.u.media_player_passthrougherror_changed.error =
                 var_GetInteger( p_input, "passthrougherror" );
         libvlc_event_send( &p_mi->event_manager, &event );
-    }
-    else if( newval.i_int == INPUT_EVENT_CACHE )
+    }else if( newval.i_int == INPUT_EVENT_SUPPORTAUDIOCODECTYPE )
+    {
+        event.type = libvlc_MediaPlayerSupportAudioCodecType;
+        event.u.media_player_supporttype_changed.type =
+                var_GetString( p_input, "supportaudiocodectype" );
+        libvlc_event_send( &p_mi->event_manager, &event );
+    }else if ( newval.i_int == INPUT_EVENT_SUPPORTVIDEOCODECTYPE )
+    {
+        event.type = libvlc_MediaPlayerSupportVideoCodecType;
+        event.u.media_player_supporttype_changed.type =
+                var_GetString( p_input, "supportvideocodectype" );
+        libvlc_event_send( &p_mi->event_manager, &event );
+    }else if( newval.i_int == INPUT_EVENT_CACHE )
     {
         event.type = libvlc_MediaPlayerBuffering;
         event.u.media_player_buffering.new_cache = (100 *

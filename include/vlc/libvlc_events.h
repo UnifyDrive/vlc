@@ -98,6 +98,8 @@ enum libvlc_event_e {
     libvlc_MediaPlayerLoudnessChanged,
     libvlc_MediaPlayerSWVdecUsed,
     libvlc_MediaPlayerPassThroughError,
+    libvlc_MediaPlayerSupportAudioCodecType,
+    libvlc_MediaPlayerSupportVideoCodecType,
 
     libvlc_MediaListItemAdded=0x200,
     libvlc_MediaListWillAddItem,
@@ -277,8 +279,13 @@ typedef struct libvlc_event_t
          /* passthrough error changed */
         struct
         {
-            int   error;
+            int  error;
         } media_player_passthrougherror_changed;
+        /* support audio/video effect */
+        struct
+        {
+            const char * type;
+        } media_player_supporttype_changed;
 
 
         /* VLM media */

@@ -433,6 +433,62 @@ static int aout_update_format( decoder_t *p_dec )
                     msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: aout_DecNew() failed not for dsf/dff!", __FILE__ , __FUNCTION__, __LINE__);
                 }
             }else {
+                {
+                    char *codecStatus;
+                    int  status = -1;
+                    if(p_dec->fmt_in.i_codec == VLC_CODEC_TRUEHD || p_dec->fmt_in.i_codec == VLC_CODEC_MLP)
+                    {
+                        if(p_dec->fmt_in.audio.i_channels > 7)
+                        {
+                            status = asprintf(&codecStatus,"%s:7.1","atmos");
+                        }else if (p_dec->fmt_in.audio.i_channels > 5)
+                        {
+                            status = asprintf(&codecStatus,"%s:5.1","truehd");
+                        }else{
+                            status = asprintf(&codecStatus,"%s:%d","truehd",p_dec->fmt_in.audio.i_channels);
+                        }
+                    }else if (p_dec->fmt_in.i_codec == VLC_CODEC_DTS)
+                    {
+                        if(p_dec->fmt_in.audio.i_channels > 7)
+                        {
+                            status = asprintf(&codecStatus,"%s:7.1","dts");
+                        }else if (p_dec->fmt_in.audio.i_channels > 5)
+                        {
+                            status = asprintf(&codecStatus,"%s:5.1","dts");
+                        }else{
+                            status = asprintf(&codecStatus,"%s:%d","dts",p_dec->fmt_in.audio.i_channels);
+                        }
+                    }else if (p_dec->fmt_in.i_codec == VLC_CODEC_EAC3)
+                    {
+                        if(p_dec->fmt_in.audio.i_channels > 7)
+                        {
+                            status = asprintf(&codecStatus,"%s:7.1","eac3");
+                        }else if (p_dec->fmt_in.audio.i_channels > 5)
+                        {
+                            status = asprintf(&codecStatus,"%s:5.1","eac3");
+                        }else{
+                            status = asprintf(&codecStatus,"%s:%d","eac3",p_dec->fmt_in.audio.i_channels);
+                        }
+                    }else if (p_dec->fmt_in.i_codec == VLC_CODEC_A52)
+                    {
+                        if(p_dec->fmt_in.audio.i_channels > 7)
+                        {
+                            status = asprintf(&codecStatus,"%s:7.1","ac3");
+                        }else if (p_dec->fmt_in.audio.i_channels > 5)
+                        {
+                            status = asprintf(&codecStatus,"%s:5.1","ac3");
+                        }else{
+                            status = asprintf(&codecStatus,"%s:%d","ac3",p_dec->fmt_in.audio.i_channels);
+                        }
+                    }else {
+                        status = asprintf(&codecStatus,"%s","other");
+                    }
+                    if (status != -1)
+                    {
+                        input_SendEventSupportAudioCodecType(p_owner->p_input,codecStatus);
+                        free(codecStatus);
+                    }
+                }
                 msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: aout_DecNew() success.", __FILE__ , __FUNCTION__, __LINE__);
             }
         }
@@ -593,7 +649,23 @@ static int vout_update_format( decoder_t *p_dec )
             return -1;
         }
     }
-
+    {
+        char *codecStatus;
+        int  status;
+        if(p_dec->fmt_in.video.hdr_type == HDR_TYPE_DOLBYVISION){
+            status = asprintf(&codecStatus,"%s","dolby vision");
+        }else if(p_dec->fmt_in.video.hdr_type == HDR_TYPE_HDR10){
+            status = asprintf(&codecStatus,"%s","hdr10");
+        }else if (p_dec->fmt_in.video.hdr_type == HDR_TYPE_HLG){
+            status = asprintf(&codecStatus,"%s","hlg");
+        }else{
+            status = asprintf(&codecStatus,"%s","other");
+        }
+        if(status != -1){
+            input_SendEventSupportVideoCodecType(p_owner->p_input,codecStatus);
+            free(codecStatus);
+        }
+    }
     //msg_Dbg( p_dec, "[%s:%s:%d]=zspace=: Decoder fmt_out MaxFALL=[%d] for video.", __FILE__ , __FUNCTION__, __LINE__, p_dec->fmt_out.video.lighting.MaxFALL);
     if ( memcmp( &p_dec->fmt_out.video.mastering,
                  &p_owner->fmt.video.mastering,
