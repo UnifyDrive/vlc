@@ -596,6 +596,8 @@ static int OpenDecoder(vlc_object_t *p_this, pf_MediaCodecApi_init pf_init)
         switch (p_dec->fmt_in.i_codec) {
         case VLC_CODEC_HEVC:
             mime = "video/hevc";
+            bool dolbyStatus = var_InheritBool( p_dec, "dolbyvisiondecoder");
+            if( !dolbyStatus )
             {
                 bool isDvhe=false;
                 bool isDvh1=false;
@@ -630,6 +632,11 @@ static int OpenDecoder(vlc_object_t *p_this, pf_MediaCodecApi_init pf_init)
                     if (hevc_get_profile_level(&p_dec->fmt_in, &i_hevc_profile, NULL, NULL))
                         i_profile = i_hevc_profile;
                 }
+            }else  if (i_profile == -1)
+            {
+                uint8_t i_hevc_profile;
+                if (hevc_get_profile_level(&p_dec->fmt_in, &i_hevc_profile, NULL, NULL))
+                    i_profile = i_hevc_profile;
             }
             break;
         case VLC_CODEC_H264:

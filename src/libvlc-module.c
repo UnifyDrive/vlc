@@ -1512,6 +1512,7 @@ vlc_module_begin ()
     add_bool( "spdif-ac3", false, SPDIF_TEXT, SPDIF_LONGTEXT, true);
     add_bool( "spdif-isjiguang4pro", false, SPDIF_TEXT, SPDIF_LONGTEXT, true);
     add_bool( "spdif-isz9x", false, SPDIF_TEXT, SPDIF_LONGTEXT, true);
+    add_bool( "dolbyvisiondecoder", false, SPDIF_TEXT, SPDIF_LONGTEXT, true);
 
     add_integer( "force-dolby-surround", 0, FORCE_DOLBY_TEXT,
                  FORCE_DOLBY_LONGTEXT, false )
