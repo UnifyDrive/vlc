@@ -604,11 +604,11 @@ static int OpenDecoder(vlc_object_t *p_this, pf_MediaCodecApi_init pf_init)
                 bool isDvh1=false;
                 if(p_dec->fmt_in.i_original_fourcc == VLC_FOURCC('d', 'v', 'h', '1'))
                 {
-                    isDvhe = true;
+                    isDvh1 = true;
                 }
 
                 if(p_dec->fmt_in.i_original_fourcc == VLC_FOURCC('d', 'v', 'h', 'e')){
-                    isDvh1 = true;
+                    isDvhe = true;
                 }
                  // some files don't have dvhe or dvh1 tag set up but have Dolby Vision side data
                 if (!isDvhe && !isDvh1 && p_dec->fmt_in.video.hdr_type == HDR_TYPE_DOLBYVISION)
@@ -626,6 +626,13 @@ static int OpenDecoder(vlc_object_t *p_this, pf_MediaCodecApi_init pf_init)
                     if (mediaCodecSupportsDovi)
                     {
                         mime = "video/dolby-vision";
+                        msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Use video/dolby-vision, isDvhe=%d, isDvh1=%d.", __FILE__ , __FUNCTION__, __LINE__, isDvhe, isDvh1);
+                    }else {
+                        msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Not find video/dolby-vision, isDvhe=%d, isDvh1=%d, use hevc decoder.", __FILE__ , __FUNCTION__, __LINE__, isDvhe, isDvh1);
+                        i_profile = p_dec->fmt_in.i_profile = -1;
+                        uint8_t i_hevc_profile;
+                        if (hevc_get_profile_level(&p_dec->fmt_in, &i_hevc_profile, NULL, NULL))
+                            i_profile = i_hevc_profile;
                     }
                 }else  if (i_profile == -1)
                 {

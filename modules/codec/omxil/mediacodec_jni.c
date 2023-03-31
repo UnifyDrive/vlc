@@ -563,6 +563,12 @@ char* MediaCodec_GetName(vlc_object_t *p_obj, const char *psz_mime,
                                     msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: [%s] support omx_profile 0x%x \"Main 10\"", __FILE__ , __FUNCTION__, __LINE__, name_ptr, omx_profile);
                                     break;
                             }
+                        }else if (strcmp(psz_mime, "video/dolby-vision") == 0)
+                        {
+                            if (omx_profile == (1 << profile))
+                                codec_profile = profile;
+                            else
+                                codec_profile = omx_profile;
                         }
                         if (codec_profile != profile) {
                             msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: The profile is not match, get=%d, require=%d, from codec[%s]", __FILE__ , __FUNCTION__, __LINE__, codec_profile, profile, name_ptr);

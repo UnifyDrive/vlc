@@ -48,6 +48,7 @@
 #include <libavutil/opt.h>
 #include <libavformat/avformat.h>
 #include <libavutil/display.h>
+#include "libavutil/dovi_meta.h"
 #include "../../../src/input/es_out.h"
 
 
@@ -563,9 +564,22 @@ int avformat_OpenDemux( vlc_object_t *p_this )
                     break;
             }
 
-            if (av_stream_get_side_data( s, AV_PKT_DATA_DOVI_CONF, NULL)){ // DoVi
+            AVDOVIDecoderConfigurationRecord *dovi = NULL;
+            if (dovi = (AVDOVIDecoderConfigurationRecord *)av_stream_get_side_data( s, AV_PKT_DATA_DOVI_CONF, NULL)){ // DoVi
                 es_fmt.video.hdr_type = HDR_TYPE_DOLBYVISION;
-                msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Find AV_PKT_DATA_DOVI_CONF for video.", __FILE__ , __FUNCTION__, __LINE__);
+                bool dolbyStatus = var_InheritBool( p_demux, "dolbyvisiondecoder");
+                if( !dolbyStatus ) {
+                    es_fmt.i_profile = dovi->dv_profile;
+                    es_fmt.i_level = dovi->dv_level;
+                    msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Allow to use video/dolby-vision, set profile/level read from stream.", __FILE__ , __FUNCTION__, __LINE__);
+                }
+                msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: DOVI configuration record: version: %d.%d, profile: %d, level: %d, rpu flag: %d, el flag: %d, bl flag: %d, compatibility id: %d.", __FILE__ , __FUNCTION__, __LINE__,
+                    dovi->dv_version_major, dovi->dv_version_minor,
+                    dovi->dv_profile, dovi->dv_level,
+                    dovi->rpu_present_flag,
+                    dovi->el_present_flag,
+                    dovi->bl_present_flag,
+                    dovi->dv_bl_signal_compatibility_id);
             }else if (s->codecpar->color_trc == AVCOL_TRC_SMPTE2084){ // HDR10
                 msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Find AVCOL_TRC_SMPTE2084 for video.", __FILE__ , __FUNCTION__, __LINE__);
                 es_fmt.video.hdr_type = HDR_TYPE_HDR10;
@@ -574,10 +588,11 @@ int avformat_OpenDemux( vlc_object_t *p_this )
                 es_fmt.video.hdr_type = HDR_TYPE_HLG;
              // file could be SMPTE2086 which FFmpeg currently returns as unknown
              // so use the presence of static metadata to detect it
-             }else if (av_stream_get_side_data(s, AV_PKT_DATA_MASTERING_DISPLAY_METADATA, NULL)){
+            }
+            if (av_stream_get_side_data(s, AV_PKT_DATA_MASTERING_DISPLAY_METADATA, NULL)){
                 msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Find AV_PKT_DATA_MASTERING_DISPLAY_METADATA for video.", __FILE__ , __FUNCTION__, __LINE__);
                 es_fmt.video.hdr_type = HDR_TYPE_HDR10;
-             }
+            }
             msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Video side data number, hdr_type=%d", __FILE__ , __FUNCTION__, __LINE__, es_fmt.video.hdr_type);
             break;
 
