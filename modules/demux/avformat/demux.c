@@ -569,8 +569,8 @@ int avformat_OpenDemux( vlc_object_t *p_this )
                 es_fmt.video.hdr_type = HDR_TYPE_DOLBYVISION;
                 bool dolbyStatus = var_InheritBool( p_demux, "dolbyvisiondecoder");
                 if( !dolbyStatus ) {
-                    es_fmt.i_profile = dovi->dv_profile;
-                    es_fmt.i_level = dovi->dv_level;
+                    //es_fmt.i_profile = dovi->dv_profile;
+                    //es_fmt.i_level = dovi->dv_level;
                     msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Allow to use video/dolby-vision, set profile/level read from stream.", __FILE__ , __FUNCTION__, __LINE__);
                 }
                 msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: DOVI configuration record: version: %d.%d, profile: %d, level: %d, rpu flag: %d, el flag: %d, bl flag: %d, compatibility id: %d.", __FILE__ , __FUNCTION__, __LINE__,
