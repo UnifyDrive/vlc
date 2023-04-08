@@ -21,6 +21,10 @@ libspdif_plugin_la_LDFLAGS = $(AM_LDFLAGS) $(SYMBOLIC_LDFLAGS)
 libspdif_plugin_la_CFLAGS += -DMERGE_FFMPEG
 endif
 
+if HAVE_WIN32
+libspdif_plugin_la_LDFLAGS = $(AM_LDFLAGS) $(SYMBOLIC_LDFLAGS)
+endif
+
 codec_LTLIBRARIES += libspdif_plugin.la
 
 liba52_plugin_la_SOURCES = codec/a52.c
