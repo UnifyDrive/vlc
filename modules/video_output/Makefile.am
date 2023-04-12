@@ -22,6 +22,13 @@ libglconv_cvpx_plugin_la_SOURCES = video_output/opengl/converter_cvpx.c \
 	video_output/opengl/converter.h
 libglconv_cvpx_plugin_la_LDFLAGS = $(AM_LDFLAGS) -rpath '$(voutdir)'
 
+libavsamplebufferdisplaylayer_plugin_la_SOURCES = video_output/avsamplebufferdisplaylayer.m codec/vt_utils.c codec/vt_utils.h
+libavsamplebufferdisplaylayer_plugin_la_CFLAGS = $(AM_CFLAGS)
+libavsamplebufferdisplaylayer_plugin_la_LIBADD =
+libavsamplebufferdisplaylayer_plugin_la_LDFLAGS = $(AM_LDFLAGS) -rpath '$(voutdir)' \
+	-Wl,-framework,Cocoa,-framework,QuartzCore,-framework,CoreMedia,-framework,CoreVideo,-framework,AVKit,-framework,AVFoundation
+vout_LTLIBRARIES += libavsamplebufferdisplaylayer_plugin.la
+
 if HAVE_OSX
 libvout_macosx_plugin_la_SOURCES = video_output/macosx.m $(OPENGL_COMMONSOURCES)
 libvout_macosx_plugin_la_CFLAGS = $(AM_CFLAGS) $(OPENGL_COMMONCLFAGS) -DHAVE_GL_CORE_SYMBOLS
@@ -34,6 +41,7 @@ libcaopengllayer_plugin_la_CFLAGS = $(AM_CFLAGS) $(OPENGL_COMMONCLFAGS) -DHAVE_G
 libcaopengllayer_plugin_la_LIBADD = $(OPENGL_COMMONLIBS)
 libcaopengllayer_plugin_la_LDFLAGS = $(AM_LDFLAGS) -rpath '$(voutdir)' \
 	-Wl,-framework,OpenGL,-framework,Cocoa,-framework,QuartzCore
+
 
 libglconv_cvpx_plugin_la_SOURCES += codec/vt_utils.c codec/vt_utils.h
 libglconv_cvpx_plugin_la_LDFLAGS += -Wl,-framework,IOSurface \

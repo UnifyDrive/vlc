@@ -308,7 +308,9 @@ static subpicture_t *ConvertSubtitle(decoder_t *dec, AVSubtitle *ffsub, mtime_t 
     if (avctx->coded_width != 0 && avctx->coded_height != 0) {
         spu->i_original_picture_width = avctx->coded_width;
         spu->i_original_picture_height = avctx->coded_height;
+#ifndef __APPLE__
         spu->b_subtitle_rescale = true;
+#endif
     } else {
         spu->i_original_picture_width =
             dec->fmt_in.subs.spu.i_original_frame_width;

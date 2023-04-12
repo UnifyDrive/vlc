@@ -428,7 +428,8 @@ static int VoutDisplayCreateRender(vout_display_t *vd)
         (v_src.i_chroma == VLC_CODEC_J444 && v_dst.i_chroma == VLC_CODEC_I444))
         v_dst_cmp.i_chroma = v_src.i_chroma;
 
-    const bool convert = memcmp(&v_src, &v_dst_cmp, sizeof(v_src)) != 0;
+    /* Dont't compare last 8 byte p_dovi_extra */
+    const bool convert = memcmp(&v_src, &v_dst_cmp, sizeof(v_src)-8) != 0;
     if (!convert)
         return 0;
 

@@ -1511,9 +1511,11 @@ static es_out_id_t *bluray_esOutAdd(es_out_t *p_out, const es_format_t *p_fmt)
         }
         b_select = (p_fmt->i_id == 0x1011);
         fmt.i_priority = ES_PRIORITY_NOT_SELECTABLE;
-        #if 0
+        #if defined(__APPLE__)
         if (p_sys->di->dv_flag > 0) {
-            fmt.video.hdr_type = HDR_TYPE_DOLBYVISION;
+            msg_Warn(p_demux, "Dolby vision is processed in the same way as HDR10");
+            /* Dolby vision is processed in the same way as HDR10 */
+            fmt.video.hdr_type = HDR_TYPE_HDR10;
         }else if (p_sys->di->hdrplus_flag > 0) {
             fmt.video.hdr_type = HDR_TYPE_HDR10;
         }else if (p_sys->di->hdr_flags > 0) {

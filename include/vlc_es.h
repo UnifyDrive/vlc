@@ -327,7 +327,8 @@ typedef enum video_hdr_type_t
     HDR_TYPE_UNDEF,
     HDR_TYPE_HDR10, ///< <b>HDR10</b>, returns `hdr10` when used in infolabels
     HDR_TYPE_DOLBYVISION, ///< <b>Dolby Vision</b>, returns `dolbyvision` when used in infolabels
-    HDR_TYPE_HLG ///< <b>HLG</b>, returns `hlg` when used in infolabels
+    HDR_TYPE_HLG, ///< <b>HLG</b>, returns `hlg` when used in infolabels
+    HDR_TYPE_DOLBYVISION_COMPATIBLE_HDR10
 } video_hdr_type_t;
 
 
@@ -383,6 +384,8 @@ struct video_format_t
     } lighting;
     uint32_t i_cubemap_padding; /**< padding in pixels of the cube map faces */
     video_hdr_type_t hdr_type;
+    int     i_dovi_extra;        /**< dovi length in bytes of extra data pointer */
+    void    *p_dovi_extra;       /**< dovi extra data needed by some decoders or muxers */
 };
 
 /**
@@ -394,6 +397,8 @@ static inline void video_format_Init( video_format_t *p_src, vlc_fourcc_t i_chro
 {
     memset( p_src, 0, sizeof( video_format_t ) );
     p_src->i_chroma = i_chroma;
+    p_src->i_dovi_extra = 0;
+    p_src->p_dovi_extra = NULL;
     vlc_viewpoint_init( &p_src->pose );
 }
 
@@ -411,6 +416,13 @@ static inline int video_format_Copy( video_format_t *p_dst, const video_format_t
         if( !p_dst->p_palette )
             return VLC_ENOMEM;
         memcpy( p_dst->p_palette, p_src->p_palette, sizeof( *p_dst->p_palette ) );
+    }
+    if (p_src->i_dovi_extra) {
+        p_dst->p_dovi_extra = malloc(p_src->i_dovi_extra);
+        if (!p_dst->p_dovi_extra)
+            return VLC_ENOMEM;
+        memcpy(p_dst->p_dovi_extra, p_src->p_dovi_extra, p_src->i_dovi_extra);
+        p_dst->i_dovi_extra = p_src->i_dovi_extra;
     }
     return VLC_SUCCESS;
 }
@@ -451,6 +463,11 @@ static inline void video_format_AdjustColorSpace( video_format_t *p_fmt )
 static inline void video_format_Clean( video_format_t *p_src )
 {
     free( p_src->p_palette );
+    if ( p_src->p_dovi_extra )
+    {
+        //free( p_src->p_dovi_extra);
+        //p_src->p_dovi_extra = NULL;
+    }
     memset( p_src, 0, sizeof( video_format_t ) );
 }
 

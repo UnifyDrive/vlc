@@ -357,7 +357,7 @@ libvideotoolbox_plugin_la_SOURCES = \
 	packetizer/hxxx_sei.h packetizer/hxxx_sei.c \
 	packetizer/h264_slice.c packetizer/h264_slice.h \
 	packetizer/h264_nal.c packetizer/h264_nal.h \
-	packetizer/hevc_nal.c packetizer/hevc_nal.h
+	packetizer/hevc_nal.c packetizer/hevc_nal.h libavformat/libavformat.h
 if HAVE_OSX
 libvideotoolbox_plugin_la_OBJCFLAGS = $(AM_OBJCFLAGS) -mmacosx-version-min=10.8
 endif
@@ -367,8 +367,8 @@ endif
 if HAVE_TVOS
 libvideotoolbox_plugin_la_OBJCFLAGS = $(AM_OBJCFLAGS) -mtvos-version-min=10.2
 endif
-libvideotoolbox_plugin_la_LIBADD = libchroma_copy.la
-libvideotoolbox_plugin_la_LDFLAGS = $(AM_LDFLAGS) -rpath '$(codecdir)' -Wl,-framework,Foundation -Wl,-framework,VideoToolbox -Wl,-framework,CoreMedia -Wl,-framework,CoreVideo
+libvideotoolbox_plugin_la_LIBADD = libchroma_copy.la $(AVFORMAT_LIBS)
+libvideotoolbox_plugin_la_LDFLAGS = $(AM_LDFLAGS) $(AVFORMAT_CFLAGS) -rpath '$(codecdir)' -Wl,-framework,Foundation -Wl,-framework,VideoToolbox -Wl,-framework,CoreMedia -Wl,-framework,CoreVideo
 EXTRA_LTLIBRARIES += libvideotoolbox_plugin.la
 codec_LTLIBRARIES += $(LTLIBvideotoolbox)
 

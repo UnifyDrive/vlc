@@ -64,7 +64,17 @@ int vout_OpenWrapper(vout_thread_t *vout,
         sys->display.vd = vout_NewSplitter(vout, &vout->p->original, state, "$vout", splitter_name,
                                            double_click_timeout, hide_timeout);
     } else {
-        sys->display.vd = vout_NewDisplay(vout, &vout->p->original, state, "$vout",
+        msg_Dbg(vout, "vout fmt %4.4s hdr_type %d",(char*)&vout->p->original.i_chroma, vout->p->original.hdr_type);
+        char * module_name = "$vout";
+        if (( vout->p->original.i_chroma == VLC_CODEC_CVPX_UYVY
+           || vout->p->original.i_chroma == VLC_CODEC_CVPX_NV12
+           || vout->p->original.i_chroma == VLC_CODEC_CVPX_I420
+           || vout->p->original.i_chroma == VLC_CODEC_CVPX_BGRA
+           || vout->p->original.i_chroma == VLC_CODEC_CVPX_P010)
+            && (vout->p->original.hdr_type > 0)){
+            module_name = "avsamplebufferdisplaylayer";
+        }
+        sys->display.vd = vout_NewDisplay(vout, &vout->p->original, state, module_name,
                                           double_click_timeout, hide_timeout);
     }
     if (!sys->display.vd) {

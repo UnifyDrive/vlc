@@ -47,6 +47,7 @@
 
 #include <libavutil/opt.h>
 #include <libavformat/avformat.h>
+#include <libavformat/dovi_isom.h>
 #include <libavutil/display.h>
 #include "libavutil/dovi_meta.h"
 #include "../../../src/input/es_out.h"
@@ -561,9 +562,40 @@ int avformat_OpenDemux( vlc_object_t *p_this )
                     break;
             }
 
+            switch (cp->color_space)
+            {
+                case AVCOL_SPC_BT709:
+                    es_fmt.video.space = COLOR_SPACE_BT709;
+                    break;
+                case AVCOL_SPC_BT2020_NCL:
+                case AVCOL_SPC_BT2020_CL:
+                    es_fmt.video.space = COLOR_SPACE_BT2020;
+                    break;
+                case AVCOL_SPC_SMPTE170M:
+                    es_fmt.video.space = COLOR_SPACE_BT601;
+                    break;
+                default:
+                    break;
+            }
+
             AVDOVIDecoderConfigurationRecord *dovi = NULL;
             if (dovi = (AVDOVIDecoderConfigurationRecord *)av_stream_get_side_data( s, AV_PKT_DATA_DOVI_CONF, NULL)){ // DoVi
                 es_fmt.video.hdr_type = HDR_TYPE_DOLBYVISION;
+#if defined(__APPLE__)
+                uint8_t dvcc_data[ISOM_DVCC_DVVC_SIZE];
+                ff_isom_put_dvcc_dvvc(NULL, dvcc_data, dovi);
+                if ((dovi->dv_profile == 5) || (dovi->dv_profile == 8 && dovi->dv_bl_signal_compatibility_id == 4))
+                {
+                    es_fmt.video.i_dovi_extra = ISOM_DVCC_DVVC_SIZE;
+                    es_fmt.video.p_dovi_extra = malloc(ISOM_DVCC_DVVC_SIZE);
+                }
+                else
+                {
+                    es_fmt.video.hdr_type = HDR_TYPE_DOLBYVISION_COMPATIBLE_HDR10;
+                }
+                if (es_fmt.video.p_dovi_extra)
+                    memcpy( es_fmt.video.p_dovi_extra, (void*)dvcc_data, ISOM_DVCC_DVVC_SIZE );
+#endif
                 bool dolbyStatus = var_InheritBool( p_demux, "dolbyvisiondecoder");
                 if( !dolbyStatus ) {
                     es_fmt.i_profile = dovi->dv_profile;

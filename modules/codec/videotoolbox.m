@@ -826,6 +826,28 @@ static CFMutableDictionaryRef GetDecoderExtradataHEVC(decoder_t *p_dec)
             block_Release(p_hvcC);
         }
     }
+
+    if (p_dec->fmt_in.video.i_dovi_extra )
+    {
+        /* copy DecoderConfiguration */
+        uint8_t* extra = (uint8_t*)p_dec->fmt_in.video.p_dovi_extra;
+        uint8_t profile = extra[2] >> 1;
+        CFDataRef dovi_extradata = CFDataCreate(kCFAllocatorDefault, extra, p_dec->fmt_in.video.i_dovi_extra);
+        if (dovi_extradata == nil)
+        {
+            CFRelease(extradata);
+            return nil;
+        }
+        msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: i_dovi_extra=%d, profile=%d.", __FILE__ , __FUNCTION__, __LINE__, p_dec->fmt_in.video.i_dovi_extra, profile);
+        if (profile == 5) {
+            CFDictionarySetValue(extradata, CFSTR("dvcC"), dovi_extradata);
+        }
+        else {
+            CFDictionarySetValue(extradata, CFSTR("dvvC"), dovi_extradata);
+        }
+        CFRelease(dovi_extradata);
+    }
+
     return extradata;
 }
 
@@ -1246,6 +1268,67 @@ static CFMutableDictionaryRef CreateSessionDescriptionFormat(decoder_t *p_dec,
                          kVTDecompressionPropertyKey_DeinterlaceMode,
                          kVTDecompressionProperty_DeinterlaceMode_Temporal);
 
+    if (p_dec->fmt_in.video.hdr_type == HDR_TYPE_HDR10
+        || p_dec->fmt_in.video.hdr_type == HDR_TYPE_DOLBYVISION_COMPATIBLE_HDR10
+        || p_dec->fmt_in.video.hdr_type == HDR_TYPE_HLG) {
+        msg_Warn(p_dec, "[%s:%s:%d]=zspace=: hdr_type = %d primaries = %d space =%d transfer = %d", __FILE__ , __FUNCTION__, __LINE__, p_dec->fmt_in.video.hdr_type, p_dec->fmt_in.video.primaries, p_dec->fmt_in.video.space, p_dec->fmt_in.video.transfer);
+        if (@available(macOS 10.13, iOS 11.0, tvOS 11.0, *)) {
+            switch(p_dec->fmt_in.video.primaries){
+                case COLOR_PRIMARIES_BT2020:
+                    CFDictionarySetValue(decoderConfiguration, kCVImageBufferColorPrimariesKey, kCVImageBufferColorPrimaries_ITU_R_2020);
+                    break;
+                case COLOR_PRIMARIES_BT709:
+                    CFDictionarySetValue(decoderConfiguration, kCVImageBufferColorPrimariesKey, kCVImageBufferColorPrimaries_ITU_R_709_2);
+                    break;
+                default:
+                    break;
+            }
+            switch(p_dec->fmt_in.video.space){
+                case COLOR_SPACE_BT2020:
+                    CFDictionarySetValue(decoderConfiguration, kCVImageBufferYCbCrMatrixKey, kCVImageBufferYCbCrMatrix_ITU_R_2020);
+                    break;
+                case COLOR_SPACE_BT709:
+                    CFDictionarySetValue(decoderConfiguration, kCVImageBufferYCbCrMatrixKey, kCVImageBufferYCbCrMatrix_ITU_R_709_2);
+                    break;
+                default:
+                    break;
+            }
+            switch(p_dec->fmt_in.video.transfer) {
+
+                case TRANSFER_FUNC_SMPTE_ST2084:
+                    CFDictionarySetValue(decoderConfiguration, kCVImageBufferTransferFunctionKey, kCVImageBufferTransferFunction_SMPTE_ST_2084_PQ);
+                    break;
+                case TRANSFER_FUNC_HLG:
+                    CFDictionarySetValue(decoderConfiguration, kCVImageBufferTransferFunctionKey, kCVImageBufferTransferFunction_ITU_R_2100_HLG);
+                    break;
+                case TRANSFER_FUNC_SRGB:
+                {
+                    Float32 gamma = 2.2;
+                    CFNumberRef gamma_level = CFNumberCreate(NULL, kCFNumberFloat32Type, &gamma);
+                    CFDictionarySetValue(decoderConfiguration, kCVImageBufferGammaLevelKey, gamma_level);
+                    CFRelease(gamma_level);
+                    break;
+                }
+                case TRANSFER_FUNC_BT470_BG:
+                {
+                    Float32 gamma = 2.8;
+                    CFNumberRef gamma_level = CFNumberCreate(NULL, kCFNumberFloat32Type, &gamma);
+                    CFDictionarySetValue(decoderConfiguration, kCVImageBufferGammaLevelKey, gamma_level);
+                    CFRelease(gamma_level);
+                }
+                default:
+                    break;
+            }
+        }
+    }
+    if (p_dec->fmt_in.video.hdr_type == HDR_TYPE_DOLBYVISION ) {
+        if (@available(macOS 11.0, iOS 14.0, tvOS 14.0, *)) {
+            CFDictionarySetValue(decoderConfiguration, kVTDecompressionPropertyKey_PropagatePerFrameHDRDisplayMetadata, kCFBooleanTrue);
+        } else {
+            // Fallback on earlier versions
+        }
+    }
+
     return decoderConfiguration;
 }
 
@@ -1315,7 +1398,7 @@ static int StartVideoToolbox(decoder_t *p_dec)
 
 #if !TARGET_OS_IPHONE
     CFDictionarySetValue(destinationPixelBufferAttributes,
-                         kCVPixelBufferIOSurfaceOpenGLTextureCompatibilityKey,
+                         kCVPixelBufferIOSurfaceCoreAnimationCompatibilityKey,
                          kCFBooleanTrue);
 #else
     CFDictionarySetValue(destinationPixelBufferAttributes,
@@ -1335,6 +1418,30 @@ static int StartVideoToolbox(decoder_t *p_dec)
         cfdict_set_int32(destinationPixelBufferAttributes,
                          kCVPixelBufferPixelFormatTypeKey,
                          p_sys->i_cvpx_format);
+    }
+    if (p_dec->fmt_in.video.hdr_type == HDR_TYPE_HDR10
+        || p_dec->fmt_in.video.hdr_type == HDR_TYPE_DOLBYVISION_COMPATIBLE_HDR10)
+    {
+        cfdict_set_int32(destinationPixelBufferAttributes,
+                         kCVPixelBufferPixelFormatTypeKey,
+                         kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange);
+    }
+    else if (p_dec->fmt_in.video.hdr_type == HDR_TYPE_HLG)
+    {
+        cfdict_set_int32(destinationPixelBufferAttributes,
+                         kCVPixelBufferPixelFormatTypeKey,
+                         kCVPixelFormatType_420YpCbCr10BiPlanarFullRange);
+    }
+    else if (p_dec->fmt_in.video.i_dovi_extra)
+    {
+        uint8_t* extra = (uint8_t*)p_dec->fmt_in.video.p_dovi_extra;
+        uint8_t profile = extra[2] >>1;
+        /* Dolby vision profile 5 or 8.4 */
+        if (profile == 5) {
+            cfdict_set_int32(destinationPixelBufferAttributes, kCVPixelBufferPixelFormatTypeKey, kCVPixelFormatType_420YpCbCr10BiPlanarFullRange);
+        } else {
+            cfdict_set_int32(destinationPixelBufferAttributes, kCVPixelBufferPixelFormatTypeKey, kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange);
+        }
     }
 
     cfdict_set_int32(destinationPixelBufferAttributes,
@@ -1535,7 +1642,12 @@ static int OpenDecoder(vlc_object_t *p_this)
             p_sys->pf_fill_reorder_info = FillReorderInfoHEVC;
             p_sys->b_poc_based_reorder = true;
             p_sys->b_vt_need_keyframe = true;
-            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: kCMVideoCodecType_HEVC.", __FILE__ , __FUNCTION__, __LINE__);
+            if (p_dec->fmt_in.video.hdr_type == HDR_TYPE_DOLBYVISION) {
+                p_sys->codec = codec = kCMVideoCodecType_DolbyVisionHEVC;
+                msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: kCMVideoCodecType_DolbyVisionHEVC.", __FILE__ , __FUNCTION__, __LINE__);
+            }else {
+                msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: kCMVideoCodecType_HEVC.", __FILE__ , __FUNCTION__, __LINE__);
+            }
             break;
 
         case kCMVideoCodecType_MPEG4Video:
@@ -1761,7 +1873,7 @@ static int ConfigureVout(decoder_t *p_dec)
 static CFMutableDictionaryRef ExtradataInfoCreate(CFStringRef name,
                                                   void *p_data, size_t i_data)
 {
-    CFMutableDictionaryRef extradataInfo = cfdict_create(1);
+    CFMutableDictionaryRef extradataInfo = cfdict_create(0);
     if (extradataInfo == nil)
         return nil;
 
