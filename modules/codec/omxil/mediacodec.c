@@ -742,6 +742,18 @@ static int OpenDecoder(vlc_object_t *p_this, pf_MediaCodecApi_init pf_init)
                 msg_Warn(p_dec, "[%s:%s:%d]=zspace=: p_sys->api.configure [video/x-ms-wmv] failed!", __FILE__ , __FUNCTION__, __LINE__);
                 return (VLC_EGENERIC);
             }
+        }else if (!strcmp(mime, "video/dolby-vision"))
+        {
+            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: p_sys->api.psz_mime set to [video/hevc]", __FILE__ , __FUNCTION__, __LINE__);
+            p_sys->api.psz_mime = "video/hevc";
+            i_profile = p_dec->fmt_in.i_profile = -1;
+            if (p_sys->api.configure(&p_sys->api, i_profile) != 0)
+            {
+                p_sys->api.clean(&p_sys->api);
+                free(p_sys);
+                msg_Warn(p_dec, "[%s:%s:%d]=zspace=: p_sys->api.configure [video/hevc] failed!", __FILE__ , __FUNCTION__, __LINE__);
+                return (VLC_EGENERIC);
+            }
         }
         else
         {

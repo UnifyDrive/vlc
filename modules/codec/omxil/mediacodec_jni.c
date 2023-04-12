@@ -542,8 +542,9 @@ char* MediaCodec_GetName(vlc_object_t *p_obj, const char *psz_mime,
                     {
                         jobject profile_level = (*env)->GetObjectArrayElement(env, profile_levels, i);
 
-                        msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: Check %d profile_level for [%s].", __FILE__ , __FUNCTION__, __LINE__, i, psz_mime);
                         int omx_profile = (*env)->GetIntField(env, profile_level, jfields.profile_field);
+                        int omx_level = (*env)->GetIntField(env, profile_level, jfields.level_field);
+                        msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: Check %d profile_level read[%d, %d] for [%s].", __FILE__ , __FUNCTION__, __LINE__, i, omx_profile, omx_level, psz_mime);
                         (*env)->DeleteLocalRef(env, profile_level);
 
                         int codec_profile = 0;
