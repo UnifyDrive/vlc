@@ -25,6 +25,26 @@
 #import "coreaudio_common.h"
 #import <CoreAudio/CoreAudioTypes.h>
 
+static const int pi_channels_maps[9] =
+{
+    0,
+    AOUT_CHAN_CENTER,
+    AOUT_CHAN_LEFT | AOUT_CHAN_RIGHT,
+    AOUT_CHAN_LFE  | AOUT_CHAN_LEFT | AOUT_CHAN_RIGHT,
+    AOUT_CHAN_LEFT | AOUT_CHAN_RIGHT | AOUT_CHAN_REARLEFT
+     | AOUT_CHAN_REARRIGHT,
+    AOUT_CHAN_LEFT | AOUT_CHAN_RIGHT | AOUT_CHAN_CENTER
+     | AOUT_CHAN_REARLEFT | AOUT_CHAN_REARRIGHT,
+    AOUT_CHAN_LEFT | AOUT_CHAN_RIGHT | AOUT_CHAN_CENTER
+     | AOUT_CHAN_REARLEFT | AOUT_CHAN_REARRIGHT | AOUT_CHAN_LFE,
+    AOUT_CHAN_LEFT | AOUT_CHAN_RIGHT | AOUT_CHAN_CENTER
+     | AOUT_CHAN_REARCENTER | AOUT_CHAN_MIDDLELEFT
+     | AOUT_CHAN_MIDDLERIGHT | AOUT_CHAN_LFE,
+    AOUT_CHAN_LEFT | AOUT_CHAN_RIGHT | AOUT_CHAN_CENTER | AOUT_CHAN_REARLEFT
+     | AOUT_CHAN_REARRIGHT | AOUT_CHAN_MIDDLELEFT | AOUT_CHAN_MIDDLERIGHT
+     | AOUT_CHAN_LFE,
+};
+
 static inline uint64_t
 BytesToFrames(struct aout_sys_common *p_sys, size_t i_bytes)
 {
@@ -628,11 +648,19 @@ MapOutputLayout(audio_output_t *p_aout, audio_sample_format_t *fmt,
     fmt->i_physical_channels = 0;
     uint32_t i_original = fmt->i_physical_channels;
     AudioChannelLayout *reslayout = NULL;
+    struct aout_sys_common *p_sys = (struct aout_sys_common *) p_aout->sys;
 
     if (outlayout == NULL)
     {
-        msg_Dbg(p_aout, "not output layout, default to Stereo");
-        fmt->i_physical_channels = AOUT_CHANS_STEREO;
+        #if TARGET_OS_TV
+        if(p_sys->max_channels == 6)
+        {
+            fmt->i_physical_channels = pi_channels_maps[fmt->i_channels];
+        }else
+        #endif
+        {
+            fmt->i_physical_channels = AOUT_CHANS_STEREO;
+        }
         goto end;
     }
 
@@ -837,9 +865,7 @@ SetupInputLayout(audio_output_t *p_aout, const audio_sample_format_t *fmt,
         case 8:
             if (fmt->i_physical_channels & (AOUT_CHAN_LFE))
             {
-                /* L R C LFE Ls Rs Rls Rrs */
-                *inlayout_tag = kAudioChannelLayoutTag_MPEG_7_1_C;
-
+                *inlayout_tag =   kAudioChannelLayoutTag_DTS_8_0_B;
                 chans_out[0] = AOUT_CHAN_LEFT;
                 chans_out[1] = AOUT_CHAN_RIGHT;
                 chans_out[2] = AOUT_CHAN_CENTER;

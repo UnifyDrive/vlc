@@ -31,6 +31,7 @@
 #import <Foundation/Foundation.h>
 #import <AVFoundation/AVFoundation.h>
 #import <mach/mach_time.h>
+#import <AudioToolbox/AudioToolbox.h>
 
 #pragma mark -
 #pragma mark local prototypes & module descriptor
@@ -56,11 +57,7 @@ vlc_module_end ()
 @property (readonly, assign) audio_output_t* aout;
 @end
 
-enum au_dev
-{
-    AU_DEV_PCM,
-    AU_DEV_ENCODED,
-};
+
 
 static const struct {
     const char *psz_id;
@@ -145,6 +142,12 @@ struct aout_sys_t
     struct aout_sys_common c;
 
     AVAudioSession *avInstance;
+ #if TARGET_OS_TV
+ #if MULTI_CHANNEL_TDX
+    AudioConverterRef  audioConverter;
+    AudioBufferList  outputBufferList;
+#endif
+#endif
     AoutWrapper *aoutWrapper;
     /* The AudioUnit we use */
     AudioUnit au_unit;
@@ -198,8 +201,7 @@ enum port_type
     if (routeChangeReason == AVAudioSessionRouteChangeReasonNewDeviceAvailable
      || routeChangeReason == AVAudioSessionRouteChangeReasonOldDeviceUnavailable)
         aout_RestartRequest(p_aout, AOUT_RESTART_OUTPUT);
-    else
-    {
+    else{
         const mtime_t latency_us = [p_sys->avInstance outputLatency] * CLOCK_FREQ;
         ca_SetDeviceLatency(p_aout, latency_us);
         msg_Dbg(p_aout, "Current device has a new latency of %lld us", latency_us);
@@ -243,6 +245,68 @@ enum port_type
 }
 @end
 
+#if MULTI_CHANNEL_TDX
+const char * CoreAudioTypeAudioFormatName(AudioFormatID audioFormatID) {
+    switch (audioFormatID) {
+        case kAudioFormatLinearPCM:
+            return "LinearPCM";
+        case kAudioFormatAC3:
+            return "AC3";
+        case kAudioFormat60958AC3:
+            return "60958AC3";
+        case kAudioFormatAppleIMA4:
+            return "AppleIMA4";
+        case kAudioFormatMPEG4AAC:
+            return "MPEG4AAC";
+        case kAudioFormatMPEG4CELP:
+            return "MPEG4CELP";
+        case kAudioFormatMPEG4HVXC:
+            return "MPEG4HVXC";
+        case kAudioFormatMPEG4TwinVQ:
+            return "MPEG4TwinVQ";
+        case kAudioFormatMACE3:
+            return "MACE3";
+        case kAudioFormatMACE6:
+            return "MACE6";
+        case kAudioFormatULaw:
+            return "ULaw";
+        case kAudioFormatALaw:
+            return "ALaw";
+        case kAudioFormatQDesign:
+            return "QDesign";
+        case kAudioFormatQDesign2:
+            return "QDesign2";
+        case kAudioFormatQUALCOMM:
+            return "QUALCOMM";
+        case kAudioFormatMPEGLayer1:
+            return "MPEGLayer1";
+        case kAudioFormatMPEGLayer2:
+            return "MPEGLayer2";
+        case kAudioFormatMPEGLayer3:
+            return "MPEGLayer3";
+        case kAudioFormatTimeCode:
+            return "TimeCode";
+        case kAudioFormatMIDIStream:
+            return "MIDIStream";
+        case kAudioFormatParameterValueStream:
+            return "ParameterValueStream";
+        case kAudioFormatAppleLossless:
+            return "AppleLossless";
+        case kAudioFormatMPEG4AAC_HE:
+            return "MPEG4AAC_HE";
+        case kAudioFormatMPEG4AAC_LD:
+            return "MPEG4AAC_LD";
+        case kAudioFormatMPEG4AAC_ELD:
+            return "MPEG4AAC_ELD";
+        case kAudioFormatMPEG4AAC_ELD_SBR:
+            return "MPEG4AAC_ELD_SBR";
+        case kAudioFormatMPEG4AAC_ELD_V2:
+            return "MPEG4AAC_ELD_V2";
+        default:
+            return "Unknown";
+    }
+}
+#endif
 static void
 avas_setPreferredNumberOfChannels(audio_output_t *p_aout,
                                   const audio_sample_format_t *fmt)
@@ -577,6 +641,27 @@ Play(audio_output_t * p_aout, block_t * p_block)
     if (p_sys->b_muted)
         block_Release(p_block);
     else {
+#if TARGET_OS_TV
+#if  MULTI_CHANNEL_TDX
+        AudioBufferList  inputBufferList;
+        inputBufferList.mNumberBuffers = 1;
+        inputBufferList.mBuffers[0].mNumberChannels = 1;
+        inputBufferList.mBuffers[0].mDataByteSize = p_block->i_buffer;
+        inputBufferList.mBuffers[0].mData = p_block->p_buffer;
+        p_sys->outputBufferList.mNumberBuffers = 1;
+        p_sys->outputBufferList.mBuffers[0].mNumberChannels = 1;
+        p_sys->outputBufferList.mBuffers[0].mDataByteSize  = 48000;
+        OSStatus err =  AudioConverterConvertComplexBuffer(p_sys->audioConverter,40, &inputBufferList, &p_sys->outputBufferList);
+        msg_Dbg(p_aout,"AudioConverterConvertComplexBuffer  %d     outputDataPacketSize   %d   ",err,p_sys->outputBufferList.mBuffers[0].mDataByteSize);
+        if (err != noErr) {
+            msg_Dbg(p_aout,"AudioConverterConvertComplexBuffer   err   %d     outputDataPacketSize   %d   i_buffer   %d  ",err,p_sys->outputBufferList.mBuffers[0].mDataByteSize,p_block->i_buffer);
+            return;
+        }else{
+           memcpy(p_block->p_buffer,p_sys->outputBufferList.mBuffers[0].mData,p_sys->outputBufferList.mBuffers[0].mDataByteSize);
+          p_block->i_buffer = p_sys->outputBufferList.mBuffers[0].mDataByteSize;
+        }
+#endif
+#endif
         ret = ca_Play(p_aout, p_block);
         if (ret != 0) {
             Stop(p_aout);
@@ -702,6 +787,66 @@ Start(audio_output_t *p_aout, audio_sample_format_t *restrict fmt)
     if (ret != VLC_SUCCESS)
         goto error;
 
+#if TARGET_OS_TV
+#if MULTI_CHANNEL_TDX
+    AudioStreamBasicDescription sourceFormat;
+    sourceFormat.mFormatFlags = kAudioFormatFlagsNativeFloatPacked;
+    sourceFormat.mChannelsPerFrame = aout_FormatNbChannels(fmt);
+    sourceFormat.mBitsPerChannel = 32;
+
+    sourceFormat.mSampleRate = fmt->i_rate;
+    sourceFormat.mFormatID = kAudioFormatLinearPCM;
+    sourceFormat.mFramesPerPacket = 1;
+    sourceFormat.mBytesPerFrame = sourceFormat.mBitsPerChannel * sourceFormat.mChannelsPerFrame / 8;
+    sourceFormat.mBytesPerPacket = sourceFormat.mBytesPerFrame * sourceFormat.mFramesPerPacket;
+
+    AudioStreamBasicDescription destFormat;
+    destFormat.mFormatFlags = kAudioFormatFlagsNativeFloatPacked;
+    destFormat.mChannelsPerFrame = aout_FormatNbChannels(fmt);
+    destFormat.mBitsPerChannel = 32;
+    destFormat.mSampleRate = fmt->i_rate;
+    destFormat.mFormatID = kAudioFormatLinearPCM;
+    destFormat.mFramesPerPacket = 1;
+    destFormat.mBytesPerFrame = destFormat.mBitsPerChannel * destFormat.mChannelsPerFrame / 8;
+    destFormat.mBytesPerPacket = destFormat.mBytesPerFrame * destFormat.mFramesPerPacket;
+    msg_Dbg(p_aout,"destFormat  mChannelsPerFrame  %d  mBitsPerChannel   %d  mSampleRate  %f  mFormatID  %d  mBytesPerFrame  %d  mBytesPerPacket  %d   rate  %d",destFormat.mChannelsPerFrame,
+                                        destFormat.mBitsPerChannel ,
+                                        destFormat.mSampleRate,
+                                        destFormat.mFormatID,destFormat.mBytesPerFrame
+                                        ,destFormat.mBytesPerPacket,fmt->i_rate);
+
+    UInt32 layout_size = sizeof(AudioChannelLayout) + sizeof(AudioChannelDescription);;
+    AudioChannelLayout *atmoLayout = malloc(layout_size);
+    atmoLayout->mChannelLayoutTag = kAudioChannelLayoutTag_Atmos_5_1_2;
+    atmoLayout->mChannelBitmap = 0;
+    atmoLayout->mNumberChannelDescriptions = 1;
+    atmoLayout->mChannelDescriptions[0].mChannelLabel = kAudioChannelLabel_Ambisonic_W;
+    atmoLayout->mChannelDescriptions[0].mChannelFlags = kAudioChannelFlags_AllOff;
+
+    // Set up Dolby Atmos encoder
+    AudioStreamBasicDescription eac3Format;
+    eac3Format.mSampleRate = 48000;
+    eac3Format.mFormatID = kAudioFormat60958AC3;
+    AudioClassDescription encoderDesc;
+    UInt32 size = sizeof(encoderDesc);
+    AudioFormatGetProperty(kAudioFormatProperty_Encoders, sizeof(eac3Format.mFormatID), &eac3Format.mFormatID, &size, &encoderDesc);
+    status = AudioConverterNewSpecific(&sourceFormat, &destFormat, 1, &encoderDesc, &p_sys->audioConverter);
+    if (status != noErr) {
+        msg_Dbg(p_aout,"      AudioConverterNew    status   %d  ",status);
+        goto error;
+    }
+    p_sys->outputBufferList.mBuffers[0].mDataByteSize = 48000;
+    p_sys->outputBufferList.mBuffers[0].mData = malloc(48000*sizeof(uint8_t));
+    msg_Dbg(p_aout,"AudioConverterSetProperty   AudioConverterNew   %d ",status);
+    status = AudioConverterSetProperty(p_sys->audioConverter, kAudioConverterOutputChannelLayout,
+                                  layout_size, atmoLayout);
+    if (status != noErr) {
+       msg_Dbg(p_aout,"      AudioConverterSetProperty    status   %d  ",status);
+       free(atmoLayout);
+       goto error;
+    }
+#endif
+#endif
     p_aout->play = Play;
 
     err = AudioOutputUnitStart(p_sys->au_unit);
@@ -794,7 +939,14 @@ Open(vlc_object_t *obj)
 
     sys->avInstance = [AVAudioSession sharedInstance];
     assert(sys->avInstance != NULL);
+#if TARGET_OS_TV
+    AVAudioSessionRouteDescription *currentRoute = sys->avInstance.currentRoute;
+    AVAudioChannelCount preferredOutputNumberOfChannels = sys->avInstance.maximumOutputNumberOfChannels;
 
+    if (currentRoute.outputs.count > 0) {
+        msg_Dbg(aout," preferredOutputNumberOfChannels  %d    ", (int)preferredOutputNumberOfChannels);
+    }
+#endif
     sys->aoutWrapper = [[AoutWrapper alloc] initWithAout:aout];
     if (sys->aoutWrapper == NULL)
     {
@@ -807,6 +959,10 @@ Open(vlc_object_t *obj)
     sys->b_preferred_channels_set = false;
     sys->b_spatial_audio_supported = false;
     sys->au_dev = var_InheritBool(aout, "spdif") ? AU_DEV_ENCODED : AU_DEV_PCM;
+    sys->c.au_dev = sys->au_dev;
+#if TARGET_OS_TV
+    sys->c.max_channels  =  (int)preferredOutputNumberOfChannels;
+#endif
     aout->start = Start;
     aout->stop = Stop;
     aout->mute_set  = MuteSet;

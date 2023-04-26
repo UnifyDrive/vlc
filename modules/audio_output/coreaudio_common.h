@@ -44,6 +44,14 @@
 
 #define ca_LogErr(fmt) msg_Err(p_aout, fmt ", OSStatus: %d", (int) err)
 #define ca_LogWarn(fmt) msg_Warn(p_aout, fmt ", OSStatus: %d", (int) err)
+//#define  MULTI_CHANNEL_TDX   1
+
+enum au_dev
+{
+    AU_DEV_PCM,
+    AU_DEV_ENCODED,
+};
+
 
 struct aout_sys_common
 {
@@ -51,7 +59,9 @@ struct aout_sys_common
      * from ca_Close) */
 
     mach_timebase_info_data_t tinfo;
-
+#if TARGET_OS_TV
+    int                 max_channels;
+#endif
     size_t              i_underrun_size;
     bool                b_paused;
     bool                b_do_flush;
@@ -84,6 +94,7 @@ struct aout_sys_common
     uint8_t             chan_table[AOUT_CHAN_MAX];
     /* ca_TimeGet extra latency, in micro-seconds */
     mtime_t             i_dev_latency_us;
+    enum au_dev au_dev;
 };
 
 int ca_Open(audio_output_t *p_aout);
