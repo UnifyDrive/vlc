@@ -653,15 +653,27 @@ MapOutputLayout(audio_output_t *p_aout, audio_sample_format_t *fmt,
     if (outlayout == NULL)
     {
         #if TARGET_OS_TV
-        if(p_sys->max_channels == 6)
+        if(p_sys->max_channels > 2)
         {
-            fmt->i_physical_channels = pi_channels_maps[fmt->i_channels];
+            //fmt->i_physical_channels = pi_channels_maps[fmt->i_channels];
+            unsigned channel_count = fmt->i_channels;
+            channel_count = __MIN(channel_count, p_sys->max_channels);
+            fmt->i_physical_channels = pi_channels_maps[channel_count];
         }else
         #endif
         {
             fmt->i_physical_channels = AOUT_CHANS_STEREO;
         }
+
+        #if TARGET_OS_TV
+        msg_Warn(p_aout, "[%s:%s:%d]=zspace=: OutLayout is NULL,set it p_sys->max_channels=%d, p_sys->i_current_channels=%d, fmt->i_channels=%d, fmt->i_physical_channels=%d.", 
+            __FILE__ , __FUNCTION__, __LINE__, 
+            p_sys->max_channels, p_sys->i_current_channels, 
+            fmt->i_channels, fmt->i_physical_channels);
+        #endif
         goto end;
+    }else {
+        msg_Warn(p_aout, "[%s:%s:%d]=zspace=: OutLayout is setted, parse it .", __FILE__ , __FUNCTION__, __LINE__);
     }
 
     if (outlayout->mChannelLayoutTag !=

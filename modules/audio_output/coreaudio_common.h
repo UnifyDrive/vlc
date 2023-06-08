@@ -61,6 +61,7 @@ struct aout_sys_common
     mach_timebase_info_data_t tinfo;
 #if TARGET_OS_TV
     int                 max_channels;
+    int                 i_current_channels;
 #endif
     size_t              i_underrun_size;
     bool                b_paused;

@@ -320,6 +320,7 @@ avas_setPreferredNumberOfChannels(audio_output_t *p_aout,
     NSInteger max_channel_count = [instance maximumOutputNumberOfChannels];
     unsigned channel_count = aout_FormatNbChannels(fmt);
 
+    msg_Warn(p_aout, "[%s:%s:%d]=zspace=: channel_count=%d, max_channel_count=%d .", __FILE__ , __FUNCTION__, __LINE__, channel_count, max_channel_count);
     /* Increase the preferred number of output channels if possible */
     if (channel_count > 2 && max_channel_count > 2)
     {
@@ -332,6 +333,9 @@ avas_setPreferredNumberOfChannels(audio_output_t *p_aout,
         {
             /* Not critical, output channels layout will be Stereo */
             msg_Warn(p_aout, "setPreferredOutputNumberOfChannels failed");
+            #if TARGET_OS_TV
+            p_sys->c.max_channels = 2;
+            #endif
         }
     }
 }
@@ -359,11 +363,12 @@ avas_GetOptimalChannelLayout(audio_output_t *p_aout, enum port_type *pport_type,
     *pport_type = PORT_TYPE_DEFAULT;
 
     long last_channel_count = 0;
+    int i = 0;
     for (AVAudioSessionPortDescription *out in [[instance currentRoute] outputs])
     {
         /* Choose the layout with the biggest number of channels or the HDMI
          * one */
-
+        msg_Warn(p_aout, "[%s:%s:%d]=zspace=: Now parse %d AVAudioSessionPortDescription in AVAudioSession's outputs.", __FILE__ , __FUNCTION__, __LINE__, i);
         enum port_type port_type;
         if ([out.portType isEqualToString: AVAudioSessionPortUSBAudio])
             port_type = PORT_TYPE_USB;
@@ -379,7 +384,10 @@ avas_GetOptimalChannelLayout(audio_output_t *p_aout, enum port_type *pport_type,
         }
 
         NSArray<AVAudioSessionChannelDescription *> *chans = [out channels];
-
+        #if TARGET_OS_TV
+        p_sys->c.i_current_channels = chans.count;
+        #endif
+        msg_Warn(p_aout, "[%s:%s:%d]=zspace=: It has %d channels.", __FILE__ , __FUNCTION__, __LINE__, chans.count);
         if (chans.count > last_channel_count || port_type == PORT_TYPE_HDMI)
         {
             /* We don't need a layout specification for stereo */
@@ -781,7 +789,7 @@ Start(audio_output_t *p_aout, audio_sample_format_t *restrict fmt)
         ca_LogWarn("failed to set IO mode");
 
     const mtime_t latency_us = [p_sys->avInstance outputLatency] * CLOCK_FREQ;
-    msg_Dbg(p_aout, "Current device has a latency of %lld us", latency_us);
+    msg_Dbg(p_aout, "Current device has a latency of %lld us, layout=%p, fmt->i_physical_channels=%d", latency_us, layout, fmt->i_physical_channels);
 
     ret = au_Initialize(p_aout, p_sys->au_unit, fmt, layout, latency_us, NULL);
     if (ret != VLC_SUCCESS)
@@ -942,10 +950,7 @@ Open(vlc_object_t *obj)
 #if TARGET_OS_TV
     AVAudioSessionRouteDescription *currentRoute = sys->avInstance.currentRoute;
     AVAudioChannelCount preferredOutputNumberOfChannels = sys->avInstance.maximumOutputNumberOfChannels;
-
-    if (currentRoute.outputs.count > 0) {
-        msg_Dbg(aout," preferredOutputNumberOfChannels  %d    ", (int)preferredOutputNumberOfChannels);
-    }
+    msg_Warn(aout," preferredOutputNumberOfChannels %d, currentRoute.outputs.count=%d. ", (int)preferredOutputNumberOfChannels, currentRoute.outputs.count);
 #endif
     sys->aoutWrapper = [[AoutWrapper alloc] initWithAout:aout];
     if (sys->aoutWrapper == NULL)
@@ -962,6 +967,7 @@ Open(vlc_object_t *obj)
     sys->c.au_dev = sys->au_dev;
 #if TARGET_OS_TV
     sys->c.max_channels  =  (int)preferredOutputNumberOfChannels;
+    sys->c.i_current_channels = 2;
 #endif
     aout->start = Start;
     aout->stop = Stop;
