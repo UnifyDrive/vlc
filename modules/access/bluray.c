@@ -1100,7 +1100,7 @@ static int blurayOpen(vlc_object_t *object)
                 msg_Warn(p_demux, "[%s:%s:%d]=zspace=: p_demux->s->psz_url=[%s].", __FILE__ , __FUNCTION__, __LINE__, p_demux->s->psz_url);
             }
             #endif
-            if (strstr(p_sys->psz_bd_url, ".rmvb?redirect=") || strstr(p_sys->psz_bd_url, ".rm?redirect=") || strstr(p_sys->psz_bd_url, ".flv?redirect=")) {
+            if (strstr(p_sys->psz_bd_url, ".rmvb?redirect=") || strstr(p_sys->psz_bd_url, ".rm?redirect=") || strstr(p_sys->psz_bd_url, ".flv?redirect=") || strstr(p_sys->psz_bd_url, ".mp3?redirect=")) {
                 bd_close(p_sys->bluray);
                 p_sys->bluray = NULL;
                 msg_Warn(p_demux, "[%s:%s:%d]=zspace=: No need run bd_open_files() for rmvb, set p_sys->bluray to NULL!", __FILE__ , __FUNCTION__, __LINE__);
