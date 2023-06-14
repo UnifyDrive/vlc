@@ -242,7 +242,7 @@ TDXImage *convertRGBAToImage(unsigned char *rgba, int width, int height)
 #if TARGET_OS_OSX
     TDXImage *image = [[TDXImage alloc] initWithCGImage:frame size:(NSSize){width,height}];
 #else
-    TDXImage *image = [TDXImage imageWithCGImage:frame];
+    TDXImage *image = [[TDXImage alloc] initWithCGImage:frame];
 #endif
     CGImageRelease(frame);
     CGContextRelease(newContext);
@@ -475,6 +475,19 @@ static void PicturePrepare(vout_display_t *vd, picture_t *pic, subpicture_t *sub
             msg_Dbg(vd, "r->fmt.i_visible_width %d width %d i_lines %d i_visible_line% d i_pitch %d",r->fmt.i_visible_width,img_width,plane->i_lines,plane->i_visible_lines,plane->i_pitch);
         }
 #endif
+        if (sys->uiImage )
+        {
+#if TARGET_OS_OSX
+            NSRect proposedRect = NSMakeRect(0, 0, sys->uiImage.size.width, sys->uiImage.size.height);
+            CGImageRef cgImage = [sys->uiImage CGImageForProposedRect:&proposedRect context:nil hints:nil];
+            CGImageRelease(cgImage);
+#else
+            if (sys->uiImage.CGImage && [sys->uiImage.CGImage retainCount] > 0)
+            {
+                CGImageRelease(sys->uiImage.CGImage);
+            }
+#endif
+        }
         sys->i_sub_last_order = subpicture->i_order;
         sys->uiImage = convertRGBAToImage(buffer, img_width, img_height);
 #ifdef SUPPORT_MULTI_SUBTITLE_PICTURE
