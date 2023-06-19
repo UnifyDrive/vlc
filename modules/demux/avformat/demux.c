@@ -373,7 +373,7 @@ int avformat_OpenDemux( vlc_object_t *p_this )
     vlc_avcodec_lock(); /* avformat calls avcodec behind our back!!! */
     // TDX  ...
 //    error = avformat_find_stream_info( p_sys->ic, options );
-    if(strcmp( fmt->name, "flv" ) != 0){
+    if(strcmp( fmt->name, "flv" ) != 0 && strcmp( fmt->name, "wav" ) != 0){
         av_opt_set_int(p_sys->ic, "analyzeduration", 500000, 0);
         av_opt_set_int(p_sys->ic, "probesize", 4096, 0);
     }
