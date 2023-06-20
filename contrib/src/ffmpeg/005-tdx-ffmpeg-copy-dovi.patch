@@ -1,0 +1,24 @@
+From 0fb2d644fdb412f6524886f2bc3d9bf4f6034dee Mon Sep 17 00:00:00 2001
+From: tongzhijie <tongzhijie@zspace.cn>
+Date: Tue, 20 Jun 2023 15:55:57 +0800
+Subject: [PATCH] copy dovi_isom.h
+
+---
+ libavformat/Makefile   | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/libavformat/Makefile b/libavformat/Makefile
+index 6c6b779080..e1b1bc34d5 100644
+--- a/libavformat/Makefile
++++ b/libavformat/Makefile
+@@ -5,6 +5,7 @@ HEADERS = avformat.h                                                    \
+           avio.h                                                        \
+           version.h                                                     \
+           version_major.h                                               \
++          dovi_isom.h                                               \
+ 
+ OBJS = allformats.o         \
+        avformat.o           \
+-- 
+2.40.0
+

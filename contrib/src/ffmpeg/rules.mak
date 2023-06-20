@@ -262,6 +262,7 @@ ifdef USE_FFMPEG
 	$(APPLY) $(SRC)/ffmpeg/002-tdx-ffmpeg-bluray-remote-iso-and-bdmv-dir.patch
 	$(APPLY) $(SRC)/ffmpeg/003-tdx-ffmpeg-mov.patch
 	$(APPLY) $(SRC)/ffmpeg/004-tdx-The-parsed-data-is-more-accurate.patch
+	$(APPLY) $(SRC)/ffmpeg/005-tdx-ffmpeg-copy-dovi.patch
 endif
 ifdef USE_LIBAV
 	$(APPLY) $(SRC)/ffmpeg/libav_gsm.patch
