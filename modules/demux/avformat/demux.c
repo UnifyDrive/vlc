@@ -200,9 +200,6 @@ int avformat_OpenDemux( vlc_object_t *p_this )
     memcpy( pd.buf, peek, pd.buf_size );
     memset( pd.buf + pd.buf_size, 0, AVPROBE_PADDING_SIZE );
 
-    if( p_demux->psz_file )
-        psz_url = strdup( p_demux->psz_file );
-    else
     {
         if( asprintf( &psz_url, "%s://%s", p_demux->psz_access,
                       p_demux->psz_location ) == -1)
