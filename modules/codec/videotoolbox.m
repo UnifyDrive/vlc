@@ -1544,7 +1544,7 @@ static int OpenDecoder(vlc_object_t *p_this)
         if (var_Type(p_dec, "videotoolbox-failed") != 0) {
             /* Mac and iPhone(when playing 1080p video) need to change soft decoder if videotoolbox failed */
             int64_t value = var_GetInteger( p_dec, "videotoolbox-failed");
-                msg_Warn(p_dec, "[%s:%s:%d]=zspace=:  times = %d[%d].", __FILE__ , __FUNCTION__, __LINE__, value);
+            msg_Warn(p_dec, "[%s:%s:%d]=zspace=:  times = %lld.", __FILE__ , __FUNCTION__, __LINE__, value);
             if (value > 3) {
                 msg_Warn(p_dec, "[%s:%s:%d]=zspace=: This module already failed to decode this ES[%d].", __FILE__ , __FUNCTION__, __LINE__, p_dec->fmt_in.i_cat);
                 return VLC_EGENERIC;
@@ -2162,7 +2162,7 @@ static int DecodeBlock(decoder_t *p_dec, block_t *p_block)
         else
         {
             int64_t times = var_GetInteger( p_dec, "videotoolbox-failed") + 1;
-            msg_Warn(p_dec, "[%s:%s:%d]=zspace=: videotoolbox-failed times = %d.", __FILE__ , __FUNCTION__, __LINE__, times);
+            msg_Warn(p_dec, "[%s:%s:%d]=zspace=: videotoolbox-failed times = %lld.", __FILE__ , __FUNCTION__, __LINE__, times);
             var_SetInteger( p_dec, "videotoolbox-failed", times );
         }
         return VLCDEC_RELOAD;

@@ -35,7 +35,7 @@
 #endif
 
 #define SUPPORT_MULTI_SUBTITLE_PICTURE 1
-#define  ZS_DEBUG      (1)
+#define  ZS_DEBUG      (0)
 
 static const vlc_fourcc_t subpicture_chromas[] =
 {
@@ -59,9 +59,6 @@ static int Control          (vout_display_t *vd, int query, va_list ap);
 }
 - (void)reshape;
 - (void)setVoutDisplay:(vout_display_t *)vd;
-#if TARGET_OS_OSX
-- (void)initVideoView;
-#endif
 @end
 
 
@@ -117,19 +114,13 @@ static int Open(vlc_object_t *this)
         }
         
         sys->container = [container retain];
-//#if TARGET_OS_OSX
-//        [TDXVideoView performSelectorOnMainThread:@selector(initVideoView)
-//                                       withObject:nil
-//                                          waitUntilDone:YES];
-//#else
-//#endif
+
         dispatch_sync(dispatch_get_main_queue(), ^{
             /* Create video view */
             sys->videoView = [[TDXVideoView alloc] init];
 #if TARGET_OS_OSX
             sys->videoView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
             sys->videoView.wantsLayer = YES;
-            //[sys->videoView initVideoView];
 #else
             sys->videoView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
 #endif
@@ -671,7 +662,8 @@ static int Control(vout_display_t *vd, int query, va_list ap)
 #if TARGET_OS_OSX
 - (void)layout {
     [super layout];
-
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES];
     vout_display_sys_t *sys = vd->sys;
     sys->displayLayer.frame = self.layer.bounds;
     msg_Dbg(vd, "[%s:%s:%d]=zspace=: videoView width %f height %f", __FILE__ , __FUNCTION__, __LINE__,sys->videoView.layer.bounds.size.width,sys->videoView.layer.bounds.size.height);
@@ -683,6 +675,7 @@ static int Control(vout_display_t *vd, int query, va_list ap)
         }
         msg_Dbg(vd, "[%s:%s:%d]=zspace=: left %d top %d right %d right %d", __FILE__ , __FUNCTION__, __LINE__,sys->rect.left, sys->rect.top, sys->rect.right, sys->rect.bottom);
     }
+    [CATransaction commit];
 }
 #else
 - (void)layoutSubviews
@@ -703,25 +696,6 @@ static int Control(vout_display_t *vd, int query, va_list ap)
 }
 #endif
 
-#if TARGET_OS_OSX
-- (void)initVideoView
-{
-    [[NSNotificationCenter defaultCenter] addObserverForName:NSApplicationDidChangeScreenParametersNotification
-                                                      object:[NSApplication sharedApplication]
-                                                       queue:nil
-                                                  usingBlock:^(NSNotification *notification) {
-                                                      [self performSelectorOnMainThread:@selector(reshape)
-                                                                             withObject:nil
-                                                                          waitUntilDone:NO];
-                                                  }];
-//    VLCAssertMainThread();
-//    [[NSNotificationCenter defaultCenter] addObserver: self
-//                                             selector: @selector(reshape)
-//                                                 name: NSApplicationDidChangeScreenParametersNotification
-//                                               object: nil];
-    
-}
-#endif
 - (void)reshape
 {
 #if TARGET_OS_OSX
