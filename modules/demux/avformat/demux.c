@@ -1556,7 +1556,7 @@ static int64_t IOSeek( void *opaque, int64_t offset, int whence )
     if( i_size > 0 && i_absolute >= i_size )
     {
         msg_Dbg( p_demux, "Trying to seek too far : EOF?" );
-        return -1;
+        //return -1;//some dff can not play.
     }
 
     if( vlc_stream_Seek( p_demux->s, i_absolute ) )
