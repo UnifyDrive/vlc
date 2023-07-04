@@ -264,6 +264,7 @@ static struct
         jint CHANNEL_OUT_LOW_FREQUENCY;
         jint CHANNEL_OUT_BACK_CENTER;
         jint CHANNEL_OUT_5POINT1;
+        //jint CHANNEL_OUT_7POINT1_SURROUND;
         jint CHANNEL_OUT_SIDE_LEFT;
         jint CHANNEL_OUT_SIDE_RIGHT;
         bool has_CHANNEL_OUT_SIDE;
@@ -456,6 +457,7 @@ InitJNIFields( audio_output_t *p_aout, JNIEnv* env )
     GET_CONST_INT( AudioFormat.CHANNEL_OUT_FRONT_LEFT, "CHANNEL_OUT_FRONT_LEFT", true );
     GET_CONST_INT( AudioFormat.CHANNEL_OUT_FRONT_RIGHT, "CHANNEL_OUT_FRONT_RIGHT", true );
     GET_CONST_INT( AudioFormat.CHANNEL_OUT_5POINT1, "CHANNEL_OUT_5POINT1", true );
+    //GET_CONST_INT( AudioFormat.CHANNEL_OUT_7POINT1_SURROUND, "CHANNEL_OUT_7POINT1_SURROUND", false );
     GET_CONST_INT( AudioFormat.CHANNEL_OUT_BACK_LEFT, "CHANNEL_OUT_BACK_LEFT", true );
     GET_CONST_INT( AudioFormat.CHANNEL_OUT_BACK_RIGHT, "CHANNEL_OUT_BACK_RIGHT", true );
     GET_CONST_INT( AudioFormat.CHANNEL_OUT_FRONT_CENTER, "CHANNEL_OUT_FRONT_CENTER", true );
@@ -1003,7 +1005,7 @@ static bool  GetAndroidSupport(JNIEnv *env, audio_output_t *p_aout,int i_rate,
                                                 i_channel_config, i_format );
     if( i_min_buffer_size <= 0 )
     {
-        msg_Warn( p_aout, " getMinBufferSize returned an invalid size" ) ;
+        msg_Warn( p_aout, "[%s:%s:%d]=zspace=: getMinBufferSize returned an invalid size", __FILE__ , __FUNCTION__, __LINE__) ;
         return false;
     }
     // make sure to have enough buffer as minimum might not be enough to open
@@ -1028,6 +1030,7 @@ AudioTrack_Create( JNIEnv *env, audio_output_t *p_aout,
 {
     aout_sys_t *p_sys = p_aout->sys;
     int i_size, i_min_buffer_size, i_channel_config;
+    msg_Warn( p_aout, "[%s:%s:%d]=zspace=: i_physical_channels = %d, i_format=%d. ", __FILE__ , __FUNCTION__, __LINE__, i_physical_channels, i_format);
 
     switch( i_physical_channels )
     {
@@ -1037,6 +1040,8 @@ AudioTrack_Create( JNIEnv *env, audio_output_t *p_aout,
             i_channel_config = jfields.AudioFormat.CHANNEL_OUT_5POINT1 |
                                jfields.AudioFormat.CHANNEL_OUT_SIDE_LEFT |
                                jfields.AudioFormat.CHANNEL_OUT_SIDE_RIGHT;
+
+            //i_channel_config = jfields.AudioFormat.CHANNEL_OUT_7POINT1_SURROUND;
             break;
         case AOUT_CHANS_5_1:
             i_channel_config = jfields.AudioFormat.CHANNEL_OUT_5POINT1;
@@ -1051,11 +1056,13 @@ AudioTrack_Create( JNIEnv *env, audio_output_t *p_aout,
             vlc_assert_unreachable();
     }
 
+    msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Use [%d, %d, %d] to get MinBuffersize.", __FILE__ , __FUNCTION__, __LINE__, 
+            i_rate, i_channel_config, i_format);
     i_min_buffer_size = JNI_AT_CALL_STATIC_INT( getMinBufferSize, i_rate,
                                                 i_channel_config, i_format );
     if( i_min_buffer_size <= 0 )
     {
-        msg_Warn( p_aout, "getMinBufferSize returned an invalid size" ) ;
+        msg_Warn( p_aout, "[%s:%s:%d]=zspace=: getMinBufferSize failed.", __FILE__ , __FUNCTION__, __LINE__);
         return -1;
     }
     if(p_sys->isjiguang4pro){
@@ -1063,6 +1070,8 @@ AudioTrack_Create( JNIEnv *env, audio_output_t *p_aout,
     }else{
         i_size = i_min_buffer_size * 4;
     }
+
+    msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Requested %d size for AudioTrack. ", __FILE__ , __FUNCTION__, __LINE__, i_size);
     /* create AudioTrack object */
     if( AudioTrack_New( env, p_aout, i_rate, i_channel_config,
                         i_format , i_size ) != 0 )
@@ -1227,14 +1236,28 @@ StartPassthrough( JNIEnv *env, audio_output_t *p_aout, bool ac3)
                         return VLC_EGENERIC;
                     i_at_format = jfields.AudioFormat.ENCODING_DTS;
                     break;
+                case VLC_CODEC_TRUEHD:
+                    if( !jfields.AudioFormat.has_ENCODING_DOLBY_TRUEHD )
+                        return VLC_EGENERIC;
+                    i_at_format = jfields.AudioFormat.ENCODING_IEC61937;
+                    break;
                 default:
                     break;
             }
-            p_sys->fmt.i_bytes_per_frame = 4;
-            p_sys->fmt.i_frame_length = 1;
-            p_sys->fmt.i_physical_channels = AOUT_CHANS_STEREO;
-            p_sys->fmt.i_channels = 2;
-            p_sys->fmt.i_format = VLC_CODEC_SPDIFB;
+            if (p_sys->fmt.i_format != VLC_CODEC_TRUEHD) {
+                p_sys->fmt.i_bytes_per_frame = 4;
+                p_sys->fmt.i_frame_length = 1;
+                p_sys->fmt.i_physical_channels = AOUT_CHANS_STEREO;
+                p_sys->fmt.i_channels = 2;
+                p_sys->fmt.i_format = VLC_CODEC_SPDIFB;
+            }else {
+                p_sys->fmt.i_bytes_per_frame = 4;
+                p_sys->fmt.i_frame_length = 1;
+                p_sys->fmt.i_physical_channels = AOUT_CHANS_7_1;
+                p_sys->fmt.i_channels = 8;
+                p_sys->fmt.i_format = VLC_CODEC_SPDIFL;
+                p_sys->fmt.i_rate = 192000;
+            }
         }
     }
     p_sys->b_passthrough = true;
@@ -2125,14 +2148,31 @@ Pause( audio_output_t *p_aout, bool b_pause, mtime_t i_date )
     if( b_pause )
     {
         p_sys->b_thread_paused = true;
-        JNI_AT_CALL_VOID( pause );
-        CHECK_AT_EXCEPTION( "pause" );
+        msg_Warn( p_aout, "[%s:%s:%d]=zspace=: p_sys->isz9x=%d,p_sys->b_passthrough=%d,p_sys->i_write_type=[%d,%d].", __FILE__ , __FUNCTION__, __LINE__, p_sys->isz9x, p_sys->b_passthrough, p_sys->i_write_type, WRITE_SHORTARRAYV23);
+        if (p_sys->isz9x && p_sys->b_passthrough && p_sys->i_write_type == WRITE_SHORTARRAYV23) {
+            msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Do nothing while pause for playing TrueHD under z9x. ", __FILE__ , __FUNCTION__, __LINE__);
+            
+        }else {
+            JNI_AT_CALL_VOID( pause );
+            CHECK_AT_EXCEPTION( "pause" );
+        }
     } else
     {
         p_sys->b_thread_paused = false;
-        AudioTrack_ResetPositions( env, p_aout );
+        if (p_sys->p_audiotrack && p_sys->isz9x && p_sys->b_passthrough && p_sys->i_write_type == WRITE_SHORTARRAYV23) {
+            msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Do AudioTrack_Recreate while replay for playing TrueHD under z9x. ", __FILE__ , __FUNCTION__, __LINE__);
+            if( AudioTrack_Recreate( env, p_aout ) != 0 )
+            {
+                p_sys->b_error = true;
+                goto bailout;
+            }
+            AudioTrack_Reset( env, p_aout );
+        }else {
+            AudioTrack_ResetPositions( env, p_aout );
+        }
         JNI_AT_CALL_VOID( play );
         CHECK_AT_EXCEPTION( "play" );
+        msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Set play. ", __FILE__ , __FUNCTION__, __LINE__);
     }
 
 bailout:
@@ -2163,6 +2203,7 @@ Flush( audio_output_t *p_aout, bool b_wait )
      */
     if( b_wait )
     {
+        msg_Warn( p_aout, "[%s:%s:%d]=zspace=: wait mode,will run stop. ", __FILE__ , __FUNCTION__, __LINE__);
         /* Wait for the thread to process the circular buffer */
         while( !p_sys->b_error
             && p_sys->circular.i_read != p_sys->circular.i_write )
@@ -2175,10 +2216,17 @@ Flush( audio_output_t *p_aout, bool b_wait )
             goto bailout;
     } else
     {
-        JNI_AT_CALL_VOID( pause );
-        if( CHECK_AT_EXCEPTION( "pause" ) )
-            goto bailout;
-        JNI_AT_CALL_VOID( flush );
+        if (p_sys->p_audiotrack && p_sys->isz9x && p_sys->b_passthrough && p_sys->i_write_type == WRITE_SHORTARRAYV23) {
+            msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Do only flush while flush->pause for playing TrueHD under z9x. ", __FILE__ , __FUNCTION__, __LINE__);
+            
+            JNI_AT_CALL_VOID( flush );
+        }else {
+            msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Not wait mode,will run pause. ", __FILE__ , __FUNCTION__, __LINE__);
+            JNI_AT_CALL_VOID( pause );
+            if( CHECK_AT_EXCEPTION( "pause" ) )
+                goto bailout;
+            JNI_AT_CALL_VOID( flush );
+        }
     }
     p_sys->circular.i_read = p_sys->circular.i_write = 0;
 
@@ -2196,6 +2244,7 @@ Flush( audio_output_t *p_aout, bool b_wait )
             goto bailout;
         }
     }
+    msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Will run AudioTrack_Reset(). ", __FILE__ , __FUNCTION__, __LINE__);
     AudioTrack_Reset( env, p_aout );
     JNI_AT_CALL_VOID( play );
     CHECK_AT_EXCEPTION( "play" );
