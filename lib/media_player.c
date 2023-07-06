@@ -1373,7 +1373,7 @@ void libvlc_media_player_set_nsobject( libvlc_media_player_t *p_mi,
     assert (p_mi != NULL);
 #ifdef __APPLE__
     var_SetString (p_mi, "avcodec-hw", "");
-    var_SetString (p_mi, "vout", "");
+    //var_SetString (p_mi, "vout", "");
     var_SetString (p_mi, "window", "");
     var_SetAddress (p_mi, "drawable-nsobject", drawable);
 #else

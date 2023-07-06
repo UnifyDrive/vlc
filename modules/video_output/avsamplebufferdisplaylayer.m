@@ -22,7 +22,6 @@
 #import <AVFoundation/AVFoundation.h>
 
 #if TARGET_OS_OSX
-#import <Cocoa/Cocoa.h>
 #include <AVKit/AVKit.h>
 #define TDXView NSView
 #define TDXImage NSImage
@@ -82,6 +81,9 @@ struct vout_display_sys_t
     filter_t *p_spu_blend;
     vout_display_place_t place;
     TDXImage * uiImage;
+#if TARGET_OS_OSX
+    CGImageRef cgImage;
+#endif
 };
 
 #define VLCAssertMainThread() assert([[NSThread currentThread] isMainThread])
@@ -90,10 +92,11 @@ struct vout_display_sys_t
 
 static int Open(vlc_object_t *this)
 {
+    
     @autoreleasepool {
         vout_display_t *vd = (vout_display_t *)this;
         vout_display_sys_t *sys;
-
+        msg_Dbg(vd, "[%s:%s:%d]=zspace=: Enter", __FILE__ , __FUNCTION__, __LINE__);
         vd->sys = sys = vlc_obj_calloc(this, 1, sizeof(*sys));
         if (sys == NULL)
             return VLC_ENOMEM;
@@ -158,7 +161,7 @@ static int Open(vlc_object_t *this)
         memset(&sys->sub_last_region, 0x00, sizeof(Rect));
         sys->i_sub_last_order = -1;
         
-        msg_Dbg(vd, "Open successfully");
+        msg_Dbg(vd, "[%s:%s:%d]=zspace=: Exit", __FILE__ , __FUNCTION__, __LINE__);
         return VLC_SUCCESS;
     
     error:
@@ -171,6 +174,7 @@ static void Close(vlc_object_t *p_this)
 {
     vout_display_t *vd = (vout_display_t *)p_this;
     vout_display_sys_t *sys = vd->sys;
+    msg_Dbg(vd, "[%s:%s:%d]=zspace=: Enter", __FILE__ , __FUNCTION__, __LINE__);
     @autoreleasepool {
         if (sys->p_sub_pic)
         {
@@ -185,7 +189,7 @@ static void Close(vlc_object_t *p_this)
         TDXVideoView *videoView = sys->videoView;
         CALayer *videoLayer = sys->displayLayer;
     
-        dispatch_async(dispatch_get_main_queue(), ^{
+        dispatch_sync(dispatch_get_main_queue(), ^{
             /* Remove vout subview from container */
             if ([container respondsToSelector:@selector(removeVoutSubview:)]) {
                 [container removeVoutSubview:videoView];
@@ -196,6 +200,7 @@ static void Close(vlc_object_t *p_this)
             [videoLayer release];
         });
     }
+    msg_Dbg(vd, "[%s:%s:%d]=zspace=: Exit", __FILE__ , __FUNCTION__, __LINE__);
 }
 
 static picture_pool_t *Pool(vout_display_t *vd, unsigned count)
@@ -207,8 +212,9 @@ static picture_pool_t *Pool(vout_display_t *vd, unsigned count)
     return sys->pool;
 }
 
-TDXImage *convertRGBAToImage(unsigned char *rgba, int width, int height)
+TDXImage *convertRGBAToImage(vout_display_t *vd, unsigned char *rgba, int width, int height)
 {
+    vout_display_sys_t *sys = vd->sys;
     int bytes_per_pix = 4;
     
     /* remove white point in srt subtitle*/
@@ -232,6 +238,7 @@ TDXImage *convertRGBAToImage(unsigned char *rgba, int width, int height)
     CGImageRef frame = CGBitmapContextCreateImage(newContext);
 #if TARGET_OS_OSX
     TDXImage *image = [[TDXImage alloc] initWithCGImage:frame size:(NSSize){width,height}];
+    sys->cgImage = frame;
 #else
     TDXImage *image = [[TDXImage alloc] initWithCGImage:frame];
 #endif
@@ -418,7 +425,7 @@ static void PicturePrepare(vout_display_t *vd, picture_t *pic, subpicture_t *sub
             SetRGBMask(&sub_fmt);
             video_format_FixRgb(&sub_fmt);
             sys->p_sub_pic = PictureAlloc(sys, &sub_fmt);
-            msg_Err(vd, "[%s:%s:%d]=zspace=: PictureAlloc", __FILE__ , __FUNCTION__, __LINE__);
+            msg_Dbg(vd, "[%s:%s:%d]=zspace=: PictureAlloc", __FILE__ , __FUNCTION__, __LINE__);
         }
         
         if (!sys->p_spu_blend && sys->p_sub_pic)
@@ -466,21 +473,26 @@ static void PicturePrepare(vout_display_t *vd, picture_t *pic, subpicture_t *sub
             msg_Dbg(vd, "r->fmt.i_visible_width %d width %d i_lines %d i_visible_line% d i_pitch %d",r->fmt.i_visible_width,img_width,plane->i_lines,plane->i_visible_lines,plane->i_pitch);
         }
 #endif
-        if (sys->uiImage )
+        if (sys->uiImage)
         {
 #if TARGET_OS_OSX
-            NSRect proposedRect = NSMakeRect(0, 0, sys->uiImage.size.width, sys->uiImage.size.height);
-            CGImageRef cgImage = [sys->uiImage CGImageForProposedRect:&proposedRect context:nil hints:nil];
-            CGImageRelease(cgImage);
+            if (sys->cgImage)
+            {
+                dispatch_sync(dispatch_get_main_queue(), ^{
+                    CGImageRelease(sys->cgImage);
+                    sys->cgImage = nil;
+                });
+            }
 #else
             if (sys->uiImage.CGImage && [sys->uiImage.CGImage retainCount] > 0)
             {
                 CGImageRelease(sys->uiImage.CGImage);
             }
 #endif
+            sys->uiImage = nil;
         }
         sys->i_sub_last_order = subpicture->i_order;
-        sys->uiImage = convertRGBAToImage(buffer, img_width, img_height);
+        sys->uiImage = convertRGBAToImage(vd, buffer, img_width, img_height);
 #ifdef SUPPORT_MULTI_SUBTITLE_PICTURE
         free(buffer);
         buffer = nil;
