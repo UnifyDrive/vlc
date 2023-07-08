@@ -827,7 +827,7 @@ static CFMutableDictionaryRef GetDecoderExtradataHEVC(decoder_t *p_dec)
         }
     }
 
-    if (p_dec->fmt_in.video.i_dovi_extra )
+    if (p_dec->fmt_in.video.hdr_type == HDR_TYPE_DOLBYVISION)
     {
         /* copy DecoderConfiguration */
         uint8_t* extra = (uint8_t*)p_dec->fmt_in.video.p_dovi_extra;
@@ -1432,7 +1432,7 @@ static int StartVideoToolbox(decoder_t *p_dec)
                          kCVPixelBufferPixelFormatTypeKey,
                          kCVPixelFormatType_420YpCbCr10BiPlanarFullRange);
     }
-    else if (p_dec->fmt_in.video.i_dovi_extra)
+    else if (p_dec->fmt_in.video.hdr_type == HDR_TYPE_DOLBYVISION)
     {
         uint8_t* extra = (uint8_t*)p_dec->fmt_in.video.p_dovi_extra;
         uint8_t profile = extra[2] >>1;
@@ -1612,6 +1612,16 @@ static int OpenDecoder(vlc_object_t *p_this)
 
     p_dec->pf_decode = DecodeBlock;
     p_dec->pf_flush  = RequestFlush;
+#if TARGET_OS_OSX
+    char *var = NULL;
+    var = var_InheritString (p_dec, "vout");
+    /* Don't set HDR if vout is caopengllayer */
+    if (!var || (0 == strcmp(var, "caopengllayer")))
+    {
+        p_dec->fmt_in.video.hdr_type = HDR_TYPE_UNDEF;
+    }
+    msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: vout=[%s].", __FILE__ , __FUNCTION__, __LINE__, var);
+#endif
 
     switch(codec)
     {
@@ -2255,7 +2265,9 @@ static int DecodeBlock(decoder_t *p_dec, block_t *p_block)
     VTDecodeInfoFlags flagOut;
     VTDecodeFrameFlags decoderFlags = 0;
     if (var_InheritBool(p_dec, "videotoolbox-async-decode")) {
+#if !TARGET_OS_OSX
         decoderFlags = kVTDecodeFrame_EnableAsynchronousDecompression;
+#endif
     }
 
     OSStatus status =

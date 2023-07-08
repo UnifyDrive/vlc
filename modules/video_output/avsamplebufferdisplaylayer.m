@@ -677,16 +677,20 @@ static int Control(vout_display_t *vd, int query, va_list ap)
     [CATransaction begin];
     [CATransaction setDisableActions:YES];
     vout_display_sys_t *sys = vd->sys;
-    sys->displayLayer.frame = self.layer.bounds;
-    msg_Dbg(vd, "[%s:%s:%d]=zspace=: videoView width %f height %f", __FILE__ , __FUNCTION__, __LINE__,sys->videoView.layer.bounds.size.width,sys->videoView.layer.bounds.size.height);
-    if (sys->subtitleLayer)
+    if (sys->displayLayer.frame.size.height != self.layer.bounds.size.height
+        || sys->displayLayer.frame.size.width != self.layer.bounds.size.width)
     {
-        if ((sys->rect.right-sys->rect.left > 0) && (sys->rect.bottom-sys->rect.top > 0))
-        {
-            sys->subtitleLayer.frame = CGRectMake(sys->rect.left, sys->rect.top, sys->rect.right-sys->rect.left, sys->rect.bottom-sys->rect.top);
-        }
-        msg_Dbg(vd, "[%s:%s:%d]=zspace=: left %d top %d right %d right %d", __FILE__ , __FUNCTION__, __LINE__,sys->rect.left, sys->rect.top, sys->rect.right, sys->rect.bottom);
+        msg_Dbg(vd, "[%s:%s:%d]=zspace=: displayLayer width %f height %f videoView width %f height %f", __FILE__ , __FUNCTION__, __LINE__,sys->displayLayer.frame.size.width, sys->displayLayer.frame.size.height, self.layer.bounds.size.width, self.layer.bounds.size.height);
+        sys->displayLayer.frame = self.layer.bounds;
     }
+//    if (sys->subtitleLayer)
+//    {
+//        if ((sys->rect.right-sys->rect.left > 0) && (sys->rect.bottom-sys->rect.top > 0))
+//        {
+//            sys->subtitleLayer.frame = CGRectMake(sys->rect.left, sys->rect.top, sys->rect.right-sys->rect.left, sys->rect.bottom-sys->rect.top);
+//        }
+//        msg_Dbg(vd, "[%s:%s:%d]=zspace=: left %d top %d right %d right %d", __FILE__ , __FUNCTION__, __LINE__,sys->rect.left, sys->rect.top, sys->rect.right, sys->rect.bottom);
+//    }
     [CATransaction commit];
 }
 #else
@@ -694,12 +698,13 @@ static int Control(vout_display_t *vd, int query, va_list ap)
 {
     [super layoutSubviews];
     vout_display_sys_t *sys = vd->sys;
-    sys->displayLayer.frame = self.layer.bounds;
-    //msg_Dbg(vd, "[%s:%s:%d]=zspace=: videoView width %f height %f", __FILE__ , __FUNCTION__, __LINE__,sys->videoView.layer.bounds.size.width,sys->videoView.layer.bounds.size.height);
-
-    //for (CALayer*layer in self.layer.sublayers) {
-        //layer.frame = self.bounds;
-    //}
+    
+    if (sys->displayLayer.frame.size.height != self.layer.bounds.size.height
+        || sys->displayLayer.frame.size.width != self.layer.bounds.size.width)
+    {
+        msg_Dbg(vd, "[%s:%s:%d]=zspace=: displayLayer width %f height %f videoView width %f height %f", __FILE__ , __FUNCTION__, __LINE__,sys->displayLayer.frame.size.width, sys->displayLayer.frame.size.height, self.layer.bounds.size.width, self.layer.bounds.size.height);
+        sys->displayLayer.frame = self.layer.bounds;
+    }
 }
 - (void)updateConstraints
 {

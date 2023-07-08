@@ -67,7 +67,7 @@ int vout_OpenWrapper(vout_thread_t *vout,
         char *var = NULL;
         var = var_InheritString (vout, "vout");
         msg_Dbg(vout, "vout fmt %4.4s hdr_type %d vout %s",(char*)&vout->p->original.i_chroma, vout->p->original.hdr_type, (char*)var);
-        char * module_name = "$vout";
+        const char * module_name = "$vout";
         if (( vout->p->original.i_chroma == VLC_CODEC_CVPX_UYVY
            || vout->p->original.i_chroma == VLC_CODEC_CVPX_NV12
            || vout->p->original.i_chroma == VLC_CODEC_CVPX_I420
@@ -83,6 +83,17 @@ int vout_OpenWrapper(vout_thread_t *vout,
             msg_Dbg(vout, "TARGET_OS_IPHONE");
     #elif TARGET_OS_MAC
             msg_Dbg(vout, "TARGET_OS_OSX");
+    #endif
+#endif
+        } else {
+#ifdef __APPLE__
+    #include"TargetConditionals.h"
+    #if TARGET_OS_TV
+            module_name = "ios";
+    #elif TARGET_OS_IPHONE
+            module_name = "ios";
+    #elif TARGET_OS_MAC
+            module_name = "caopengllayer";
     #endif
 #endif
         }
