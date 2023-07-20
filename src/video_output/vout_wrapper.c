@@ -35,6 +35,7 @@
 #include <assert.h>
 #include "vout_internal.h"
 #include "display.h"
+#include "event.h"
 
 /*****************************************************************************
  * Local prototypes
@@ -96,6 +97,11 @@ int vout_OpenWrapper(vout_thread_t *vout,
             module_name = "caopengllayer";
     #endif
 #endif
+        }
+        if (strcmp("$vout", module_name) == 0){
+            vout_SendEventModuleName(vout, var);
+        }else {
+            vout_SendEventModuleName(vout, module_name);
         }
         msg_Dbg(vout, "using module_name %s",(char*)module_name);
         sys->display.vd = vout_NewDisplay(vout, &vout->p->original, state, module_name,

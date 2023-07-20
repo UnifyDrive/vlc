@@ -56,7 +56,6 @@ static int Control          (vout_display_t *vd, int query, va_list ap);
 {
     vout_display_t *vd;
 }
-- (void)reshape;
 - (void)setVoutDisplay:(vout_display_t *)vd;
 @end
 
@@ -133,6 +132,21 @@ static int Open(vlc_object_t *this)
                 AVSampleBufferDisplayLayer * displayLayer = [[AVSampleBufferDisplayLayer alloc] init];
                 sys->displayLayer = (CALayer*)displayLayer;
                 sys->displayLayer.backgroundColor = [TDXColor blackColor].CGColor;
+                CGFloat angle = 0;
+                msg_Dbg(vd, "[%s:%s:%d]=zspace=: orientation %d", __FILE__ , __FUNCTION__, __LINE__, vd->fmt.orientation);
+                switch(vd->fmt.orientation)
+                {
+                    case ORIENT_ROTATED_90:
+#if TARGET_OS_OSX
+                        angle = M_PI * 1.5;
+#else
+                        angle = M_PI/2;
+#endif
+                        break;
+                    default :
+                        break;
+                }
+                sys->displayLayer.transform = CATransform3DMakeRotation(angle, 0, 0, 1);
                 [sys->videoView.layer addSublayer:sys->displayLayer];
             }
             
@@ -384,14 +398,29 @@ static void clearLastRegion(vout_display_t *vd, subpicture_t *subpicture)
 static void GetDisplayRect(vout_display_t *vd, Rect memset_bounds, Rect *p_out_bounds)
 {
     vout_display_sys_t *sys = vd->sys;
-    CGFloat scale_width = vd->source.i_width/(sys->videoView.layer.bounds.size.width);
-    CGFloat height = vd->source.i_height *sys->videoView.layer.bounds.size.width/vd->source.i_width;
-    CGFloat scale_height = vd->source.i_height/height;
-    //msg_Dbg(vd, "[%s:%s:%d]=zspace=: scale_width %f scale_height %f", __FILE__ , __FUNCTION__, __LINE__,scale_width, scale_height);
-    CGFloat black_height = (sys->videoView.layer.bounds.size.height - height)/2 ;
+    CGFloat scale_width = 0.0;
+    CGFloat scale_height = 0.0;
+    CGFloat black_height = 0.0;
+    CGFloat black_width = 0.0;
+    if (vd->source.i_width/vd->source.i_height > sys->videoView.layer.bounds.size.width/sys->videoView.layer.bounds.size.height)
+    {
+        scale_width = vd->source.i_width/(sys->videoView.layer.bounds.size.width);
+        CGFloat height = vd->source.i_height *sys->videoView.layer.bounds.size.width/vd->source.i_width;
+        scale_height = vd->source.i_height/height;
+        msg_Dbg(vd, "[%s:%s:%d]=zspace=: scale_width %f scale_height %f", __FILE__ , __FUNCTION__, __LINE__,scale_width, scale_height);
+        black_height = (sys->videoView.layer.bounds.size.height - height)/2 ;
+    }
+    else{
+        scale_height = vd->source.i_height/(sys->videoView.layer.bounds.size.height);
+        CGFloat width = vd->source.i_width * sys->videoView.layer.bounds.size.height/vd->source.i_height;
+        scale_width = vd->source.i_width/width;
+        msg_Dbg(vd, "[%s:%s:%d]=zspace=: scale_width %f scale_height %f", __FILE__ , __FUNCTION__, __LINE__,scale_width, scale_height);
+        black_width = (sys->videoView.layer.bounds.size.width - width)/2;
 
-    p_out_bounds->left = memset_bounds.left/scale_width;
-    p_out_bounds->right = memset_bounds.right/scale_width;
+    }
+
+    p_out_bounds->left = memset_bounds.left/scale_width + black_width;
+    p_out_bounds->right = memset_bounds.right/scale_width + black_width;
     
 #if TARGET_OS_OSX
     p_out_bounds->top = sys->videoView.layer.bounds.size.height - (memset_bounds.top/scale_height+black_height);
@@ -610,56 +639,27 @@ static int Control(vout_display_t *vd, int query, va_list ap)
 
     if (!vd->sys)
         return VLC_EGENERIC;
-    msg_Dbg (vd, "--------------------------------------------------request %d", query);
+    msg_Dbg (vd, "request %d", query);
 
     switch (query)
     {
         case VOUT_DISPLAY_CHANGE_DISPLAY_SIZE:
-        case VOUT_DISPLAY_CHANGE_DISPLAY_FILLED:
-        case VOUT_DISPLAY_CHANGE_ZOOM:
-        case VOUT_DISPLAY_CHANGE_SOURCE_ASPECT:
-        case VOUT_DISPLAY_CHANGE_SOURCE_CROP:
-        
         {
             const vout_display_cfg_t *cfg;
-
-            if (query == VOUT_DISPLAY_CHANGE_SOURCE_ASPECT || query == VOUT_DISPLAY_CHANGE_SOURCE_CROP) {
-                cfg = vd->cfg;
-            } else {
-                cfg = (const vout_display_cfg_t*)va_arg (ap, const vout_display_cfg_t *);
-            }
-
-            /* we always use our current frame here, because we have some size constraints
-             in the ui vout provider */
-            vout_display_cfg_t cfg_tmp = *cfg;
-
-            /* Reverse vertical alignment as the GL tex are Y inverted */
-            if (cfg_tmp.align.vertical == VOUT_DISPLAY_ALIGN_TOP)
-                cfg_tmp.align.vertical = VOUT_DISPLAY_ALIGN_BOTTOM;
-            else if (cfg_tmp.align.vertical == VOUT_DISPLAY_ALIGN_BOTTOM)
-                cfg_tmp.align.vertical = VOUT_DISPLAY_ALIGN_TOP;
-
-            vout_display_place_t place;
-            vout_display_PlacePicture (&place, &vd->source, &cfg_tmp, false);
-            @synchronized (sys->videoView) {
-                sys->place = place;
-            }
-            dispatch_sync(dispatch_get_main_queue(), ^{
-                msg_Dbg(vd, "[%s:%s:%d]=zspace=: videoView width %f height %f", __FILE__ , __FUNCTION__, __LINE__,sys->videoView.layer.bounds.size.width,sys->videoView.layer.bounds.size.height);
-                sys->displayLayer.frame = sys->videoView.layer.bounds;
-            });
-//#if TARGET_OS_OSX
-//#else
-//            [sys->videoView performSelectorOnMainThread:@selector(setNeedsUpdateConstraints)
-//                                   withObject:nil
-//                                waitUntilDone:NO];
-//#endif
+            cfg = (const vout_display_cfg_t*)va_arg (ap, const vout_display_cfg_t *);
+            msg_Dbg(vd, "[%s:%s:%d]=zspace=: display size: %dx%d", __FILE__ , __FUNCTION__, __LINE__, cfg->display.width,
+                    cfg->display.height);
+            return VLC_SUCCESS;
+        }
+        case VOUT_DISPLAY_CHANGE_SOURCE_ASPECT:
+        {
+            const vout_display_cfg_t *cfg;
+            cfg = vd->cfg;
+            msg_Dbg(vd, "[%s:%s:%d]=zspace=: aspect size: %dx%d", __FILE__ , __FUNCTION__, __LINE__, cfg->display.width,
+                    cfg->display.height);
             return VLC_SUCCESS;
         }
 
-        case VOUT_DISPLAY_RESET_PICTURES:
-            msg_Err (vd, "request %d", query);
-            break;
         default:
             msg_Err (vd, "Unhandled request %d", query);
             return VLC_EGENERIC;
@@ -706,36 +706,8 @@ static int Control(vout_display_t *vd, int query, va_list ap)
         sys->displayLayer.frame = self.layer.bounds;
     }
 }
-- (void)updateConstraints
-{
-    [super updateConstraints];
-    [self reshape];
-}
 #endif
 
-- (void)reshape
-{
-#if TARGET_OS_OSX
-    NSRect bounds = [self convertRectToBacking:[self bounds]];
-#else
-    CGRect bounds = [self bounds];
-#endif
-    vout_display_place_t place;
-
-    @synchronized(self) {
-        if (vd) {
-            vout_display_cfg_t cfg_tmp = *(vd->cfg);
-            cfg_tmp.display.width  = bounds.size.width;
-            cfg_tmp.display.height = bounds.size.height;
-
-            vout_display_PlacePicture (&place, &vd->source, &cfg_tmp, false);
-            vd->sys->place = place;
-
-            msg_Err (vd, "reshape width = %f height = %f place x %d y %d width %d height %d",bounds.size.width, bounds.size.height, place.x, place.y, place.width, place.height);
-            vout_display_SendEventDisplaySize (vd, bounds.size.width, bounds.size.height);
-        }
-    }
-}
 - (void)setVoutDisplay:(vout_display_t *)voutDisplay
 {
     @synchronized(self) {

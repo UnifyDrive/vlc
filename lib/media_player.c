@@ -82,6 +82,10 @@ static int
 volume_changed(vlc_object_t *obj, const char *name, vlc_value_t old,
                vlc_value_t cur, void *opaque);
 
+static int
+vout_module_name(vlc_object_t *obj, const char *name, vlc_value_t old,
+               vlc_value_t cur, void *opaque);
+
 static void
 add_es_callbacks( input_thread_t *p_input_thread, libvlc_media_player_t *p_mi );
 
@@ -680,6 +684,19 @@ static int volume_changed(vlc_object_t *obj, const char *name, vlc_value_t old,
     return VLC_SUCCESS;
 }
 
+static int vout_module_name(vlc_object_t *obj, const char *name, vlc_value_t old,
+                          vlc_value_t cur, void *opaque)
+{
+    libvlc_event_t event;
+    libvlc_media_player_t * p_mi = opaque;
+
+    event.type = libvlc_MediaPlayerVoutModuleName;
+    event.u.media_player_vout_module_name.name = cur.psz_string;
+    libvlc_event_send(&p_mi->event_manager, &event);
+    VLC_UNUSED(name); VLC_UNUSED(old); VLC_UNUSED(opaque);
+    return VLC_SUCCESS;
+}
+
 /**************************************************************************
  * Create a Media Instance object.
  *
@@ -878,6 +895,8 @@ libvlc_media_player_new( libvlc_instance_t *instance )
      * want to expose it in such a limiting and ugly way.
      */
     var_AddCallback(mp->obj.libvlc, "snapshot-file", snapshot_was_taken, mp);
+    
+    var_AddCallback(mp->obj.libvlc, "vout-name", vout_module_name, mp);
 
     libvlc_retain(instance);
 
@@ -925,7 +944,10 @@ static void libvlc_media_player_destroy( libvlc_media_player_t *p_mi )
     /* Detach Callback from the main libvlc object */
     var_DelCallback( p_mi->obj.libvlc,
                      "snapshot-file", snapshot_was_taken, p_mi );
-
+    
+    var_DelCallback( p_mi->obj.libvlc,
+                     "vout-name", vout_module_name, p_mi );
+    
     /* Detach callback from the media player / input manager object */
     var_DelCallback( p_mi, "volume", volume_changed, NULL );
     var_DelCallback( p_mi, "mute", mute_changed, NULL );

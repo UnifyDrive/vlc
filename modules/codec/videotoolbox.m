@@ -1245,19 +1245,35 @@ static CFMutableDictionaryRef CreateSessionDescriptionFormat(decoder_t *p_dec,
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wpartial-availability"
 
-    /* enable HW accelerated playback, since this is optional on OS X
-     * note that the backend may still fallback on software mode if no
-     * suitable hardware is available */
-    CFDictionarySetValue(decoderConfiguration,
-                         kVTVideoDecoderSpecification_EnableHardwareAcceleratedVideoDecoder,
-                         kCFBooleanTrue);
-
-    /* on OS X, we can force VT to fail if no suitable HW decoder is available,
-     * preventing the aforementioned SW fallback */
-    if (var_InheritBool(p_dec, "videotoolbox-hw-decoder-only"))
+    bool enableHardwareAccelerate = false;
+#if TARGET_OS_OSX
+    enableHardwareAccelerate = true;
+#elif TARGET_OS_TV
+#elif TARGET_OS_IPHONE
+    char *var = NULL;
+    var = var_InheritString (p_dec, "vout");
+    if (0 == strncmp(var, "ios", 3))
+    {
+        enableHardwareAccelerate = true;
+    }
+    msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: vout=[%s]. enableHardwareAccelerate = %d", __FILE__ , __FUNCTION__, __LINE__, var, enableHardwareAccelerate);
+#endif
+    if (enableHardwareAccelerate)
+    {
+        /* enable HW accelerated playback, since this is optional on OS X
+         * note that the backend may still fallback on software mode if no
+         * suitable hardware is available */
         CFDictionarySetValue(decoderConfiguration,
-                             kVTVideoDecoderSpecification_RequireHardwareAcceleratedVideoDecoder,
+                             kVTVideoDecoderSpecification_EnableHardwareAcceleratedVideoDecoder,
                              kCFBooleanTrue);
+
+        /* on OS X, we can force VT to fail if no suitable HW decoder is available,
+         * preventing the aforementioned SW fallback */
+        if (var_InheritBool(p_dec, "videotoolbox-hw-decoder-only"))
+            CFDictionarySetValue(decoderConfiguration,
+                                 kVTVideoDecoderSpecification_RequireHardwareAcceleratedVideoDecoder,
+                                 kCFBooleanTrue);
+    }
 
 #pragma clang diagnostic pop
 
@@ -1612,15 +1628,24 @@ static int OpenDecoder(vlc_object_t *p_this)
 
     p_dec->pf_decode = DecodeBlock;
     p_dec->pf_flush  = RequestFlush;
-#if TARGET_OS_OSX
+
     char *var = NULL;
     var = var_InheritString (p_dec, "vout");
+    msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: vout=[%s].", __FILE__ , __FUNCTION__, __LINE__, var);
+#if TARGET_OS_OSX
     /* Don't set HDR if vout is caopengllayer */
     if (!var || (0 == strcmp(var, "caopengllayer")))
     {
         p_dec->fmt_in.video.hdr_type = HDR_TYPE_UNDEF;
     }
-    msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: vout=[%s].", __FILE__ , __FUNCTION__, __LINE__, var);
+
+#elif TARGET_OS_TV
+#elif TARGET_OS_IPHONE
+    /* Don't set HDR if vout is ios */
+    if (!var || (0 == strncmp(var, "ios", 3)))
+    {
+        p_dec->fmt_in.video.hdr_type = HDR_TYPE_UNDEF;
+    }
 #endif
 
     switch(codec)

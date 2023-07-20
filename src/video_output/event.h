@@ -114,6 +114,11 @@ static inline void vout_SendEventViewpointChangeable(vout_thread_t *vout,
     var_SetBool(vout, "viewpoint-changeable", b_can_change);
 }
 
+static inline void vout_SendEventModuleName(vout_thread_t *vout, const char *name)
+{
+    var_SetString(vout->obj.libvlc, "vout-name", name);
+}
+
 #if 0
 static inline void vout_SendEventSnapshot(vout_thread_t *vout, const char *filename)
 {
