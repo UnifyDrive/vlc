@@ -22,12 +22,14 @@ libglconv_cvpx_plugin_la_SOURCES = video_output/opengl/converter_cvpx.c \
 	video_output/opengl/converter.h
 libglconv_cvpx_plugin_la_LDFLAGS = $(AM_LDFLAGS) -rpath '$(voutdir)'
 
+if HAVE_DARWIN
 libavsamplebufferdisplaylayer_plugin_la_SOURCES = video_output/avsamplebufferdisplaylayer.m codec/vt_utils.c codec/vt_utils.h
 libavsamplebufferdisplaylayer_plugin_la_CFLAGS = $(AM_CFLAGS)
 libavsamplebufferdisplaylayer_plugin_la_LIBADD =
 libavsamplebufferdisplaylayer_plugin_la_LDFLAGS = $(AM_LDFLAGS) -rpath '$(voutdir)' \
 	-Wl,-framework,Cocoa,-framework,QuartzCore,-framework,CoreMedia,-framework,CoreVideo,-framework,AVKit,-framework,AVFoundation
 vout_LTLIBRARIES += libavsamplebufferdisplaylayer_plugin.la
+endif
 
 if HAVE_OSX
 libvout_macosx_plugin_la_SOURCES = video_output/macosx.m $(OPENGL_COMMONSOURCES)

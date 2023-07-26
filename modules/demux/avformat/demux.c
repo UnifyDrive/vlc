@@ -47,7 +47,9 @@
 
 #include <libavutil/opt.h>
 #include <libavformat/avformat.h>
+#if defined(__APPLE__)
 #include <libavformat/dovi_isom.h>
+#endif
 #include <libavutil/display.h>
 #include "libavutil/dovi_meta.h"
 #include "../../../src/input/es_out.h"
