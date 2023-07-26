@@ -407,14 +407,15 @@ static void GetDisplayRect(vout_display_t *vd, Rect memset_bounds, Rect *p_out_b
         scale_width = vd->source.i_width/(sys->videoView.layer.bounds.size.width);
         CGFloat height = vd->source.i_height *sys->videoView.layer.bounds.size.width/vd->source.i_width;
         scale_height = vd->source.i_height/height;
-        msg_Dbg(vd, "[%s:%s:%d]=zspace=: scale_width %f scale_height %f", __FILE__ , __FUNCTION__, __LINE__,scale_width, scale_height);
+        //msg_Dbg(vd, "[%s:%s:%d]=zspace=: scale_width %f scale_height %f", __FILE__ , __FUNCTION__, __LINE__,scale_width, scale_height);
         black_height = (sys->videoView.layer.bounds.size.height - height)/2 ;
     }
-    else{
+    else
+    {
         scale_height = vd->source.i_height/(sys->videoView.layer.bounds.size.height);
         CGFloat width = vd->source.i_width * sys->videoView.layer.bounds.size.height/vd->source.i_height;
         scale_width = vd->source.i_width/width;
-        msg_Dbg(vd, "[%s:%s:%d]=zspace=: scale_width %f scale_height %f", __FILE__ , __FUNCTION__, __LINE__,scale_width, scale_height);
+        //msg_Dbg(vd, "[%s:%s:%d]=zspace=: scale_width %f scale_height %f", __FILE__ , __FUNCTION__, __LINE__,scale_width, scale_height);
         black_width = (sys->videoView.layer.bounds.size.width - width)/2;
 
     }
