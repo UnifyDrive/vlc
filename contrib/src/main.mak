@@ -463,6 +463,14 @@ fetch: $(PKGS:%=.sum-%)
 fetch-all: $(PKGS_ALL:%=.sum-%)
 install: $(PKGS:%=.%)
 
+cleanbluray:
+	-$(RM) "./.bluray"
+	-$(RM) "./.sum-bluray"
+	-$(RM) "./.dep-bluray"
+	-$(RM) -R "$(PREFIX)/include/bluray/*.*"
+	-$(RM) -R "$(PREFIX)/share/doc/bluray/*.*"
+	-$(RM) "$(PREFIX)/lib/libbluray.*"
+	-$(RM) "$(PREFIX)/lib/pkgconfig/bluray.*"
 cleanffmpeg:
 	-$(RM) "./.ffmpeg"
 	-$(RM) "./.sum-ffmpeg"
