@@ -1177,7 +1177,14 @@ static void SubpicturePrepare(vout_display_t *vd, subpicture_t *subpicture)
                                 * sys->p_sub_pic->p[0].i_pixel_pitch;
     const int i_line_size = (memset_bounds.right - memset_bounds.left)
                             * sys->p_sub_pic->p->i_pixel_pitch;
-    for (int y = memset_bounds.top; y < memset_bounds.bottom; y++)
+
+    int new_bottom = memset_bounds.bottom;
+    if (memset_bounds.bottom - memset_bounds.top > sys->p_sub_pic->p[0].i_lines)
+    {
+        new_bottom = memset_bounds.top + sys->p_sub_pic->p[0].i_lines;
+    }
+
+    for (int y = memset_bounds.top; y < new_bottom; y++)
         memset(&sys->p_sub_pic->p[0].p_pixels[y * sys->p_sub_pic->p[0].i_pitch
                                               + x_pixels_offset], 0, i_line_size);
 
