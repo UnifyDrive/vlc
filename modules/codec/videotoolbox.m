@@ -277,6 +277,25 @@ static bool HXXXGetBestChroma(decoder_t *p_dec)
         }else {
             return false;
         }
+    }else if (i_chroma_format == 3 /* YUV 4:4:4 */){
+        if (i_depth_luma == 8 && i_depth_chroma == 8)
+            p_sys->i_cvpx_format = kCVPixelFormatType_444YpCbCr8BiPlanarVideoRange;
+        else if (i_depth_luma == 10 && i_depth_chroma == 10)
+        {
+           /* Force BGRA output (and let VT handle the tone mapping) since the
+            * Apple openGL* implementation can't handle 16 bit textures. This
+            * is the case for iOS and some macOS devices (ones that are not
+            * handling HEVC). */
+            p_sys->i_cvpx_format = kCVPixelFormatType_32BGRA;
+        }
+        else if (i_depth_luma > 10 && i_depth_chroma > 10)
+        {
+            /* XXX: The apple openGL implementation doesn't support 12 or 16
+             * bit rendering */
+            p_sys->i_cvpx_format = kCVPixelFormatType_32BGRA;
+        }else {
+            return false;
+        }
     }else {
         return false;
     }
