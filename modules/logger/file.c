@@ -220,7 +220,7 @@ vlc_module_begin()
     set_description(N_("File logger"))
     set_category(CAT_ADVANCED)
     set_subcategory(SUBCAT_ADVANCED_MISC)
-    set_capability("logger", 15)
+    set_capability("logger", 45)
     set_callbacks(Open, Close)
 
     add_bool("file-logging", false, FILE_LOG_TEXT, FILE_LOG_LONGTEXT, false)
