@@ -476,13 +476,17 @@ char* MediaCodec_GetName(vlc_object_t *p_obj, const char *psz_mime,
         name = (*env)->CallObjectMethod(env, info, jfields.get_name);
         name_len = (*env)->GetStringUTFLength(env, name);
         name_ptr = (*env)->GetStringUTFChars(env, name, NULL);
-        //msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: Check %d [%s] for [%s].", __FILE__ , __FUNCTION__, __LINE__, i, name_ptr, psz_mime);
+        msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: Check %d [%s] for [%s].", __FILE__ , __FUNCTION__, __LINE__, i, name_ptr, psz_mime);
 
-        if (OMXCodec_IsBlacklisted(name_ptr, name_len))
+        if (OMXCodec_IsBlacklisted(name_ptr, name_len)) {
+            msg_Warn(p_obj, "[%s:%s:%d]=zspace=: In BlackList,skip it.", __FILE__ , __FUNCTION__, __LINE__);
             goto loopclean;
+        }
 
-        if ((*env)->CallBooleanMethod(env, info, jfields.is_encoder))
+        if ((*env)->CallBooleanMethod(env, info, jfields.is_encoder)) {
+            msg_Warn(p_obj, "[%s:%s:%d]=zspace=: Is encoder,skip it.", __FILE__ , __FUNCTION__, __LINE__);
             goto loopclean;
+        }
 
         codec_capabilities = (*env)->CallObjectMethod(env, info,
                                                       jfields.get_capabilities_for_type,
