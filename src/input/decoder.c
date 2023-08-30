@@ -655,7 +655,7 @@ static int vout_update_format( decoder_t *p_dec )
         if(p_dec->fmt_in.video.hdr_type == HDR_TYPE_DOLBYVISION){
             status = asprintf(&codecStatus,"%s","dolby vision");
         }else if(p_dec->fmt_in.video.hdr_type == HDR_TYPE_DOLBYVISION_COMPATIBLE_HDR10){
-            status = asprintf(&codecStatus,"%s","dolby vision");
+            status = asprintf(&codecStatus,"%s","dv_hdr10");
         }else if(p_dec->fmt_in.video.hdr_type == HDR_TYPE_HDR10){
             status = asprintf(&codecStatus,"%s","hdr10");
         }else if (p_dec->fmt_in.video.hdr_type == HDR_TYPE_HLG){
