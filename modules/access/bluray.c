@@ -117,6 +117,8 @@ vlc_module_begin ()
     add_bool("bluray-menu", true, BD_MENU_TEXT, BD_MENU_LONGTEXT, false)
     add_string("bluray-region", ppsz_region_code[REGION_DEFAULT], BD_REGION_TEXT, BD_REGION_LONGTEXT, false)
         change_string_list(ppsz_region_code, ppsz_region_code_text)
+    add_integer ("start-title-id", -1,
+                 N_("Start from title"), N_("Start from title"), false)
 
     add_shortcut("bluray", "file")
 
@@ -230,6 +232,7 @@ struct  demux_sys_t
 #endif
     bool                b_reset_dts_offset;
     mtime_t             i_pcr_offset;
+    int                 i_start_title_idx;
 };
 
 /*
@@ -1049,6 +1052,7 @@ static int blurayOpen(vlc_object_t *object)
     p_sys->b_reset_dts_offset = true;
     p_sys->i_pcr_offset = VLC_TS_INVALID;
     p_sys->di = NULL;
+    p_sys->i_start_title_idx = -1;
 
     /* init demux info fields */
     p_demux->info.i_update    = 0;
@@ -1267,7 +1271,12 @@ static int blurayOpen(vlc_object_t *object)
 
     } else {
         /* set start title number */
-        if (bluraySetTitle(p_demux, p_sys->i_longest_title) != VLC_SUCCESS) {
+        int i_index = -1;
+        if (p_sys->i_start_title_idx >= 0 && p_sys->i_start_title_idx < p_sys->i_title-1)
+            i_index = p_sys->i_start_title_idx;
+        else 
+            i_index = p_sys->i_longest_title;
+        if (bluraySetTitle(p_demux, i_index) != VLC_SUCCESS) {
             msg_Err(p_demux, "Could not set the title %d", p_sys->i_longest_title);
             goto error;
         }
@@ -2482,6 +2491,7 @@ static void blurayInitTitles(demux_t *p_demux, uint32_t menu_titles)
 
     /* get and set the titles */
     uint32_t i_title = menu_titles;
+    p_sys->i_start_title_idx = var_InheritInteger (p_demux, "start-title-id");
 
     if (!p_sys->b_menu) {
         i_title = bd_get_titles(p_sys->bluray, TITLES_RELEVANT, 60);
@@ -2491,7 +2501,7 @@ static void blurayInitTitles(demux_t *p_demux, uint32_t menu_titles)
 
     uint64_t duration = 0;
     uint32_t i_longest_playlist = 0;
-    for (uint32_t i = 0; i <= p_sys->i_longest_title; i++) {
+    for (uint32_t i = 0; i <= i_title; i++) {
         input_title_t *t = vlc_input_title_New();
         if (!t)
             break;
@@ -2507,6 +2517,13 @@ static void blurayInitTitles(demux_t *p_demux, uint32_t menu_titles)
                 if (title_info->duration > duration) {
                     i_longest_playlist = title_info->playlist;
                     duration = title_info->duration;
+                }
+                /* add possible title name from disc metadata */
+                if (di && di->titles && i <= di->num_titles) {
+                    if (di->titles[i]->name) {
+                        t->psz_name = strdup(di->titles[i]->name);
+                        msg_Dbg(p_demux, "[%s:%s:%d]=zspace=: Get t->psz_name=[%s].", __FILE__ , __FUNCTION__, __LINE__, t->psz_name);
+                    }
                 }
                 blurayUpdateTitleInfo(t, title_info);
                 bd_free_title_info(title_info);
@@ -2534,7 +2551,7 @@ static void blurayInitTitles(demux_t *p_demux, uint32_t menu_titles)
 
         TAB_APPEND(p_sys->i_title, p_sys->pp_title, t);
     }
-    msg_Dbg(p_demux, "[%s:%s:%d]=zspace=: Get longest Title[%05d.mpls].", __FILE__ , __FUNCTION__, __LINE__, i_longest_playlist);
+    msg_Dbg(p_demux, "[%s:%s:%d]=zspace=: Get longest Title[%05d.mpls], total=%d.", __FILE__ , __FUNCTION__, __LINE__, i_longest_playlist, p_sys->i_title);
 }
 
 static void blurayRestartParser(demux_t *p_demux, bool b_flush, bool b_random_access)
