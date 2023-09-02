@@ -176,6 +176,7 @@ struct aout_sys_t {
 
     bool  isjiguang4pro;
     bool  isz9x;
+    int   i_dts_profile;
 };
 
 
@@ -252,6 +253,8 @@ static struct
         bool has_ENCODING_DTS;
         jint ENCODING_DTS_HD;
         bool has_ENCODING_DTS_HD;
+        jint ENCODING_DTS_HD_MA;//API 34
+        bool has_ENCODING_DTS_HD_MA;
         jint ENCODING_IEC61937;
         bool has_ENCODING_IEC61937;
         jint CHANNEL_OUT_MONO;
@@ -447,6 +450,8 @@ InitJNIFields( audio_output_t *p_aout, JNIEnv* env )
     jfields.AudioFormat.has_ENCODING_DTS = field != NULL;
     GET_CONST_INT( AudioFormat.ENCODING_DTS_HD, "ENCODING_DTS_HD", false );
     jfields.AudioFormat.has_ENCODING_DTS_HD = field != NULL;
+    GET_CONST_INT( AudioFormat.ENCODING_DTS_HD_MA, "ENCODING_DTS_HD_MA", false );
+    jfields.AudioFormat.has_ENCODING_DTS_HD_MA = field != NULL;
 
     GET_CONST_INT( AudioFormat.ENCODING_DOLBY_TRUEHD, "ENCODING_DOLBY_TRUEHD",
                    false );
@@ -475,11 +480,11 @@ InitJNIFields( audio_output_t *p_aout, JNIEnv* env )
     {
         GET_CONST_INT( AudioFormat.ENCODING_IEC61937, "ENCODING_IEC61937", false );
         jfields.AudioFormat.has_ENCODING_IEC61937 =  GetAndroidSupport(env,p_aout,48000,jfields.AudioFormat.CHANNEL_OUT_STEREO,jfields.AudioFormat.ENCODING_IEC61937,false);
-        msg_Dbg(p_aout,"tdx     iec61937   %d \n",jfields.AudioFormat.has_ENCODING_IEC61937);
     }
     else{
         jfields.AudioFormat.has_ENCODING_IEC61937 = false;
     }
+    msg_Dbg(p_aout,"tdx     iec61937   %d \n",jfields.AudioFormat.has_ENCODING_IEC61937);
 
     /* AudioManager class init */
     GET_CLASS( "android/media/AudioManager", true );
@@ -1030,7 +1035,7 @@ AudioTrack_Create( JNIEnv *env, audio_output_t *p_aout,
 {
     aout_sys_t *p_sys = p_aout->sys;
     int i_size, i_min_buffer_size, i_channel_config;
-    msg_Warn( p_aout, "[%s:%s:%d]=zspace=: i_physical_channels = %d, i_format=%d. ", __FILE__ , __FUNCTION__, __LINE__, i_physical_channels, i_format);
+    msg_Warn( p_aout, "[%s:%s:%d]=zspace=: i_physical_channels = %d, i_format=%d, i_rate=%d. ", __FILE__ , __FUNCTION__, __LINE__, i_physical_channels, i_format, i_rate);
 
     switch( i_physical_channels )
     {
@@ -1042,15 +1047,18 @@ AudioTrack_Create( JNIEnv *env, audio_output_t *p_aout,
                                jfields.AudioFormat.CHANNEL_OUT_SIDE_RIGHT;
 
             //i_channel_config = jfields.AudioFormat.CHANNEL_OUT_7POINT1_SURROUND;
+            msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Deal AOUT_CHANS_7_1 . ", __FILE__ , __FUNCTION__, __LINE__);
             break;
         case AOUT_CHANS_5_1:
             i_channel_config = jfields.AudioFormat.CHANNEL_OUT_5POINT1;
+            msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Deal AOUT_CHANS_5_1 . ", __FILE__ , __FUNCTION__, __LINE__);
             break;
         case AOUT_CHAN_LEFT:
             i_channel_config = jfields.AudioFormat.CHANNEL_OUT_MONO;
             break;
         case AOUT_CHANS_STEREO:
             i_channel_config = jfields.AudioFormat.CHANNEL_OUT_STEREO;
+            msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Deal AOUT_CHANS_STEREO . ", __FILE__ , __FUNCTION__, __LINE__);
             break;
         default:
             vlc_assert_unreachable();
@@ -1092,7 +1100,7 @@ static bool
     aout_sys_t *p_sys = p_aout->sys;
 #define MATCH_ENCODING_FLAG(x) jfields.AudioFormat.has_##x && \
     ( p_sys->i_encoding_flags == 0 || p_sys->i_encoding_flags & (1 << jfields.AudioFormat.x) )
-
+    msg_Warn( p_aout, "[%s:%s:%d]=zspace=: i_encoding_flags=%lld, i_format=[%4.4s]. ", __FILE__ , __FUNCTION__, __LINE__, p_sys->i_encoding_flags, (const char*)&i_format);
     if(ac3 == true){
          *p_dtshd = false;
         switch( i_format )
@@ -1115,6 +1123,7 @@ static bool
                 && var_GetBool( p_aout, "dtshd" ) )
                 {
                     *p_dtshd = true;
+                    msg_Warn( p_aout, "[%s:%s:%d]=zspace=: p_dtshd=[%d]. ", __FILE__ , __FUNCTION__, __LINE__, *p_dtshd);
                     return true;
                 }
                 return MATCH_ENCODING_FLAG( ENCODING_DTS );
@@ -1126,6 +1135,7 @@ static bool
             case VLC_CODEC_MLP: 
                 return MATCH_ENCODING_FLAG( ENCODING_DOLBY_TRUEHD );
             default:
+                msg_Warn( p_aout, "[%s:%s:%d]=zspace=: i_format in unknown. ", __FILE__ , __FUNCTION__, __LINE__);
                 return false;
         }
     }
@@ -1138,6 +1148,7 @@ StartPassthrough( JNIEnv *env, audio_output_t *p_aout, bool ac3)
     aout_sys_t *p_sys = p_aout->sys;
     int i_at_format;
     bool b_dtshd;
+
     if(ac3 == true){
         if(!AudioTrack_HasEncoding( p_aout, p_sys->fmt.i_format, &b_dtshd,ac3))
             return VLC_EGENERIC;
@@ -1179,6 +1190,7 @@ StartPassthrough( JNIEnv *env, audio_output_t *p_aout, bool ac3)
             return VLC_EGENERIC;
         }
 
+        msg_Warn( p_aout, "[%s:%s:%d]=zspace=: has_ENCODING_IEC61937=[%d]. ", __FILE__ , __FUNCTION__, __LINE__, jfields.AudioFormat.has_ENCODING_IEC61937);
         if( jfields.AudioFormat.has_ENCODING_IEC61937 )
         {
             i_at_format = jfields.AudioFormat.ENCODING_IEC61937;
@@ -1196,12 +1208,12 @@ StartPassthrough( JNIEnv *env, audio_output_t *p_aout, bool ac3)
                 case VLC_CODEC_DTS:
                     p_sys->fmt.i_bytes_per_frame = 4;
                     p_sys->fmt.i_physical_channels = AOUT_CHANS_STEREO;
-                /*  if( b_dtshd )
+                    if( b_dtshd && 1)
                     {
                         p_sys->fmt.i_rate = 192000;
                         p_sys->fmt.i_bytes_per_frame = 16;
                     }
-                */
+                
                     break;
                 case VLC_CODEC_EAC3:
                     p_sys->fmt.i_rate = 192000;
@@ -1239,12 +1251,12 @@ StartPassthrough( JNIEnv *env, audio_output_t *p_aout, bool ac3)
                 case VLC_CODEC_TRUEHD:
                     if( !jfields.AudioFormat.has_ENCODING_DOLBY_TRUEHD )
                         return VLC_EGENERIC;
-                    i_at_format = jfields.AudioFormat.ENCODING_IEC61937;
+                    i_at_format = jfields.AudioFormat.ENCODING_IEC61937;//for z9x
                     break;
                 default:
                     break;
             }
-            if (p_sys->fmt.i_format != VLC_CODEC_TRUEHD) {
+            if (p_sys->fmt.i_format != VLC_CODEC_TRUEHD && 1) {
                 p_sys->fmt.i_bytes_per_frame = 4;
                 p_sys->fmt.i_frame_length = 1;
                 p_sys->fmt.i_physical_channels = AOUT_CHANS_STEREO;
@@ -1388,6 +1400,7 @@ Start( audio_output_t *p_aout, audio_sample_format_t *restrict p_fmt )
 
     p_sys->isjiguang4pro = false;
     p_sys->isz9x = false;
+    p_sys->i_dts_profile = -1;
     if( p_sys->at_dev == AT_DEV_ENCODED )
     {
         b_try_passthrough = true;
@@ -1404,6 +1417,8 @@ Start( audio_output_t *p_aout, audio_sample_format_t *restrict p_fmt )
         if(p_sys->isz9x){
             jfields.AudioFormat.has_ENCODING_IEC61937 = false;
         }
+        p_sys->i_dts_profile = var_InheritInteger( p_aout, "dtsProfile" );
+        msg_Dbg( p_aout, "[%s:%s:%d]=zspace=:  dtsProfile=%d.", __FILE__ , __FUNCTION__, __LINE__, p_sys->i_dts_profile);
     }
 
     if( !( env = GET_ENV() ) )

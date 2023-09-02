@@ -391,11 +391,13 @@ static int aout_update_format( decoder_t *p_dec )
         p_aout = input_resource_GetAout( p_owner->p_resource );
         if( p_aout )
         {
-            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: get one new audio_output_t *p_aout.", __FILE__ , __FUNCTION__, __LINE__);
+            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Get one new audio_output_t for [%s], i_profile=%d.", __FILE__ , __FUNCTION__, __LINE__, (const char*)&p_dec->fmt_out.i_codec, p_dec->fmt_out.i_profile);
             /* TODO: 3.0 HACK: we need to put i_profile inside audio_format_t
              * for 4.0 */
-            if( p_dec->fmt_out.i_codec == VLC_CODEC_DTS )
+            if( p_dec->fmt_out.i_codec == VLC_CODEC_DTS ) {
                 var_SetBool( p_aout, "dtshd", p_dec->fmt_out.i_profile > 0 );
+                var_SetInteger( p_aout, "dtsProfile", p_dec->fmt_out.i_profile );
+            }
             var_SetBool(p_aout,"outPassThroughError",false);
             if( aout_DecNew( p_aout, &format,
                              &p_dec->fmt_out.audio_replay_gain,

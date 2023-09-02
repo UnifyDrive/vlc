@@ -240,6 +240,7 @@ audio_output_t *aout_New (vlc_object_t *parent)
     var_Create (aout, "dtshd", VLC_VAR_BOOL);
     var_Create (aout, "outPassThroughError", VLC_VAR_BOOL);
     var_Create (aout, "loudness-meter", VLC_VAR_ADDRESS);
+    var_Create (aout, "dtsProfile", VLC_VAR_INTEGER | VLC_VAR_DOINHERIT);
 
     aout->event.volume_report = aout_VolumeNotify;
     aout->event.mute_report = aout_MuteNotify;

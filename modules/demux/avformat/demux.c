@@ -47,6 +47,9 @@
 
 #include <libavutil/opt.h>
 #include <libavformat/avformat.h>
+//#include <libavformat/internal.h>
+
+
 #if defined(__APPLE__)
 #include <libavformat/dovi_isom.h>
 #endif
@@ -102,6 +105,7 @@ struct demux_sys_t
     uint64_t     i_nztime;
     AVCodecParserContext *m_parser;
     AVCodecContext *m_context;
+    AVCodec *m_codec ;
     bool m_parser_split;
 };
 
@@ -311,6 +315,7 @@ int avformat_OpenDemux( vlc_object_t *p_this )
     p_sys->m_context = NULL;
     p_sys->m_parser = NULL;
     p_sys->m_parser_split = false;
+    p_sys->m_codec = NULL;
 
     /* Create I/O wrapper */
     unsigned char * p_io_buffer = av_malloc( AVFORMAT_IOBUFFER_SIZE );
@@ -372,8 +377,8 @@ int avformat_OpenDemux( vlc_object_t *p_this )
     }
     vlc_avcodec_lock(); /* avformat calls avcodec behind our back!!! */
     // TDX  ...
-//    error = avformat_find_stream_info( p_sys->ic, options );
-    if(strcmp( fmt->name, "flv" ) != 0 && strcmp( fmt->name, "wav" ) != 0){
+    //error = avformat_find_stream_info( p_sys->ic, options );
+    if(strcmp( fmt->name, "flv" ) != 0 && strcmp( fmt->name, "wav" ) != 0 && !var_InheritBool( p_demux, "spdif" )){
         av_opt_set_int(p_sys->ic, "analyzeduration", 500000, 0);
         av_opt_set_int(p_sys->ic, "probesize", 4096, 0);
     }
@@ -418,6 +423,9 @@ int avformat_OpenDemux( vlc_object_t *p_this )
         const AVCodecParameters *cp = s->codecpar;
         es_format_t es_fmt;
         const char *psz_type = "unknown";
+        AVCodecContext *avctx = NULL;
+        AVCodec *codec = NULL;
+        int ret = 0;
 
         /* Do not use the cover art as a stream */
         if( s->disposition == AV_DISPOSITION_ATTACHED_PIC )
@@ -435,6 +443,27 @@ int avformat_OpenDemux( vlc_object_t *p_this )
             es_fmt.audio.i_bitspersample = cp->bits_per_coded_sample;
             es_fmt.audio.i_blockalign = cp->block_align;
             psz_type = "audio";
+
+            if (cp->codec_id == AV_CODEC_ID_DTS && var_InheritBool( p_demux, "spdif" )) {
+                codec = avcodec_find_decoder(cp->codec_id);
+                if (codec) {
+                    msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Find audio [%4.4s] AVCodec[%s] [%s] [%d] .", __FILE__ , __FUNCTION__, __LINE__, (const char*)&fcc, codec->name, codec->long_name, codec->profiles?codec->profiles->profile:-1);
+                    avctx = avcodec_alloc_context3(codec);
+                    if (avctx) {
+                        ret = avcodec_parameters_to_context(avctx, cp);
+                        if (ret < 0) {
+                            avcodec_free_context(&avctx);
+                            msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Find audio [%4.4s] with i_original_fourcc [%4.4s], level [%d][%d].", __FILE__ , __FUNCTION__, __LINE__, (const char*)&fcc, (const char*)&es_fmt.i_original_fourcc, cp->level, cp->profile);
+                        }else {
+                            avcodec_open2(avctx, codec, 0);
+                            msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Find audio [%4.4s] AVCodec[%s] [%s] [%d] AVCodecContext[%d] .", __FILE__ , __FUNCTION__, __LINE__, (const char*)&fcc, codec->name, codec->long_name, codec->profiles?codec->profiles->profile:-1, avctx->profile);
+                            es_fmt.i_profile = avctx->profile;
+                            avcodec_close(avctx);
+                            avcodec_free_context(&avctx);
+                        }
+                    }
+                }
+            }
 
             if(cp->codec_id == AV_CODEC_ID_AAC_LATM)
             {
@@ -974,6 +1003,7 @@ again:
         av_packet_unref( &pkt );
         return 1;
     }
+
     if( p_stream->codecpar->codec_id == AV_CODEC_ID_SSA )
     {
         p_frame = BuildSsaFrame( &pkt, p_sys->i_ssa_order++ );
@@ -1018,6 +1048,7 @@ again:
             return 0;
         }
         memcpy( p_frame->p_buffer, pkt.data, pkt.size );
+        
         if( p_stream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO && ZSPACE_AV_DEMUX_DEBUG) {
             //uint8_t *sd = NULL;
             //size_t sd_size = 0;
