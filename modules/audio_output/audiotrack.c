@@ -780,8 +780,6 @@ TimeGet( audio_output_t *p_aout, mtime_t *restrict p_delay )
     mtime_t i_audiotrack_us;
     JNIEnv *env;
 
- //  if( p_sys->b_passthrough )
- //      return -1;
     if(p_sys->isz9x){
         if(p_sys->b_passthrough)
             return -1;
@@ -833,7 +831,7 @@ TimeGet( audio_output_t *p_aout, mtime_t *restrict p_delay )
         }
         else
         {
-	     msg_Warn( p_aout, "timing screwed, reset positions" );
+            msg_Warn( p_aout, "timing screwed, reset positions" );
             AudioTrack_ResetPositions( env, p_aout );
         }
     }
@@ -1212,6 +1210,7 @@ StartPassthrough( JNIEnv *env, audio_output_t *p_aout, bool ac3)
                     {
                         p_sys->fmt.i_rate = 192000;
                         p_sys->fmt.i_bytes_per_frame = 16;
+                        var_SetInteger( p_aout, "dtsDoSync", 0 );
                     }
                 
                     break;
@@ -1401,6 +1400,7 @@ Start( audio_output_t *p_aout, audio_sample_format_t *restrict p_fmt )
     p_sys->isjiguang4pro = false;
     p_sys->isz9x = false;
     p_sys->i_dts_profile = -1;
+
     if( p_sys->at_dev == AT_DEV_ENCODED )
     {
         b_try_passthrough = true;
@@ -1418,7 +1418,7 @@ Start( audio_output_t *p_aout, audio_sample_format_t *restrict p_fmt )
             jfields.AudioFormat.has_ENCODING_IEC61937 = false;
         }
         p_sys->i_dts_profile = var_InheritInteger( p_aout, "dtsProfile" );
-        msg_Dbg( p_aout, "[%s:%s:%d]=zspace=:  dtsProfile=%d.", __FILE__ , __FUNCTION__, __LINE__, p_sys->i_dts_profile);
+        msg_Dbg( p_aout, "[%s:%s:%d]=zspace=:  dtsProfile=%d, i_max_channels=%d.", __FILE__ , __FUNCTION__, __LINE__, p_sys->i_dts_profile, i_max_channels);
     }
 
     if( !( env = GET_ENV() ) )
@@ -2028,6 +2028,7 @@ ConvertFromIEC61937( audio_output_t *p_aout, block_t *p_buffer )
     if( p_buffer->i_buffer < 6 )
         return -1;
 
+    msg_Dbg( p_aout, "[%s:%s:%d]=zspace=: IEC61937 type [%x] .", __FILE__ , __FUNCTION__, __LINE__, GetWBE( &p_buffer->p_buffer[4] ) & 0xFF);
     switch( GetWBE( &p_buffer->p_buffer[4] ) & 0xFF )
     {
         case 0x01: /* IEC61937_AC3 */
@@ -2351,6 +2352,7 @@ static int DeviceSelect(audio_output_t *p_aout, const char *p_id)
 {
     aout_sys_t *p_sys = p_aout->sys;
     enum at_dev at_dev = AT_DEV_DEFAULT;
+    msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Begin, p_id=[%s]. ", __FILE__ , __FUNCTION__, __LINE__, p_id);
 
     if( p_id )
     {

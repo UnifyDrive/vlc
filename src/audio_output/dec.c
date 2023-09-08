@@ -246,6 +246,10 @@ static void aout_DecSynchronize (audio_output_t *aout, mtime_t dec_pts,
     aout_owner_t *owner = aout_owner (aout);
     mtime_t drift;
 
+    if (var_InheritInteger( aout, "dtsDoSync" ) == 0) {
+        return;
+    }
+
     /**
      * Depending on the drift between the actual and intended playback times,
      * the audio core may ignore the drift, trigger upsampling or downsampling,
