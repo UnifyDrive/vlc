@@ -35,6 +35,17 @@
 #include <vlc_aout.h>
 #include "../video_output/android/utils.h"
 
+#define FF_PROFILE_DTS         20
+#define FF_PROFILE_DTS_ES      30
+#define FF_PROFILE_DTS_96_24   40
+#define FF_PROFILE_DTS_HD_HRA  50
+#define FF_PROFILE_DTS_HD_MA   60
+#define FF_PROFILE_DTS_EXPRESS 70
+
+const unsigned int MAX_RAW_AUDIO_BUFFER_HD = 61440;
+const unsigned int MAX_RAW_AUDIO_BUFFER = 16384;
+
+
 #define SMOOTHPOS_SAMPLE_COUNT 10
 #define SMOOTHPOS_INTERVAL_US INT64_C(30000) // 30ms
 
@@ -267,7 +278,7 @@ static struct
         jint CHANNEL_OUT_LOW_FREQUENCY;
         jint CHANNEL_OUT_BACK_CENTER;
         jint CHANNEL_OUT_5POINT1;
-        //jint CHANNEL_OUT_7POINT1_SURROUND;
+        jint CHANNEL_OUT_7POINT1_SURROUND;
         jint CHANNEL_OUT_SIDE_LEFT;
         jint CHANNEL_OUT_SIDE_RIGHT;
         bool has_CHANNEL_OUT_SIDE;
@@ -462,7 +473,7 @@ InitJNIFields( audio_output_t *p_aout, JNIEnv* env )
     GET_CONST_INT( AudioFormat.CHANNEL_OUT_FRONT_LEFT, "CHANNEL_OUT_FRONT_LEFT", true );
     GET_CONST_INT( AudioFormat.CHANNEL_OUT_FRONT_RIGHT, "CHANNEL_OUT_FRONT_RIGHT", true );
     GET_CONST_INT( AudioFormat.CHANNEL_OUT_5POINT1, "CHANNEL_OUT_5POINT1", true );
-    //GET_CONST_INT( AudioFormat.CHANNEL_OUT_7POINT1_SURROUND, "CHANNEL_OUT_7POINT1_SURROUND", false );
+    GET_CONST_INT( AudioFormat.CHANNEL_OUT_7POINT1_SURROUND, "CHANNEL_OUT_7POINT1_SURROUND", false );
     GET_CONST_INT( AudioFormat.CHANNEL_OUT_BACK_LEFT, "CHANNEL_OUT_BACK_LEFT", true );
     GET_CONST_INT( AudioFormat.CHANNEL_OUT_BACK_RIGHT, "CHANNEL_OUT_BACK_RIGHT", true );
     GET_CONST_INT( AudioFormat.CHANNEL_OUT_FRONT_CENTER, "CHANNEL_OUT_FRONT_CENTER", true );
@@ -484,7 +495,6 @@ InitJNIFields( audio_output_t *p_aout, JNIEnv* env )
     else{
         jfields.AudioFormat.has_ENCODING_IEC61937 = false;
     }
-    msg_Dbg(p_aout,"tdx     iec61937   %d \n",jfields.AudioFormat.has_ENCODING_IEC61937);
 
     /* AudioManager class init */
     GET_CLASS( "android/media/AudioManager", true );
@@ -511,6 +521,29 @@ InitJNIFields( audio_output_t *p_aout, JNIEnv* env )
                     "setEnabled", "(Z)I", true );
         }
     }
+
+    if (jfields.AudioFormat.has_ENCODING_IEC61937) {
+        /*if (jfields.AudioFormat.has_ENCODING_DTS_HD || jfields.AudioFormat.has_ENCODING_E_AC3) {
+            bool b_support_7_1 = false;
+            b_support_7_1 = GetAndroidSupport(env,p_aout,192000,jfields.AudioFormat.CHANNEL_OUT_STEREO,jfields.AudioFormat.ENCODING_IEC61937,false);
+            if (b_support_7_1 == false) {
+                jfields.AudioFormat.has_ENCODING_DTS_HD = jfields.AudioFormat.has_ENCODING_E_AC3 = false;
+            }
+        }
+        if (jfields.AudioFormat.has_ENCODING_DTS_HD_MA || jfields.AudioFormat.has_ENCODING_DOLBY_TRUEHD) {
+            bool b_support_7_1 = false;
+            int i_channel_config = 0;
+            i_channel_config =  jfields.AudioFormat.CHANNEL_OUT_5POINT1 |
+                                jfields.AudioFormat.CHANNEL_OUT_SIDE_LEFT |
+                                jfields.AudioFormat.CHANNEL_OUT_SIDE_RIGHT;
+            b_support_7_1 = GetAndroidSupport(env,p_aout,192000,i_channel_config,jfields.AudioFormat.ENCODING_IEC61937,false);
+            if (b_support_7_1 == false) {
+                jfields.AudioFormat.has_ENCODING_DTS_HD_MA = jfields.AudioFormat.has_ENCODING_DOLBY_TRUEHD = false;
+            }
+        }*/
+    }
+
+    msg_Dbg(p_aout,"tdx iec61937=%d,has_ENCODING_DTS_HD+_MA=[%d,%d],ENCODING_DOLBY_TRUEHD=%d\n",jfields.AudioFormat.has_ENCODING_IEC61937, jfields.AudioFormat.has_ENCODING_DTS_HD, jfields.AudioFormat.has_ENCODING_DTS_HD_MA, jfields.AudioFormat.has_ENCODING_DOLBY_TRUEHD);
 
 #undef CHECK_EXCEPTION
 #undef GET_CLASS
@@ -964,6 +997,7 @@ AudioTrack_Check( JNIEnv *env, audio_output_t *p_aout, unsigned int i_rate,
                 int i_channel_config, int i_format, int i_size )
 {
     aout_sys_t *p_sys = p_aout->sys;
+    int ret = 0;
 
     jint session_id = var_InheritInteger( p_aout, "audiotrack-session-id" );
     jobject p_audiotrack = JNI_AT_NEW( jfields.AudioManager.STREAM_MUSIC,
@@ -973,10 +1007,17 @@ AudioTrack_Check( JNIEnv *env, audio_output_t *p_aout, unsigned int i_rate,
     if( CHECK_AT_EXCEPTION( "AudioTrack<init>" ) || !p_audiotrack )
     {
         msg_Warn( p_aout, " AudioTrack Init failed" ) ;
+        if (p_audiotrack)
+        {
+            JNI_CALL_VOID(p_audiotrack, jfields.AudioTrack.release);
+            (*env)->DeleteLocalRef( env, p_audiotrack );
+            p_audiotrack = NULL;
+        }
         return false;
     }
-    if( JNI_CALL_INT( p_audiotrack, jfields.AudioTrack.getState )
-        != jfields.AudioTrack.STATE_INITIALIZED )
+    ret = JNI_CALL_INT( p_audiotrack, jfields.AudioTrack.getState );
+    if( CHECK_AT_EXCEPTION( "getState" ) ||
+        ret != jfields.AudioTrack.STATE_INITIALIZED )
     {
         JNI_CALL_VOID( p_audiotrack, jfields.AudioTrack.release );
         (*env)->DeleteLocalRef( env, p_audiotrack );
@@ -985,8 +1026,9 @@ AudioTrack_Check( JNIEnv *env, audio_output_t *p_aout, unsigned int i_rate,
     }
 
     JNI_CALL_VOID(p_audiotrack, jfields.AudioTrack.pause );
-   // CHECK_AT_EXCEPTION( "pause" );
+    CHECK_AT_EXCEPTION( "pause" );
     JNI_CALL_VOID(p_audiotrack, jfields.AudioTrack.flush );
+    CHECK_AT_EXCEPTION( "flush" );
 
     if (p_audiotrack)
     {
@@ -1006,14 +1048,14 @@ static bool  GetAndroidSupport(JNIEnv *env, audio_output_t *p_aout,int i_rate,
     aout_sys_t *p_sys = p_aout->sys;
      int i_min_buffer_size = JNI_AT_CALL_STATIC_INT( getMinBufferSize, i_rate,
                                                 i_channel_config, i_format );
-    if( i_min_buffer_size <= 0 )
+    if( CHECK_AT_EXCEPTION( "getMinBufferSize" ) || i_min_buffer_size <= 0 )
     {
         msg_Warn( p_aout, "[%s:%s:%d]=zspace=: getMinBufferSize returned an invalid size", __FILE__ , __FUNCTION__, __LINE__) ;
         return false;
     }
     // make sure to have enough buffer as minimum might not be enough to open
     if (!isRaw)
-        i_min_buffer_size *= 4;
+        i_min_buffer_size *= 2;
     if( AudioTrack_Check( env, p_aout, i_rate, i_channel_config,
                         i_format , i_min_buffer_size ) == false ){
         return false;
@@ -1033,7 +1075,7 @@ AudioTrack_Create( JNIEnv *env, audio_output_t *p_aout,
 {
     aout_sys_t *p_sys = p_aout->sys;
     int i_size, i_min_buffer_size, i_channel_config;
-    msg_Warn( p_aout, "[%s:%s:%d]=zspace=: i_physical_channels = %d, i_format=%d, i_rate=%d. ", __FILE__ , __FUNCTION__, __LINE__, i_physical_channels, i_format, i_rate);
+    msg_Warn( p_aout, "[%s:%s:%d]=zspace=: VLC audio Channel mask = %d, encoding_format=%d, i_rate=%d. ", __FILE__ , __FUNCTION__, __LINE__, i_physical_channels, i_format, i_rate);
 
     switch( i_physical_channels )
     {
@@ -1062,10 +1104,10 @@ AudioTrack_Create( JNIEnv *env, audio_output_t *p_aout,
             vlc_assert_unreachable();
     }
 
-    msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Use [%d, %d, %d] to get MinBuffersize.", __FILE__ , __FUNCTION__, __LINE__, 
-            i_rate, i_channel_config, i_format);
     i_min_buffer_size = JNI_AT_CALL_STATIC_INT( getMinBufferSize, i_rate,
                                                 i_channel_config, i_format );
+    msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Use [rate,ATrack mask,encoding_format][%d, %d, %d] to get MinBuffersize=%d.", __FILE__ , __FUNCTION__, __LINE__, 
+            i_rate, i_channel_config, i_format, i_min_buffer_size);
     if( i_min_buffer_size <= 0 )
     {
         msg_Warn( p_aout, "[%s:%s:%d]=zspace=: getMinBufferSize failed.", __FILE__ , __FUNCTION__, __LINE__);
@@ -1145,7 +1187,8 @@ StartPassthrough( JNIEnv *env, audio_output_t *p_aout, bool ac3)
 {
     aout_sys_t *p_sys = p_aout->sys;
     int i_at_format;
-    bool b_dtshd;
+    bool b_dtshd = false;
+    msg_Warn(p_aout,"[%s:%s:%d]=zspace=: iec61937=%d,has_ENCODING_DTS_HD+_MA=[%d,%d],ENCODING_DOLBY_TRUEHD=%d\n", __FILE__ , __FUNCTION__, __LINE__, jfields.AudioFormat.has_ENCODING_IEC61937, jfields.AudioFormat.has_ENCODING_DTS_HD, jfields.AudioFormat.has_ENCODING_DTS_HD_MA, jfields.AudioFormat.has_ENCODING_DOLBY_TRUEHD);
 
     if(ac3 == true){
         if(!AudioTrack_HasEncoding( p_aout, p_sys->fmt.i_format, &b_dtshd,ac3))
@@ -1206,15 +1249,21 @@ StartPassthrough( JNIEnv *env, audio_output_t *p_aout, bool ac3)
                 case VLC_CODEC_DTS:
                     p_sys->fmt.i_bytes_per_frame = 4;
                     p_sys->fmt.i_physical_channels = AOUT_CHANS_STEREO;
-                    if( b_dtshd && 1)
+                    if( b_dtshd )
                     {
                         p_sys->fmt.i_rate = 192000;
                         p_sys->fmt.i_bytes_per_frame = 16;
                         var_SetInteger( p_aout, "dtsDoSync", 0 );
+                        if (p_sys->i_dts_profile == FF_PROFILE_DTS_HD_MA) {
+                            msg_Warn( p_aout, "[%s:%s:%d]=zspace=: has_ENCODING_DTS_HD_MA=[%d]. ", __FILE__ , __FUNCTION__, __LINE__, jfields.AudioFormat.has_ENCODING_DTS_HD_MA);
+                            if (jfields.AudioFormat.has_ENCODING_DTS_HD_MA) {
+                                p_sys->fmt.i_physical_channels =  AOUT_CHANS_7_1;
+                            }
+                        }
                     }
                 
                     break;
-                case VLC_CODEC_EAC3:
+                case VLC_CODEC_EAC3: //AOUT_CHANS_STEREO
                     p_sys->fmt.i_rate = 192000;
                   //  p_sys->fmt.i_bytes_per_frame = 4;
                 case VLC_CODEC_A52:
@@ -1246,23 +1295,46 @@ StartPassthrough( JNIEnv *env, audio_output_t *p_aout, bool ac3)
                     if( !jfields.AudioFormat.has_ENCODING_DTS )
                         return VLC_EGENERIC;
                     i_at_format = jfields.AudioFormat.ENCODING_DTS;
+                    if( b_dtshd )
+                    {
+                        if( !jfields.AudioFormat.has_ENCODING_DTS_HD )
+                            return VLC_EGENERIC;
+                        i_at_format = jfields.AudioFormat.ENCODING_DTS_HD;
+                        var_SetInteger( p_aout, "dtsDoSync", 0 );
+                        msg_Dbg( p_aout, "[%s:%s:%d]=zspace=:  Use ENCODING_DTS_HD.", __FILE__ , __FUNCTION__, __LINE__);
+                        if (p_sys->i_dts_profile == FF_PROFILE_DTS_HD_MA) {
+                            msg_Warn( p_aout, "[%s:%s:%d]=zspace=: has_ENCODING_DTS_HD_MA=[%d]. ", __FILE__ , __FUNCTION__, __LINE__, jfields.AudioFormat.has_ENCODING_DTS_HD_MA);
+                            if (jfields.AudioFormat.has_ENCODING_DTS_HD_MA) {
+                                i_at_format = jfields.AudioFormat.ENCODING_DTS_HD_MA;
+                            }
+                        }
+                    }
                     break;
                 case VLC_CODEC_TRUEHD:
                     if( !jfields.AudioFormat.has_ENCODING_DOLBY_TRUEHD )
                         return VLC_EGENERIC;
-                    i_at_format = jfields.AudioFormat.ENCODING_IEC61937;//for z9x
+                    if (p_sys->isz9x)
+                        i_at_format = jfields.AudioFormat.ENCODING_IEC61937;//for z9x
+                    else
+                        i_at_format = jfields.AudioFormat.ENCODING_DOLBY_TRUEHD;
                     break;
                 default:
                     break;
             }
-            if (p_sys->fmt.i_format != VLC_CODEC_TRUEHD && 1) {
+            if (p_sys->fmt.i_format != VLC_CODEC_TRUEHD && !b_dtshd ) {
                 p_sys->fmt.i_bytes_per_frame = 4;
                 p_sys->fmt.i_frame_length = 1;
                 p_sys->fmt.i_physical_channels = AOUT_CHANS_STEREO;
                 p_sys->fmt.i_channels = 2;
                 p_sys->fmt.i_format = VLC_CODEC_SPDIFB;
-            }else {
-                p_sys->fmt.i_bytes_per_frame = 4;
+            }else if (b_dtshd || (p_sys->isz9x == false && p_sys->fmt.i_format == VLC_CODEC_TRUEHD)){
+                p_sys->fmt.i_bytes_per_frame = 16;
+                p_sys->fmt.i_frame_length = 1;
+                p_sys->fmt.i_physical_channels = AOUT_CHANS_7_1;//for DTSHD/DTSHD MA/TrueHD
+                p_sys->fmt.i_channels = 8;
+                p_sys->fmt.i_format = VLC_CODEC_SPDIFB;
+            }else if (p_sys->isz9x && p_sys->fmt.i_format == VLC_CODEC_TRUEHD){
+                p_sys->fmt.i_bytes_per_frame = 16;
                 p_sys->fmt.i_frame_length = 1;
                 p_sys->fmt.i_physical_channels = AOUT_CHANS_7_1;
                 p_sys->fmt.i_channels = 8;
