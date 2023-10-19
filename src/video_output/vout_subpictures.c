@@ -1075,6 +1075,7 @@ static subpicture_t *SpuRenderSubpictures(spu_t *spu,
         if (!subpic->p_region)
             continue;
 
+        subpic->b_subtitle_rescale = false;
         if (subpic->i_original_picture_width  <= 0 ||
             subpic->i_original_picture_height <= 0 || subpic->b_subtitle_rescale) {
             /*if (subpic->i_original_picture_width  > 0 ||
