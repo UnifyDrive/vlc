@@ -247,7 +247,10 @@ static void aout_DecSynchronize (audio_output_t *aout, mtime_t dec_pts,
     mtime_t drift;
 
     if (var_InheritInteger( aout, "dtsDoSync" ) == 0) {
+        //msg_Warn( aout, "[%s:%s:%d]=zspace=: dtsDoSync==0, return. ", __FILE__ , __FUNCTION__, __LINE__);
         return;
+    }else {
+        //msg_Warn( aout, "[%s:%s:%d]=zspace=: Run Sync. ", __FILE__ , __FUNCTION__, __LINE__);
     }
 
     /**
@@ -266,8 +269,10 @@ static void aout_DecSynchronize (audio_output_t *aout, mtime_t dec_pts,
      * all samples in the buffer will have been played. Then:
      *    pts = mdate() + delay
      */
-    if (aout_OutputTimeGet (aout, &drift) != 0)
+    if (aout_OutputTimeGet (aout, &drift) != 0){
+        msg_Warn( aout, "[%s:%s:%d]=zspace=: Nothing can be done if timing is unknown. ", __FILE__ , __FUNCTION__, __LINE__);
         return; /* nothing can be done if timing is unknown */
+    }
     drift += mdate () - dec_pts;
 
     /* Late audio output.

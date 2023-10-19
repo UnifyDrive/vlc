@@ -112,6 +112,7 @@ struct audio_format_t
     unsigned     i_bitspersample;
     unsigned     i_blockalign;
     uint8_t      i_channels; /* must be <=32 */
+    unsigned int i_bits_rate;                              /**< audio bits-rate */
 };
 
 /* Values available for audio channels */

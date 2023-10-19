@@ -42,6 +42,10 @@
 #define FF_PROFILE_DTS_HD_MA   60
 #define FF_PROFILE_DTS_EXPRESS 70
 
+const uint64_t UINT64_LOWER_BYTES = 0x00000000FFFFFFFF;
+const uint64_t UINT64_UPPER_BYTES = 0xFFFFFFFF00000000;
+
+
 const unsigned int MAX_RAW_AUDIO_BUFFER_HD = 61440;
 const unsigned int MAX_RAW_AUDIO_BUFFER = 16384;
 
@@ -188,6 +192,10 @@ struct aout_sys_t {
     bool  isjiguang4pro;
     bool  isz9x;
     int   i_dts_profile;
+    vlc_fourcc_t i_ori_format;                          /**< audio format fourcc */
+    uint32_t i_screwed_count;
+    bool  b_after_flush;
+    double d_duration_written;
 };
 
 
@@ -640,8 +648,16 @@ AudioTrack_getPlaybackHeadPosition( JNIEnv *env, audio_output_t *p_aout )
     /* int32_t to uint32_t */
     i_pos = 0xFFFFFFFFL & JNI_AT_CALL_INT( getPlaybackHeadPosition );
     /* uint32_t to uint64_t */
-    if( p_sys->headpos.i_last > i_pos )
+    if (p_sys->b_after_flush && p_sys->b_passthrough) {
+        if (i_pos <= 0) {
+            p_sys->b_after_flush = false;
+            msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Get PlaybackHeadPosition==0, reset b_after_flush to false. ", __FILE__ , __FUNCTION__, __LINE__);
+        }else
+            i_pos = 0;
+    }
+    if( p_sys->headpos.i_last > i_pos /*&& i_pos > 0*/)
         p_sys->headpos.i_wrap_count++;
+    msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Get PlaybackHeadPosition=%d,i_wrap_count=%d. ", __FILE__ , __FUNCTION__, __LINE__, i_pos, p_sys->headpos.i_wrap_count);
     p_sys->headpos.i_last = i_pos;
     return p_sys->headpos.i_last + ((uint64_t)p_sys->headpos.i_wrap_count << 32);
 }
@@ -693,6 +709,7 @@ AudioTrack_Reset( JNIEnv *env, audio_output_t *p_aout )
     AudioTrack_ResetPositions( env, p_aout );
     AudioTrack_ResetPlaybackHeadPosition( env, p_aout );
     p_sys->i_samples_written = 0;
+    p_sys->d_duration_written = 0.0;
 }
 
 /**
@@ -722,6 +739,7 @@ AudioTrack_GetSmoothPositionUs( JNIEnv *env, audio_output_t *p_aout )
                                  % SMOOTHPOS_SAMPLE_COUNT;
         if( p_sys->smoothpos.i_count < SMOOTHPOS_SAMPLE_COUNT )
             p_sys->smoothpos.i_count++;
+        msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Get PlaybackHeadPosition_us=%lld, smooth_count=%d. ", __FILE__ , __FUNCTION__, __LINE__, i_audiotrack_us, p_sys->smoothpos.i_count);
 
         /* Calculate the average position based off the current time */
         p_sys->smoothpos.i_us = 0;
@@ -729,7 +747,19 @@ AudioTrack_GetSmoothPositionUs( JNIEnv *env, audio_output_t *p_aout )
             p_sys->smoothpos.i_us += p_sys->smoothpos.p_us[i];
         p_sys->smoothpos.i_us /= p_sys->smoothpos.i_count;
 
-        if( jfields.AudioSystem.getOutputLatency )
+        if (p_sys->b_passthrough /*&& !jfields.AudioFormat.has_ENCODING_IEC61937 && p_sys->i_ori_format == VLC_CODEC_DTS*/ ) {
+            if (i_audiotrack_us <= 0) {
+                AudioTrack_ResetPositions( env, p_aout );
+                msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Not get usefull HeadPosition for DTS, return 0. ", __FILE__ , __FUNCTION__, __LINE__);
+                return 0;
+            }
+            if (p_sys->i_ori_format == VLC_CODEC_EAC3 && p_sys->fmt.i_bytes_per_frame == 1) {
+                p_sys->smoothpos.i_latency_us = -500000;
+            }else if ((p_sys->i_ori_format == VLC_CODEC_EAC3 || p_sys->i_ori_format == VLC_CODEC_DTS) && p_sys->fmt.i_bytes_per_frame != 1) {
+                p_sys->smoothpos.i_latency_us = -100000;
+            }
+        }
+        else if( jfields.AudioSystem.getOutputLatency )
         {
             int i_latency_ms = JNI_CALL( CallStaticIntMethod,
                                          jfields.AudioSystem.clazz,
@@ -737,9 +767,11 @@ AudioTrack_GetSmoothPositionUs( JNIEnv *env, audio_output_t *p_aout )
                                          jfields.AudioManager.STREAM_MUSIC );
             p_sys->smoothpos.i_latency_us = i_latency_ms > 0 ?
                                             i_latency_ms * 1000L : 0;
+            msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Now p_sys->smoothpos.i_latency_us=%lld. ", __FILE__ , __FUNCTION__, __LINE__, p_sys->smoothpos.i_latency_us);
         }
     }
     if( p_sys->smoothpos.i_us != 0 ){
+        msg_Warn( p_aout, "[%s:%s:%d]=zspace=: p_sys->smoothpos.i_us=%lld,i_now=%lld. ", __FILE__ , __FUNCTION__, __LINE__, p_sys->smoothpos.i_us, i_now);
         return p_sys->smoothpos.i_us + i_now - p_sys->smoothpos.i_latency_us;
     }else{
         return 0;
@@ -789,6 +821,7 @@ AudioTrack_GetTimestampPositionUs( JNIEnv *env, audio_output_t *p_aout )
             p_sys->timestamp.i_frame_pos = 0;
         }
     }
+    //msg_Warn( p_aout, "[%s:%s:%d]=zspace=: p_sys->timestamp.i_frame_us=%lld, p_sys->timestamp.i_frame_pos=%lld. ", __FILE__ , __FUNCTION__, __LINE__, p_sys->timestamp.i_frame_us, p_sys->timestamp.i_frame_pos);
 
     /* frame time should be after last play time
      * frame time shouldn't be in the future
@@ -810,7 +843,7 @@ static int
 TimeGet( audio_output_t *p_aout, mtime_t *restrict p_delay )
 {
     aout_sys_t *p_sys = p_aout->sys;
-    mtime_t i_audiotrack_us;
+    mtime_t i_audiotrack_us = 0;
     JNIEnv *env;
 
     if(p_sys->isz9x){
@@ -824,9 +857,11 @@ TimeGet( audio_output_t *p_aout, mtime_t *restrict p_delay )
         goto bailout;
 
     i_audiotrack_us = AudioTrack_GetTimestampPositionUs( env, p_aout );
+    msg_Warn( p_aout, "Now TimestampPositionUs=%lld", i_audiotrack_us );
 
     if( i_audiotrack_us <= 0 ){
         i_audiotrack_us = AudioTrack_GetSmoothPositionUs(env, p_aout );
+        msg_Warn( p_aout, "SmoothPositionUs=%lld", i_audiotrack_us );
     }
 /* Debug log for both delays */
 #if 0
@@ -849,6 +884,7 @@ TimeGet( audio_output_t *p_aout, mtime_t *restrict p_delay )
 #endif
     if( i_audiotrack_us > 0 )
     {
+        //msg_Warn( p_aout, "i_samples_written_us=%lld, d_duration_written=%lf, frame_size=%d", FRAMES_TO_US( p_sys->i_samples_written ), p_sys->d_duration_written, p_sys->fmt.i_bytes_per_frame );
         /* AudioTrack delay */
         mtime_t i_delay = FRAMES_TO_US( p_sys->i_samples_written )
                         - i_audiotrack_us;
@@ -864,7 +900,7 @@ TimeGet( audio_output_t *p_aout, mtime_t *restrict p_delay )
         }
         else
         {
-            msg_Warn( p_aout, "timing screwed, reset positions" );
+            msg_Warn( p_aout, "timing screwed, reset positions. i_samples_written=%lld, count=%d", p_sys->i_samples_written, p_sys->i_screwed_count );
             AudioTrack_ResetPositions( env, p_aout );
         }
     }
@@ -1253,7 +1289,7 @@ StartPassthrough( JNIEnv *env, audio_output_t *p_aout, bool ac3)
                     {
                         p_sys->fmt.i_rate = 192000;
                         p_sys->fmt.i_bytes_per_frame = 16;
-                        var_SetInteger( p_aout, "dtsDoSync", 0 );
+                        //var_SetInteger( p_aout, "dtsDoSync", 0 );
                         if (p_sys->i_dts_profile == FF_PROFILE_DTS_HD_MA) {
                             msg_Warn( p_aout, "[%s:%s:%d]=zspace=: has_ENCODING_DTS_HD_MA=[%d]. ", __FILE__ , __FUNCTION__, __LINE__, jfields.AudioFormat.has_ENCODING_DTS_HD_MA);
                             if (jfields.AudioFormat.has_ENCODING_DTS_HD_MA) {
@@ -1261,7 +1297,7 @@ StartPassthrough( JNIEnv *env, audio_output_t *p_aout, bool ac3)
                             }
                         }
                     }
-                
+                    p_sys->i_ori_format = VLC_CODEC_DTS;
                     break;
                 case VLC_CODEC_EAC3: //AOUT_CHANS_STEREO
                     p_sys->fmt.i_rate = 192000;
@@ -1290,6 +1326,7 @@ StartPassthrough( JNIEnv *env, audio_output_t *p_aout, bool ac3)
                     if( !jfields.AudioFormat.has_ENCODING_E_AC3 )
                         return VLC_EGENERIC;
                     i_at_format = jfields.AudioFormat.ENCODING_E_AC3;
+                    p_sys->i_ori_format = VLC_CODEC_EAC3;
                     break;
                 case VLC_CODEC_DTS:
                     if( !jfields.AudioFormat.has_ENCODING_DTS )
@@ -1300,15 +1337,17 @@ StartPassthrough( JNIEnv *env, audio_output_t *p_aout, bool ac3)
                         if( !jfields.AudioFormat.has_ENCODING_DTS_HD )
                             return VLC_EGENERIC;
                         i_at_format = jfields.AudioFormat.ENCODING_DTS_HD;
-                        var_SetInteger( p_aout, "dtsDoSync", 0 );
+                        
                         msg_Dbg( p_aout, "[%s:%s:%d]=zspace=:  Use ENCODING_DTS_HD.", __FILE__ , __FUNCTION__, __LINE__);
                         if (p_sys->i_dts_profile == FF_PROFILE_DTS_HD_MA) {
                             msg_Warn( p_aout, "[%s:%s:%d]=zspace=: has_ENCODING_DTS_HD_MA=[%d]. ", __FILE__ , __FUNCTION__, __LINE__, jfields.AudioFormat.has_ENCODING_DTS_HD_MA);
                             if (jfields.AudioFormat.has_ENCODING_DTS_HD_MA) {
                                 i_at_format = jfields.AudioFormat.ENCODING_DTS_HD_MA;
                             }
+                            
                         }
                     }
+                    p_sys->i_ori_format = VLC_CODEC_DTS;
                     break;
                 case VLC_CODEC_TRUEHD:
                     if( !jfields.AudioFormat.has_ENCODING_DOLBY_TRUEHD )
@@ -1321,14 +1360,28 @@ StartPassthrough( JNIEnv *env, audio_output_t *p_aout, bool ac3)
                 default:
                     break;
             }
-            if (p_sys->fmt.i_format != VLC_CODEC_TRUEHD && !b_dtshd ) {
+            if (p_sys->fmt.i_format == VLC_CODEC_EAC3 ) {
+                if ((p_sys->fmt.i_bits_rate % p_sys->fmt.i_rate) != 0) {
+                    p_sys->fmt.i_bytes_per_frame = 4;
+                }else
+                    p_sys->fmt.i_bytes_per_frame = p_sys->fmt.i_bits_rate / p_sys->fmt.i_rate / 8;
+                if (p_sys->fmt.i_bytes_per_frame <= 0)
+                    p_sys->fmt.i_bytes_per_frame = 4;
+                msg_Warn( p_aout, "[%s:%s:%d]=zspace=: p_sys->fmt.i_bytes_per_frame=[%d] for eac3. ", __FILE__ , __FUNCTION__, __LINE__, p_sys->fmt.i_bytes_per_frame);
+                
+                p_sys->fmt.i_frame_length = 1;
+                p_sys->fmt.i_physical_channels = AOUT_CHANS_STEREO;
+                p_sys->fmt.i_channels = 2;
+                p_sys->fmt.i_format = VLC_CODEC_SPDIFB;
+            }
+            else if (p_sys->fmt.i_format != VLC_CODEC_TRUEHD && !b_dtshd ) {
                 p_sys->fmt.i_bytes_per_frame = 4;
                 p_sys->fmt.i_frame_length = 1;
                 p_sys->fmt.i_physical_channels = AOUT_CHANS_STEREO;
                 p_sys->fmt.i_channels = 2;
                 p_sys->fmt.i_format = VLC_CODEC_SPDIFB;
             }else if (b_dtshd || (p_sys->isz9x == false && p_sys->fmt.i_format == VLC_CODEC_TRUEHD)){
-                p_sys->fmt.i_bytes_per_frame = 16;
+                p_sys->fmt.i_bytes_per_frame = 4;
                 p_sys->fmt.i_frame_length = 1;
                 p_sys->fmt.i_physical_channels = AOUT_CHANS_7_1;//for DTSHD/DTSHD MA/TrueHD
                 p_sys->fmt.i_channels = 8;
@@ -1472,6 +1525,10 @@ Start( audio_output_t *p_aout, audio_sample_format_t *restrict p_fmt )
     p_sys->isjiguang4pro = false;
     p_sys->isz9x = false;
     p_sys->i_dts_profile = -1;
+    p_sys->i_ori_format = VLC_CODEC_UNKNOWN;
+    p_sys->i_screwed_count = 0;
+    p_sys->b_after_flush = false;
+    p_sys->d_duration_written = 0.0;
 
     if( p_sys->at_dev == AT_DEV_ENCODED )
     {
@@ -1973,8 +2030,10 @@ AudioTrack_Play( JNIEnv *env, audio_output_t *p_aout, size_t i_data_size,
             msg_Err( p_aout, "Write failed: %s", str );
             p_sys->b_error = true;
         }
-    } else
+    } else {
         p_sys->i_samples_written += BYTES_TO_FRAMES( i_ret );
+        p_sys->d_duration_written += 6144.0 / p_sys->fmt.i_rate / 4;;
+    }
 
     return i_ret;
 }
@@ -2100,7 +2159,7 @@ ConvertFromIEC61937( audio_output_t *p_aout, block_t *p_buffer )
     if( p_buffer->i_buffer < 6 )
         return -1;
 
-    msg_Dbg( p_aout, "[%s:%s:%d]=zspace=: IEC61937 type [%x] .", __FILE__ , __FUNCTION__, __LINE__, GetWBE( &p_buffer->p_buffer[4] ) & 0xFF);
+    //msg_Dbg( p_aout, "[%s:%s:%d]=zspace=: IEC61937 type [%x] size[%d] .", __FILE__ , __FUNCTION__, __LINE__, GetWBE( &p_buffer->p_buffer[4] ) & 0xFF, p_buffer->i_buffer);
     switch( GetWBE( &p_buffer->p_buffer[4] ) & 0xFF )
     {
         case 0x01: /* IEC61937_AC3 */
@@ -2131,6 +2190,7 @@ ConvertFromIEC61937( audio_output_t *p_aout, block_t *p_buffer )
 
     p_buffer->p_buffer += 8; /* SPDIF_HEADER_SIZE */
     p_buffer->i_buffer = i_length;
+    //msg_Dbg( p_aout, "[%s:%s:%d]=zspace=: IEC61937 real codec size[%d] .", __FILE__ , __FUNCTION__, __LINE__, p_buffer->i_buffer);
 
     return 0;
 }
@@ -2336,6 +2396,7 @@ Flush( audio_output_t *p_aout, bool b_wait )
     AudioTrack_Reset( env, p_aout );
     JNI_AT_CALL_VOID( play );
     CHECK_AT_EXCEPTION( "play" );
+    p_sys->b_after_flush = true;
 
 bailout:
     vlc_mutex_unlock( &p_sys->lock );

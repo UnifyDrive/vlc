@@ -442,6 +442,7 @@ int avformat_OpenDemux( vlc_object_t *p_this )
             es_fmt.audio.i_rate = cp->sample_rate;
             es_fmt.audio.i_bitspersample = cp->bits_per_coded_sample;
             es_fmt.audio.i_blockalign = cp->block_align;
+            es_fmt.audio.i_bits_rate = cp->bit_rate;
             psz_type = "audio";
 
             if (cp->codec_id == AV_CODEC_ID_DTS && var_InheritBool( p_demux, "spdif" )) {
