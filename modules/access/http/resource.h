@@ -21,7 +21,18 @@
 #ifndef VLC_HTTP_RESOURCE_H
 #define VLC_HTTP_RESOURCE_H 1
 
+#ifdef __APPLE__
+
+#include"TargetConditionals.h"
+#if (TARGET_OS_IPHONE || TARGET_OS_TV)
+#define MAX_HTTP_MSG_NUM  (32)
+#else
 #define MAX_HTTP_MSG_NUM  (256)
+#endif
+
+#else
+#define MAX_HTTP_MSG_NUM  (256)
+#endif
 
 /**
  * \defgroup http_res Resources
