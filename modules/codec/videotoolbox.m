@@ -1271,7 +1271,7 @@ static CFMutableDictionaryRef CreateSessionDescriptionFormat(decoder_t *p_dec,
 #elif TARGET_OS_IPHONE
     char *var = NULL;
     var = var_InheritString (p_dec, "vout");
-    if (0 == strncmp(var, "ios", 3) || (p_dec->fmt_in.video.hdr_type == HDR_TYPE_UNDEF))
+    if ( (var && 0 == strncmp(var, "ios", 3)) || (p_dec->fmt_in.video.hdr_type == HDR_TYPE_UNDEF))
     {
         enableHardwareAccelerate = true;
     }
