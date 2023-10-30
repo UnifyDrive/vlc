@@ -1288,7 +1288,7 @@ StartPassthrough( JNIEnv *env, audio_output_t *p_aout, bool ac3)
                     if( b_dtshd )
                     {
                         p_sys->fmt.i_rate = 192000;
-                        p_sys->fmt.i_bytes_per_frame = 16;
+                        //p_sys->fmt.i_bytes_per_frame = 16;
                         //var_SetInteger( p_aout, "dtsDoSync", 0 );
                         if (p_sys->i_dts_profile == FF_PROFILE_DTS_HD_MA) {
                             msg_Warn( p_aout, "[%s:%s:%d]=zspace=: has_ENCODING_DTS_HD_MA=[%d]. ", __FILE__ , __FUNCTION__, __LINE__, jfields.AudioFormat.has_ENCODING_DTS_HD_MA);
@@ -2384,7 +2384,7 @@ Flush( audio_output_t *p_aout, bool b_wait )
      * recreate an AudioTrack object in that case. The AudioTimestamp class was
      * added in API Level 19, so if this class is not found, the Android
      * Version is 4.3 or before */
-    if( !jfields.AudioTimestamp.clazz && p_sys->i_samples_written > 0 )
+    if( (!jfields.AudioTimestamp.clazz && p_sys->i_samples_written > 0) || (p_sys->b_passthrough && jfields.AudioFormat.has_ENCODING_IEC61937 && !var_InheritBool( p_aout, "spdif-ac3")) )
     {
         if( AudioTrack_Recreate( env, p_aout ) != 0 )
         {
