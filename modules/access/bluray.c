@@ -2471,6 +2471,11 @@ static void blurayInitTitles(demux_t *p_demux, uint32_t menu_titles)
 
     if (!p_sys->b_menu) {
         i_title = bd_get_titles(p_sys->bluray, TITLES_RELEVANT, 60);
+        int bd_main_title = bd_get_main_title(p_sys->bluray);
+        if (bd_main_title < 0){
+            msg_Err(p_demux, "[%s:%s:%d]=zspace=: Get p_sys->i_longest_title=%d, titles=%d.", __FILE__ , __FUNCTION__, __LINE__, p_sys->i_longest_title, i_title);
+            return ;
+        }
         p_sys->i_longest_title = bd_get_main_title(p_sys->bluray);
         msg_Dbg(p_demux, "[%s:%s:%d]=zspace=: Get p_sys->i_longest_title=%d, titles=%d.", __FILE__ , __FUNCTION__, __LINE__, p_sys->i_longest_title, i_title);
     }
