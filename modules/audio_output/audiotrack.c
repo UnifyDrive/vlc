@@ -657,7 +657,7 @@ AudioTrack_getPlaybackHeadPosition( JNIEnv *env, audio_output_t *p_aout )
     }
     if( p_sys->headpos.i_last > i_pos /*&& i_pos > 0*/)
         p_sys->headpos.i_wrap_count++;
-    msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Get PlaybackHeadPosition=%d,i_wrap_count=%d. ", __FILE__ , __FUNCTION__, __LINE__, i_pos, p_sys->headpos.i_wrap_count);
+    //msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Get PlaybackHeadPosition=%d,i_wrap_count=%d. ", __FILE__ , __FUNCTION__, __LINE__, i_pos, p_sys->headpos.i_wrap_count);
     p_sys->headpos.i_last = i_pos;
     return p_sys->headpos.i_last + ((uint64_t)p_sys->headpos.i_wrap_count << 32);
 }
@@ -739,7 +739,7 @@ AudioTrack_GetSmoothPositionUs( JNIEnv *env, audio_output_t *p_aout )
                                  % SMOOTHPOS_SAMPLE_COUNT;
         if( p_sys->smoothpos.i_count < SMOOTHPOS_SAMPLE_COUNT )
             p_sys->smoothpos.i_count++;
-        msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Get PlaybackHeadPosition_us=%lld, smooth_count=%d. ", __FILE__ , __FUNCTION__, __LINE__, i_audiotrack_us, p_sys->smoothpos.i_count);
+        //msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Get PlaybackHeadPosition_us=%lld, smooth_count=%d. ", __FILE__ , __FUNCTION__, __LINE__, i_audiotrack_us, p_sys->smoothpos.i_count);
 
         /* Calculate the average position based off the current time */
         p_sys->smoothpos.i_us = 0;
@@ -750,7 +750,7 @@ AudioTrack_GetSmoothPositionUs( JNIEnv *env, audio_output_t *p_aout )
         if (p_sys->b_passthrough /*&& !jfields.AudioFormat.has_ENCODING_IEC61937 && p_sys->i_ori_format == VLC_CODEC_DTS*/ ) {
             if (i_audiotrack_us <= 0) {
                 AudioTrack_ResetPositions( env, p_aout );
-                msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Not get usefull HeadPosition for DTS, return 0. ", __FILE__ , __FUNCTION__, __LINE__);
+                //msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Not get usefull HeadPosition for passthrough, return 0. ", __FILE__ , __FUNCTION__, __LINE__);
                 return 0;
             }
             if (p_sys->i_ori_format == VLC_CODEC_EAC3 && p_sys->fmt.i_bytes_per_frame == 1) {
@@ -767,11 +767,11 @@ AudioTrack_GetSmoothPositionUs( JNIEnv *env, audio_output_t *p_aout )
                                          jfields.AudioManager.STREAM_MUSIC );
             p_sys->smoothpos.i_latency_us = i_latency_ms > 0 ?
                                             i_latency_ms * 1000L : 0;
-            msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Now p_sys->smoothpos.i_latency_us=%lld. ", __FILE__ , __FUNCTION__, __LINE__, p_sys->smoothpos.i_latency_us);
+            //msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Now p_sys->smoothpos.i_latency_us=%lld. ", __FILE__ , __FUNCTION__, __LINE__, p_sys->smoothpos.i_latency_us);
         }
     }
     if( p_sys->smoothpos.i_us != 0 ){
-        msg_Warn( p_aout, "[%s:%s:%d]=zspace=: p_sys->smoothpos.i_us=%lld,i_now=%lld. ", __FILE__ , __FUNCTION__, __LINE__, p_sys->smoothpos.i_us, i_now);
+        //msg_Warn( p_aout, "[%s:%s:%d]=zspace=: p_sys->smoothpos.i_us=%lld,i_now=%lld. ", __FILE__ , __FUNCTION__, __LINE__, p_sys->smoothpos.i_us, i_now);
         return p_sys->smoothpos.i_us + i_now - p_sys->smoothpos.i_latency_us;
     }else{
         return 0;
@@ -857,11 +857,11 @@ TimeGet( audio_output_t *p_aout, mtime_t *restrict p_delay )
         goto bailout;
 
     i_audiotrack_us = AudioTrack_GetTimestampPositionUs( env, p_aout );
-    msg_Warn( p_aout, "Now TimestampPositionUs=%lld", i_audiotrack_us );
+    //msg_Warn( p_aout, "Now TimestampPositionUs=%lld", i_audiotrack_us );
 
     if( i_audiotrack_us <= 0 ){
         i_audiotrack_us = AudioTrack_GetSmoothPositionUs(env, p_aout );
-        msg_Warn( p_aout, "SmoothPositionUs=%lld", i_audiotrack_us );
+        //msg_Warn( p_aout, "SmoothPositionUs=%lld", i_audiotrack_us );
     }
 /* Debug log for both delays */
 #if 0
