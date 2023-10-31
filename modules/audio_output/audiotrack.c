@@ -1332,6 +1332,8 @@ StartPassthrough( JNIEnv *env, audio_output_t *p_aout, bool ac3)
                     if( !jfields.AudioFormat.has_ENCODING_DTS )
                         return VLC_EGENERIC;
                     i_at_format = jfields.AudioFormat.ENCODING_DTS;
+                    if (p_sys->isz9x)
+                        b_dtshd = false;
                     if( b_dtshd )
                     {
                         if( !jfields.AudioFormat.has_ENCODING_DTS_HD )
