@@ -357,6 +357,8 @@ static int ParseVideoExtraVc1(decoder_t *p_dec, uint8_t *p_extra, int i_extra)
 {
     int offset = 0;
 
+    if (i_extra == 0)
+        return VLC_SUCCESS;
     if (i_extra < 4)
         return VLC_EGENERIC;
 
@@ -664,6 +666,7 @@ static int OpenDecoder(vlc_object_t *p_this, pf_MediaCodecApi_init pf_init)
             break;
         case VLC_CODEC_WMV3: mime = "video/x-ms-wmv"; break;
         case VLC_CODEC_VC1:  mime = "video/wvc1"; break;
+        case VLC_CODEC_AV1:  mime = "video/av1"; break;
         case VLC_CODEC_VP8:  mime = "video/x-vnd.on2.vp8"; break;
         case VLC_CODEC_VP9:  mime = "video/x-vnd.on2.vp9"; break;
         }
@@ -891,6 +894,7 @@ static int OpenDecoder(vlc_object_t *p_this, pf_MediaCodecApi_init pf_init)
         {
         case VLC_CODEC_H264:
         case VLC_CODEC_HEVC:
+        case VLC_CODEC_VC1:
             break; /* CSDs will come from hxxx_helper */
         default:
             msg_Warn(p_dec, "[%s:%s:%d]=zspace=: Not CSD found for %4.4s, goto bailout!", __FILE__ , __FUNCTION__, __LINE__, (const char *) &p_dec->fmt_in.i_codec);
