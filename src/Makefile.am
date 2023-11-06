@@ -106,6 +106,7 @@ pluginsinclude_HEADERS = \
 	../include/vlc_vout_window.h \
 	../include/vlc_xml.h \
 	../include/vlc_xlib.h \
+	../include/vlc_opengl_interop.h  \
 	$(NULL)
 nodist_pluginsinclude_HEADERS = ../include/vlc_about.h
 

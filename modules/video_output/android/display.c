@@ -38,9 +38,12 @@
 #include <GLES2/gl2.h>  /* for ClearSurface */
 
 #include <dlfcn.h>
-
 #include "display.h"
 #include "utils.h"
+
+#include "../opengl/gl_api.h"
+#include "../opengl/sub_renderer.h"
+#include "vlc_vector.h"
 
 /*****************************************************************************
  * Module descriptor
@@ -56,6 +59,10 @@ static int  OpenOpaque (vlc_object_t *);
 static void Close(vlc_object_t *);
 static void SubpicturePrepare(vout_display_t *vd, subpicture_t *subpicture);
 
+static int subpicture_window_Open(vout_window_t *wnd);
+static int subpicture_OpenDisplay(vout_display_t *vd);
+static void subpicture_CloseDisplay(vout_display_t *vd);
+
 vlc_module_begin()
     set_category(CAT_VIDEO)
     set_subcategory(SUBCAT_VIDEO_VOUT)
@@ -65,7 +72,14 @@ vlc_module_begin()
     add_string(CFG_PREFIX "chroma", NULL, CHROMA_TEXT, CHROMA_LONGTEXT, true)
     add_bool( "support-jiguang5pro-subtitles", false, NULL,
                       NULL, false )
+    add_bool( "support-opengl-render-subtitles", false, NULL,
+                          NULL, false )
     set_callbacks(Open, Close)
+
+    add_submodule ()
+        set_capability("vout window", 0)
+        set_callbacks(subpicture_window_Open, NULL)
+        add_shortcut("android-subpicture")
     add_submodule ()
         set_description("Android opaque video output")
         set_capability("vout display", 280)
@@ -114,6 +128,34 @@ struct buffer_bounds
     ARect bounds;
 };
 
+struct sub_region
+{
+    int x;
+    int y;
+    unsigned int width;
+    unsigned int height;
+};
+
+struct subpicture
+{
+    vout_window_t *window;
+    vlc_gl_t *gl;
+    struct vlc_gl_api api;
+    struct vlc_gl_interop *interop;
+    struct vlc_gl_sub_renderer *renderer;
+    vout_display_place_t place;
+    bool place_changed;
+    bool is_dirty;
+    bool clear;
+
+    int64_t last_order;
+    struct VLC_VECTOR(struct sub_region) regions;
+
+    struct {
+        PFNGLFLUSHPROC Flush;
+    } vt;
+};
+
 struct vout_display_sys_t
 {
     vout_window_t *embed;
@@ -144,6 +186,9 @@ struct vout_display_sys_t
     /* tzj add for jiguang 5 pro box subtitle overlap */
     bool b_support_jg5pro_subtitles;
     ARect jg5pro_sub_region;
+    /* render subtitle with opengl */
+    bool b_opengl_render_subtitles;
+    struct subpicture sub;
 };
 
 #define PRIV_WINDOW_FORMAT_YV12 0x32315659
@@ -754,32 +799,60 @@ static int OpenCommon(vout_display_t *vd)
             (sys->p_window->b_use_priv ? "ANWP" : "ANW"));
 
     video_format_ApplyRotation(&sub_fmt, &vd->fmt);
-    sub_fmt.i_chroma = subpicture_chromas[0];
+
     SetRGBMask(&sub_fmt);
     video_format_FixRgb(&sub_fmt);
-    sys->p_sub_window = AndroidWindow_New(vd, &sub_fmt, AWindow_Subtitles, false);
-    if (sys->p_sub_window) {
 
-        FixSubtitleFormat(sys);
-        sys->i_sub_last_order = -1;
-
-        /* Export the subpicture capability of this vout. */
-        vd->info.subpicture_chromas = subpicture_chromas;
-    }
-    else if (!vd->obj.force && sys->p_window->b_opaque)
+    sys->b_opengl_render_subtitles = var_InheritBool(vd, "support-opengl-render-subtitles");
+    msg_Warn(vd, "opengl render %d", sys->b_opengl_render_subtitles);
+    if(!sys->b_opengl_render_subtitles)
     {
-        msg_Warn(vd, "cannot blend subtitles with an opaque surface, "
-                     "trying next vout");
-        goto error;
+        sub_fmt.i_chroma = subpicture_chromas[0];
+        sys->p_sub_window = AndroidWindow_New(vd, &sub_fmt, AWindow_Subtitles, false);
+        if (sys->p_sub_window) {
+
+            FixSubtitleFormat(sys);
+            sys->i_sub_last_order = -1;
+
+            /* Export the subpicture capability of this vout. */
+            vd->info.subpicture_chromas = subpicture_chromas;
+        }
+
+        else if (!vd->obj.force && sys->p_window->b_opaque)
+        {
+            msg_Warn(vd, "cannot blend subtitles with an opaque surface, "
+                         "trying next vout");
+            goto error;
+        }
+
+        sys->b_support_jg5pro_subtitles = var_InheritBool(vd, "support-jiguang5pro-subtitles");
+        sys->jg5pro_sub_region.top = -1;
+        sys->jg5pro_sub_region.bottom = -1;
+        sys->jg5pro_sub_region.left = -1;
+        sys->jg5pro_sub_region.right = -1;
+        msg_Dbg(vd, "[%s:%s:%d]=zspace=: b_support_jg5pro_subtitles=%d.", __FILE__ , __FUNCTION__, __LINE__,sys->b_support_jg5pro_subtitles);
     }
-
-    sys->b_support_jg5pro_subtitles = var_InheritBool(vd, "support-jiguang5pro-subtitles");
-    sys->jg5pro_sub_region.top = -1;
-    sys->jg5pro_sub_region.bottom = -1;
-    sys->jg5pro_sub_region.left = -1;
-    sys->jg5pro_sub_region.right = -1;
-    msg_Dbg(vd, "[%s:%s:%d]=zspace=: b_support_jg5pro_subtitles=%d.", __FILE__ , __FUNCTION__, __LINE__,sys->b_support_jg5pro_subtitles);
-
+    else
+    {
+        ANativeWindow * has_subtitle_surface =
+            AWindowHandler_getANativeWindow(sys->p_awh, AWindow_Subtitles) != NULL;
+        if (has_subtitle_surface)
+        {
+            int ret = subpicture_OpenDisplay(vd);
+            if (ret != 0)
+            {
+                msg_Warn(vd, "cannot blend subtitle with an opaque surface, "
+                             "trying next vout");
+                free(sys);
+                return VLC_EGENERIC;
+            }
+        }
+        else
+        {
+            msg_Warn(vd, "using android display without subtitles support");
+            sys->sub.window = NULL;
+        }
+    }
     /* Setup vout_display */
     vd->pool    = Pool;
     vd->prepare = Prepare;
@@ -797,9 +870,13 @@ error:
 static int Open(vlc_object_t *p_this)
 {
     vout_display_t *vd = (vout_display_t*)p_this;
-
-    if (vd->fmt.i_chroma == VLC_CODEC_ANDROID_OPAQUE)
+    if (vd->fmt.i_chroma != VLC_CODEC_ANDROID_OPAQUE
+         || vd->fmt.projection_mode != PROJECTION_MODE_RECTANGULAR
+         || vd->fmt.orientation != ORIENT_NORMAL)
+    {
+        /* Let the gles2 vout handle orientation and projection */
         return VLC_EGENERIC;
+    }
 
     /* At this point, gles2 vout failed (old Android device) */
     vd->fmt.projection_mode = PROJECTION_MODE_RECTANGULAR;
@@ -873,12 +950,14 @@ static void Close(vlc_object_t *p_this)
 
     /* Check if SPU regions have been properly cleared, and clear them if they
      * were not. */
-    if (sys->b_has_subpictures)
+    if(!sys->b_opengl_render_subtitles)
     {
-        SubpicturePrepare(vd, NULL);
-        AndroidWindow_UnlockPicture(sys, sys->p_sub_window, sys->p_sub_pic, true);
+        if (sys->b_has_subpictures)
+        {
+            SubpicturePrepare(vd, NULL);
+            AndroidWindow_UnlockPicture(sys, sys->p_sub_window, sys->p_sub_pic, true);
+        }
     }
-
     if (sys->pool)
         picture_pool_Release(sys->pool);
 
@@ -888,15 +967,21 @@ static void Close(vlc_object_t *p_this)
             ClearSurface(vd);
         AndroidWindow_Destroy(vd, sys->p_window);
     }
-
-    if (sys->p_sub_pic)
-        picture_Release(sys->p_sub_pic);
-    if (sys->p_spu_blend)
-        filter_DeleteBlend(sys->p_spu_blend);
-    free(sys->p_sub_buffer_bounds);
-    if (sys->p_sub_window)
-        AndroidWindow_Destroy(vd, sys->p_sub_window);
-
+    if(!sys->b_opengl_render_subtitles)
+    {
+        if (sys->p_sub_pic)
+            picture_Release(sys->p_sub_pic);
+        if (sys->p_spu_blend)
+            filter_DeleteBlend(sys->p_spu_blend);
+        free(sys->p_sub_buffer_bounds);
+        if (sys->p_sub_window)
+            AndroidWindow_Destroy(vd, sys->p_sub_window);
+    }
+    else
+    {
+        if (sys->sub.window != NULL)
+            subpicture_CloseDisplay(vd);
+    }
     if (sys->embed)
     {
         AWindowHandler_setVideoLayout(sys->p_awh, 0, 0, 0, 0, 0, 0);
@@ -992,6 +1077,304 @@ error:
     }
     free(pp_pics);
     return pool;
+}
+static void FlipVerticalAlign(vout_display_cfg_t *cfg)
+{
+    /* Reverse vertical alignment as the GL tex are Y inverted */
+    if (cfg->align.vertical == VOUT_DISPLAY_ALIGN_TOP)
+        cfg->align.vertical = VOUT_DISPLAY_ALIGN_BOTTOM;
+    else if (cfg->align.vertical == VOUT_DISPLAY_ALIGN_BOTTOM)
+        cfg->align.vertical = VOUT_DISPLAY_ALIGN_TOP;
+}
+static int subpicture_Control(vout_display_t *vd, int query)
+{
+    vout_display_sys_t *sys = vd->sys;
+    struct subpicture *sub = &sys->sub;
+
+    switch (query)
+    {
+        case VOUT_DISPLAY_CHANGE_DISPLAY_SIZE:
+        case VOUT_DISPLAY_CHANGE_DISPLAY_FILLED:
+        case VOUT_DISPLAY_CHANGE_ZOOM:
+        {
+            vout_display_cfg_t cfg = *(vd->cfg);
+            FlipVerticalAlign(&cfg);
+            vout_display_PlacePicture(&sub->place, &vd->source, &cfg, false);
+            sub->place_changed = true;
+            msg_Dbg(vd, "[%s:%s:%d]=zspace=: query %d sub->place.x %d sub->place.y %d sub->place.width %d sub->place.height %d", __FILE__ , __FUNCTION__, __LINE__, query, sub->place.x,
+            sub->place.y, sub->place.width, sub->place.height);
+            vlc_gl_Resize(sub->gl, sub->place.width, sub->place.height);
+            return VLC_SUCCESS;
+        }
+
+        case VOUT_DISPLAY_CHANGE_SOURCE_ASPECT:
+        case VOUT_DISPLAY_CHANGE_SOURCE_CROP:
+            return VLC_SUCCESS;
+        default:
+            break;
+    }
+    return VLC_EGENERIC;
+}
+
+static bool subpicture_NeedDraw(vout_display_t *vd, subpicture_t *subpicture)
+{
+    vout_display_sys_t *sys = vd->sys;
+    struct subpicture *sub = &sys->sub;
+
+    if (subpicture == NULL)
+    {
+
+        if (!sub->clear)
+            return false;
+
+        sub->clear = false;
+        /* Need to draw one last time in order to clear the current subpicture */
+        return true;
+    }
+
+    sub->clear = true;
+
+    size_t count = 0;
+    for (subpicture_region_t *r = subpicture->p_region;
+         r != NULL; r = r->p_next)
+        count++;
+
+    if (subpicture->i_order != sub->last_order)
+    {
+        sub->last_order = subpicture->i_order;
+        /* Subpicture content is different */
+        goto end;
+    }
+
+    bool draw = false;
+
+    if (count == sub->regions.size)
+    {
+        size_t i = 0;
+        for (subpicture_region_t *r = subpicture->p_region;
+             r != NULL; r = r->p_next)
+        {
+            struct sub_region *cmp = &sub->regions.data[i++];
+            if (cmp->x != r->i_x || cmp->y != r->i_y
+             || cmp->width != r->fmt.i_visible_width
+             || cmp->height != r->fmt.i_visible_height)
+            {
+                /* Subpicture regions are different */
+                draw = true;
+                break;
+            }
+        }
+    }
+    else
+    {
+        /* Subpicture region count is different */
+        draw = true;
+    }
+
+    if (!draw)
+        return false;
+
+end:
+    /* Store the current subpicture regions in order to compare then later.
+     */
+    if (!vlc_vector_reserve(&sub->regions, count))
+        return false;
+
+
+    sub->regions.size = 0;
+
+    for (subpicture_region_t *r = subpicture->p_region;
+         r != NULL; r = r->p_next)
+    {
+        struct sub_region reg = {
+            .x = r->i_x,
+            .y = r->i_y,
+            .width = r->fmt.i_visible_width,
+            .height = r->fmt.i_visible_height,
+        };
+        bool res = vlc_vector_push(&sub->regions, reg);
+        /* Already checked with vlc_vector_reserve */
+        assert(res); (void) res;
+    }
+
+    return true;
+}
+
+static void subpicture_Prepare(vout_display_t *vd, subpicture_t *subpicture)
+{
+    vout_display_sys_t *sys = vd->sys;
+    struct subpicture *sub = &sys->sub;
+    mtime_t start_time = mdate();
+    if (!subpicture_NeedDraw(vd, subpicture))
+    {
+        sub->is_dirty = false;
+        return;
+    }
+
+    if (vlc_gl_MakeCurrent(sub->gl) != VLC_SUCCESS)
+        return;
+
+    sub->api.vt.ClearColor(0.f, 0.f, 0.f, 0.f);
+    sub->api.vt.Clear(GL_COLOR_BUFFER_BIT);
+
+    int ret = vlc_gl_sub_renderer_Prepare(sub->renderer, subpicture);
+    if (ret != VLC_SUCCESS)
+        goto error;
+    sub->vt.Flush();
+
+    if (sub->place_changed)
+    {
+        msg_Dbg(vd, "[%s:%s:%d]=zspace=: sub->place.x %d sub->place.y %d sub->place.width %d sub->place.height %d", __FILE__ , __FUNCTION__, __LINE__, sub->place.x,
+        sub->place.y, sub->place.width, sub->place.height);
+        sub->api.vt.Viewport(sub->place.x, sub->place.y,
+                             sub->place.width, sub->place.height);
+        sub->place_changed = false;
+    }
+
+    ret = vlc_gl_sub_renderer_Draw(sub->renderer);
+    if (ret != VLC_SUCCESS)
+        goto error;
+    sub->vt.Flush();
+
+    sub->is_dirty = true;
+error:
+    vlc_gl_ReleaseCurrent(sub->gl);
+}
+
+static void subpicture_Display(vout_display_t *vd)
+{
+    vout_display_sys_t *sys = vd->sys;
+    struct subpicture *sub = &sys->sub;
+    int64_t start_time = mdate();
+
+
+    if (sub->is_dirty){
+        if (vlc_gl_MakeCurrent(sub->gl) != VLC_SUCCESS)
+                return;
+        vlc_gl_Swap(sub->gl);
+    }
+}
+
+static void subpicture_CloseDisplay(vout_display_t *vd)
+{
+    vout_display_sys_t *sys = vd->sys;
+    struct subpicture *sub = &sys->sub;
+
+    int ret = vlc_gl_MakeCurrent(sub->gl);
+
+    if (ret == 0)
+    {
+        /* Clear the surface */
+        sub->api.vt.ClearColor(0.f, 0.f, 0.f, 0.f);
+        sub->api.vt.Clear(GL_COLOR_BUFFER_BIT);
+        vlc_gl_Swap(sub->gl);
+    }
+
+    vlc_gl_sub_renderer_Delete(sub->renderer);
+    vlc_gl_interop_Delete(sub->interop);
+
+    vlc_gl_ReleaseCurrent(sub->gl);
+
+    vlc_gl_Release(sub->gl);
+
+    vout_window_Delete(sub->window);
+
+    vlc_vector_destroy(&sub->regions);
+}
+
+static int subpicture_window_Open(vout_window_t *wnd)
+{
+    wnd->type = VOUT_WINDOW_TYPE_ANDROID_NATIVE;
+    wnd->handle.anativewindow = wnd->owner.sys;
+
+    return VLC_SUCCESS;
+}
+
+struct vout_display_placement {
+    unsigned width; /**< Requested display pixel width (0 by default). */
+    unsigned height; /**< Requested display pixel height (0 by default). */
+    vlc_rational_t sar; /**< Requested sample aspect ratio */
+    vlc_rational_t zoom; /**< Zoom ratio (if fitting is disabled) */
+};
+
+static int subpicture_OpenDisplay(vout_display_t *vd)
+{
+    struct vout_display_sys_t *sys = vd->sys;
+    struct subpicture *sub = &sys->sub;
+
+    sub->is_dirty = false;
+    sub->clear = false;
+    sub->last_order = -1;
+    vlc_vector_init(&sub->regions);
+
+    const vout_window_cfg_t win_cfg = {
+        .is_fullscreen = true,
+        .width = sys->i_display_width,
+        .height = sys->i_display_height,
+    };
+
+    const vout_window_owner_t owner = {
+        .sys = sys->p_awh,
+    };
+
+    sub->window = vout_window_New(VLC_OBJECT(vd), "android-subpicture",
+                                 &win_cfg, &owner);
+    if (sub->window == NULL)
+        return -1;
+
+    sub->gl = vlc_gl_Create(sub->window, VLC_OPENGL_ES2, "$gles2");;
+    if (sub->gl == NULL)
+        goto delete_win;
+
+
+    vout_display_cfg_t cfg = *(vd->cfg);
+    FlipVerticalAlign(&cfg);
+
+    vout_display_PlacePicture(&sub->place, &vd->source, &cfg, false);
+    sub->place_changed = true;
+
+    if (vlc_gl_MakeCurrent(sub->gl))
+        goto delete_gl;
+
+    sub->vt.Flush = vlc_gl_GetProcAddress(sub->gl, "glFlush");
+    if (sub->vt.Flush == NULL)
+        goto release_gl;
+
+    int ret = vlc_gl_api_Init(&sub->api, sub->gl);
+    if (ret != VLC_SUCCESS)
+        goto release_gl;
+
+    sub->interop = vlc_gl_interop_NewForSubpictures(sub->gl);
+    if (sub->interop == NULL)
+    {
+        msg_Err(vd, "Could not create sub interop");
+        goto release_gl;
+    }
+
+    sub->renderer = vlc_gl_sub_renderer_New(sub->gl, &sub->api, sub->interop);
+    if (sub->renderer == NULL)
+        goto delete_interop;
+
+    vlc_gl_ReleaseCurrent(sub->gl);
+
+    static const vlc_fourcc_t gl_subpicture_chromas[] = {
+        VLC_CODEC_RGBA,
+        0
+    };
+    vd->info.subpicture_chromas = gl_subpicture_chromas;
+
+    return 0;
+
+delete_interop:
+    vlc_gl_interop_Delete(sub->interop);
+release_gl:
+    vlc_gl_ReleaseCurrent(sub->gl);
+delete_gl:
+    vlc_gl_Release(sub->gl);
+delete_win:
+    vout_window_Delete(sub->window);
+    sub->window = NULL;
+    return -1;
 }
 
 static void SubtitleRegionToBounds(subpicture_t *subpicture,
@@ -1206,50 +1589,59 @@ static void Prepare(vout_display_t *vd, picture_t *picture,
 {
     vout_display_sys_t *sys = vd->sys;
     VLC_UNUSED(picture);
-
-    if (subpicture && sys->p_sub_window) {
-        if (sys->b_sub_invalid) {
-            sys->b_sub_invalid = false;
-            if (sys->p_sub_pic) {
-                picture_Release(sys->p_sub_pic);
-                sys->p_sub_pic = NULL;
-            }
-            if (sys->p_spu_blend) {
-                filter_DeleteBlend(sys->p_spu_blend);
-                sys->p_spu_blend = NULL;
-            }
-            free(sys->p_sub_buffer_bounds);
-            sys->p_sub_buffer_bounds = NULL;
-        }
-
-        if (!sys->p_sub_pic
-         && AndroidWindow_Setup(sys, sys->p_sub_window, 1) == 0)
-            sys->p_sub_pic = PictureAlloc(sys, &sys->p_sub_window->fmt, false);
-        if (!sys->p_spu_blend && sys->p_sub_pic) {
-            sys->p_spu_blend = filter_NewBlend(VLC_OBJECT(vd),
-                                               &sys->p_sub_pic->format);
-            msg_Dbg(vd, "[%s:%s:%d]=zspace=: Run filter_NewBlend(), retrun=%p ", __FILE__ , __FUNCTION__, __LINE__, sys->p_spu_blend);
-        }
-
-        if (sys->p_sub_pic && sys->p_spu_blend) {
-            sys->b_has_subpictures = true;
-            //msg_Dbg(vd, "[%s:%s:%d]=zspace=: sys->b_has_subpictures = true ", __FILE__ , __FUNCTION__, __LINE__);
-        }
-    }
-    /* As long as no subpicture was received, do not call
-       SubpictureDisplay since JNI calls and clearing the subtitles
-       surface are expensive operations. */
-    if (sys->b_has_subpictures)
+    if (!sys->b_opengl_render_subtitles)
     {
-        SubpicturePrepare(vd, subpicture);
-        if (!subpicture)
+        if (subpicture && sys->p_sub_window) {
+            if (sys->b_sub_invalid) {
+                sys->b_sub_invalid = false;
+                if (sys->p_sub_pic) {
+                    picture_Release(sys->p_sub_pic);
+                    sys->p_sub_pic = NULL;
+                }
+                if (sys->p_spu_blend) {
+                    filter_DeleteBlend(sys->p_spu_blend);
+                    sys->p_spu_blend = NULL;
+                }
+                free(sys->p_sub_buffer_bounds);
+                sys->p_sub_buffer_bounds = NULL;
+            }
+
+            if (!sys->p_sub_pic
+             && AndroidWindow_Setup(sys, sys->p_sub_window, 1) == 0)
+                sys->p_sub_pic = PictureAlloc(sys, &sys->p_sub_window->fmt, false);
+            if (!sys->p_spu_blend && sys->p_sub_pic) {
+                sys->p_spu_blend = filter_NewBlend(VLC_OBJECT(vd),
+                                                   &sys->p_sub_pic->format);
+                msg_Dbg(vd, "[%s:%s:%d]=zspace=: Run filter_NewBlend(), retrun=%p ", __FILE__ , __FUNCTION__, __LINE__, sys->p_spu_blend);
+            }
+
+            if (sys->p_sub_pic && sys->p_spu_blend) {
+                sys->b_has_subpictures = true;
+            }
+        }
+        /* As long as no subpicture was received, do not call
+           SubpictureDisplay since JNI calls and clearing the subtitles
+           surface are expensive operations. */
+        if (sys->b_has_subpictures)
         {
-            /* The surface has been cleared and there is no new
-               subpicture to upload, do not clear again until a new
-               subpicture is received. */
-            sys->b_has_subpictures = false;
+            SubpicturePrepare(vd, subpicture);
+            if (!subpicture)
+            {
+                /* The surface has been cleared and there is no new
+                   subpicture to upload, do not clear again until a new
+                   subpicture is received. */
+                sys->b_has_subpictures = false;
+            }
         }
     }
+    else
+    {
+        if (sys->sub.window != NULL)
+        {
+            subpicture_Prepare(vd, subpicture);
+        }
+    }
+
     if (sys->p_window->b_opaque
      && AndroidOpaquePicture_CanReleaseAtTime(picture->p_sys))
     {
@@ -1292,13 +1684,23 @@ static void Display(vout_display_t *vd, picture_t *picture,
         AndroidWindow_UnlockPicture(sys, sys->p_window, picture, true);
 
     picture_Release(picture);
+    if (!sys->b_opengl_render_subtitles)
+    {
+        if (sys->p_sub_pic)
+        {
+            AndroidWindow_UnlockPicture(sys, sys->p_sub_window, sys->p_sub_pic,
+                                        true);
+        }
 
-    if (sys->p_sub_pic)
-        AndroidWindow_UnlockPicture(sys, sys->p_sub_window, sys->p_sub_pic,
-                                    true);
-
-    if (subpicture)
-        subpicture_Delete(subpicture);
+        if (subpicture)
+            subpicture_Delete(subpicture);
+    }
+    else
+    {
+        struct subpicture *sub = &sys->sub;
+        if (sys->sub.window != NULL)
+            subpicture_Display(vd);
+    }
 
     sys->b_displayed = true;
 }
@@ -1313,7 +1715,11 @@ static void CopySourceAspect(video_format_t *p_dest,
 static int Control(vout_display_t *vd, int query, va_list args)
 {
     vout_display_sys_t *sys = vd->sys;
-
+    if (sys->b_opengl_render_subtitles)
+    {
+        if (sys->sub.window != NULL)
+            subpicture_Control(vd, query);
+    }
     switch (query) {
     case VOUT_DISPLAY_CHANGE_SOURCE_CROP:
     case VOUT_DISPLAY_CHANGE_SOURCE_ASPECT:
@@ -1327,7 +1733,8 @@ static int Control(vout_display_t *vd, int query, va_list args)
             CopySourceAspect(&sys->p_window->fmt, &vd->source);
 
         UpdateVideoSize(sys, &sys->p_window->fmt, sys->p_window->b_use_priv);
-        FixSubtitleFormat(sys);
+        if(!sys->b_opengl_render_subtitles)
+            FixSubtitleFormat(sys);
         return VLC_SUCCESS;
     }
     case VOUT_DISPLAY_CHANGE_DISPLAY_SIZE:
@@ -1338,7 +1745,8 @@ static int Control(vout_display_t *vd, int query, va_list args)
         sys->i_display_height = cfg->display.height;
         msg_Dbg(vd, "[%s:%s:%d]=zspace=: change display size: %dx%d", __FILE__ , __FUNCTION__, __LINE__, sys->i_display_width,
                                                   sys->i_display_height);
-        FixSubtitleFormat(sys);
+        if (!sys->b_opengl_render_subtitles)
+            FixSubtitleFormat(sys);
         return VLC_SUCCESS;
     }
     case VOUT_DISPLAY_RESET_PICTURES:

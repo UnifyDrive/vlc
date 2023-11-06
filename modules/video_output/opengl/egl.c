@@ -321,9 +321,16 @@ static int Open (vlc_object_t *obj, const struct gl_api *api)
     if (wnd->type != VOUT_WINDOW_TYPE_ANDROID_NATIVE)
         goto error;
 
-    ANativeWindow *anw =
-        AWindowHandler_getANativeWindow(wnd->handle.anativewindow,
-                                        AWindow_Video);
+    bool b_opengl_render_subtitles = var_InheritBool(obj, "support-opengl-render-subtitles");
+    ANativeWindow *anw = NULL;
+    if (b_opengl_render_subtitles)
+    {
+        anw = AWindowHandler_getANativeWindow(wnd->handle.anativewindow,
+                                        AWindow_Subtitles);
+    } else {
+        anw = AWindowHandler_getANativeWindow(wnd->handle.anativewindow,
+                                            AWindow_Video);
+    }
     if (anw == NULL)
         goto error;
     window = &anw;
@@ -354,22 +361,37 @@ static int Open (vlc_object_t *obj, const struct gl_api *api)
         msg_Err(obj, "cannot select %s API", api->name);
         goto error;
     }
-
-    const EGLint conf_attr[] = {
-        EGL_RED_SIZE, 5,
-        EGL_GREEN_SIZE, 5,
-        EGL_BLUE_SIZE, 5,
-        EGL_RENDERABLE_TYPE, api->render_bit,
-        EGL_NONE
-    };
     EGLConfig cfgv[1];
     EGLint cfgc;
-
-    if (eglChooseConfig(sys->display, conf_attr, cfgv, 1, &cfgc) != EGL_TRUE
-     || cfgc == 0)
-    {
-        msg_Err (obj, "cannot choose EGL configuration");
-        goto error;
+    if (b_opengl_render_subtitles) {
+        const EGLint conf_attr[] = {
+            EGL_RED_SIZE, 5,
+            EGL_GREEN_SIZE, 5,
+            EGL_BLUE_SIZE, 5,
+            EGL_ALPHA_SIZE, 5,
+            EGL_RENDERABLE_TYPE, api->render_bit,
+            EGL_NONE
+        };
+        if (eglChooseConfig(sys->display, conf_attr, cfgv, 1, &cfgc) != EGL_TRUE
+         || cfgc == 0)
+        {
+            msg_Err (obj, "cannot choose EGL configuration");
+            goto error;
+        }
+    } else {
+        const EGLint conf_attr[] = {
+            EGL_RED_SIZE, 5,
+            EGL_GREEN_SIZE, 5,
+            EGL_BLUE_SIZE, 5,
+            EGL_RENDERABLE_TYPE, api->render_bit,
+            EGL_NONE
+        };
+        if (eglChooseConfig(sys->display, conf_attr, cfgv, 1, &cfgc) != EGL_TRUE
+         || cfgc == 0)
+        {
+            msg_Err (obj, "cannot choose EGL configuration");
+            goto error;
+        }
     }
 
     /* Create a drawing surface */
@@ -450,5 +472,7 @@ vlc_module_begin ()
     set_capability ("opengl es2", 50)
     set_callbacks (OpenGLES2, Close)
     add_shortcut ("egl")
+    add_bool( "support-opengl-render-subtitles", false, NULL,
+                          NULL, false )
 
 vlc_module_end ()

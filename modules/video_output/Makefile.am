@@ -6,7 +6,16 @@ EXTRA_DIST += video_output/README
 OPENGL_COMMONSOURCES = video_output/opengl/vout_helper.c \
 	video_output/opengl/vout_helper.h video_output/opengl/converter.h \
 	video_output/opengl/internal.h video_output/opengl/fragment_shaders.c \
-	video_output/opengl/converter_sw.c
+	video_output/opengl/converter_sw.c \
+	video_output/opengl/interop.h \
+	video_output/opengl/interop.c \
+	video_output/opengl/sub_renderer.h \
+	video_output/opengl/sub_renderer.c \
+	video_output/opengl/gl_util.h \
+	video_output/opengl/gl_util.c \
+	video_output/opengl/gl_api.h \
+	video_output/opengl/gl_api.c \
+	video_output/opengl/vlc_vector.h 
 
 OPENGL_COMMONCLFAGS = $(LIBPLACEBO_CFLAGS)
 OPENGL_COMMONLIBS = $(LIBPLACEBO_LIBS)
@@ -16,6 +25,15 @@ libdecklinkoutput_plugin_la_SOURCES = video_output/decklink.cpp
 libdecklinkoutput_plugin_la_CXXFLAGS = $(AM_CXXFLAGS) $(CPPFLAGS_decklinkoutput)
 libdecklinkoutput_plugin_la_LIBADD = $(LIBS_decklink) $(LIBDL) -lpthread
 vout_LTLIBRARIES += libdecklinkoutput_plugin.la
+endif
+
+
+if HAVE_ANDROID
+libglinterop_sw_plugin_la_SOURCES = $(OPENGL_COMMONSOURCES) video_output/opengl/interop_sw.c
+libglinterop_sw_plugin_la_CFLAGS = $(AM_CPPFLAGS)
+libglinterop_sw_plugin_la_LIBADD = $(OPENGL_COMMONLIBS)
+libglinterop_sw_plugin_la_CFLAGS += -DUSE_OPENGL_ES2
+vout_LTLIBRARIES += libglinterop_sw_plugin.la
 endif
 
 libglconv_cvpx_plugin_la_SOURCES = video_output/opengl/converter_cvpx.c \
@@ -389,10 +407,10 @@ libandroid_window_plugin_la_SOURCES = video_output/android/window.c \
 libandroid_window_plugin_la_CFLAGS = $(AM_CFLAGS)
 libandroid_window_plugin_la_LIBADD = $(LIBDL)
 
-libandroid_display_plugin_la_SOURCES = video_output/android/display.c \
+libandroid_display_plugin_la_SOURCES = $(OPENGL_COMMONSOURCES) video_output/android/display.c \
 	video_output/android/display.h \
 	video_output/android/utils.c video_output/android/utils.h
-libandroid_display_plugin_la_CFLAGS = $(AM_CFLAGS)
+libandroid_display_plugin_la_CFLAGS = $(AM_CFLAGS) -DUSE_OPENGL_ES2
 libandroid_display_plugin_la_LIBADD = $(LIBDL)
 
 libglconv_android_plugin_la_SOURCES = video_output/opengl/converter_android.c \
