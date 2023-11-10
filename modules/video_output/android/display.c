@@ -1247,7 +1247,6 @@ static void subpicture_Display(vout_display_t *vd)
     struct subpicture *sub = &sys->sub;
     int64_t start_time = mdate();
 
-
     if (sub->is_dirty){
         if (vlc_gl_MakeCurrent(sub->gl) != VLC_SUCCESS)
                 return;
@@ -1691,9 +1690,6 @@ static void Display(vout_display_t *vd, picture_t *picture,
             AndroidWindow_UnlockPicture(sys, sys->p_sub_window, sys->p_sub_pic,
                                         true);
         }
-
-        if (subpicture)
-            subpicture_Delete(subpicture);
     }
     else
     {
@@ -1702,6 +1698,8 @@ static void Display(vout_display_t *vd, picture_t *picture,
             subpicture_Display(vd);
     }
 
+    if (subpicture)
+        subpicture_Delete(subpicture);
     sys->b_displayed = true;
 }
 
