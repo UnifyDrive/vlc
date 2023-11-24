@@ -2501,7 +2501,7 @@ static void blurayInitTitles(demux_t *p_demux, uint32_t menu_titles)
 
     uint64_t duration = 0;
     uint32_t i_longest_playlist = 0;
-    for (uint32_t i = 0; i <= i_title; i++) {
+    for (uint32_t i = 0; i < i_title; i++) {
         input_title_t *t = vlc_input_title_New();
         if (!t)
             break;
