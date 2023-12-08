@@ -474,6 +474,7 @@ static const struct vlc_avcodec_fourcc audio_codecs[] =
     { VLC_CODEC_DSD_MSBF, AV_CODEC_ID_DSD_MSBF },
     { VLC_CODEC_DSD_LSBF_PLANAR, AV_CODEC_ID_DSD_LSBF_PLANAR },
     { VLC_CODEC_DSD_MSBF_PLANAR, AV_CODEC_ID_DSD_MSBF_PLANAR },
+    { VLC_CODEC_DST, AV_CODEC_ID_DST },
 };
 
 /* Subtitle streams */

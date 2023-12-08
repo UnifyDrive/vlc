@@ -527,6 +527,8 @@
 #define VLC_CODEC_DSD_MSBF                   VLC_FOURCC('D','M','B','F')
 #define VLC_CODEC_DSD_LSBF_PLANAR            VLC_FOURCC('D','L','F','P')
 #define VLC_CODEC_DSD_MSBF_PLANAR            VLC_FOURCC('D','M','F','P')
+#define VLC_CODEC_DST                        VLC_FOURCC('D','S','T',' ')
+
 
 #define VLC_CODEC_PCM_S8_PLANAR              VLC_FOURCC('S','8','P','L')
 #define VLC_CODEC_PCM_S24LE_PLANAR           VLC_FOURCC('S','2','4','L')

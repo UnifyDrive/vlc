@@ -49,6 +49,7 @@ FFMPEGCONF = \
 	--enable-decoder=dsd_lsbf_planar \
 	--enable-decoder=dsd_msbf \
 	--enable-decoder=dsd_msbf_planar \
+	--enable-decoder=dst \
 	--enable-demuxer=dsf
 
 ifdef USE_FFMPEG
