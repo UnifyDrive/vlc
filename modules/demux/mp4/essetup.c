@@ -435,6 +435,10 @@ int SetupVideoES( demux_t *p_demux, mp4_track_t *p_track, MP4_Box_t *p_sample )
                     iso_23001_8_cp_to_vlc_primaries( BOXDATA( p_colr )->nclc.i_primary_idx );
             p_track->fmt.video.transfer =
                     iso_23001_8_tc_to_vlc_xfer( BOXDATA( p_colr )->nclc.i_transfer_function_idx );
+            if (p_track->fmt.video.transfer == TRANSFER_FUNC_SMPTE_ST2084)
+            {
+                p_track->fmt.video.hdr_type = HDR_TYPE_HDR10;
+            }
             p_track->fmt.video.space =
                     iso_23001_8_mc_to_vlc_coeffs( BOXDATA( p_colr )->nclc.i_matrix_idx );
             p_track->fmt.video.b_color_range_full = BOXDATA(p_colr)->i_type == VLC_FOURCC( 'n', 'c', 'l', 'x' ) &&
@@ -442,6 +446,50 @@ int SetupVideoES( demux_t *p_demux, mp4_track_t *p_track, MP4_Box_t *p_sample )
         }
     }
 
+    const MP4_Box_t *p_dvcC = MP4_BoxGet( p_sample, "dvcC" );
+    if( !p_dvcC )
+        p_dvcC = MP4_BoxGet( p_sample, "dvvC" );
+    if( !p_dvcC )
+        p_dvcC = MP4_BoxGet( p_sample, "dvwC" );
+    if( p_dvcC && BOXDATA(p_dvcC) )
+    {
+        const MP4_Box_data_dvcC_t *p_data = BOXDATA( p_dvcC );
+#if defined(__APPLE__)
+#define DVCC_SIZE 24
+            uint8_t dvcc_data[DVCC_SIZE];
+            memset(dvcc_data, 0x00, DVCC_SIZE);
+            dvcc_data[0] = p_data->i_version_major;
+            dvcc_data[1] = p_data->i_version_minor;
+            dvcc_data[2] = (p_data->i_profile << 1 & 0xfe)
+                            | (p_data->i_level >> 7);
+            dvcc_data[3] = ((p_data->i_level << 3) & 0xf8)
+                            | (p_data->i_rpu_present << 2)
+                            | (p_data->i_el_present << 1)
+                            | p_data->i_bl_present;
+            if (p_data->i_dv_bl_signal_compatibility_id > 0)
+                dvcc_data[4] = p_data->i_dv_bl_signal_compatibility_id << 4 & 0xf0;
+
+            p_track->fmt.video.hdr_type = HDR_TYPE_DOLBYVISION;
+            if ((p_data->i_profile == 5) || (p_data->i_profile == 8 && p_data->i_dv_bl_signal_compatibility_id == 4))
+            {
+                p_track->fmt.video.i_dovi_extra = DVCC_SIZE;
+                p_track->fmt.video.p_dovi_extra = malloc(DVCC_SIZE);
+            }
+            else
+            {
+                p_track->fmt.video.hdr_type = HDR_TYPE_DOLBYVISION_COMPATIBLE_HDR10;
+            }
+            if (p_track->fmt.video.p_dovi_extra)
+                memcpy( p_track->fmt.video.p_dovi_extra, (void*)dvcc_data, DVCC_SIZE );
+            msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: DOVI configuration record: version: %d.%d, profile: %d, level: %d, rpu flag: %d, el flag: %d, bl flag: %d, compatibility id: %d.", __FILE__ , __FUNCTION__, __LINE__,
+                    p_data->i_version_major, p_data->i_version_minor,
+                    p_data->i_profile, p_data->i_level,
+                    p_data->i_rpu_present,
+                    p_data->i_el_present,
+                    p_data->i_bl_present,
+                    p_data->i_dv_bl_signal_compatibility_id);
+#endif
+    }
     SetupGlobalExtensions( p_track, p_sample );
 
     /* now see if esds is present and if so create a data packet
@@ -638,7 +686,10 @@ int SetupVideoES( demux_t *p_demux, mp4_track_t *p_track, MP4_Box_t *p_sample )
                     if( p_data->i_xfer_function == 0 )
                         p_track->fmt.video.transfer = TRANSFER_FUNC_BT709;
                     else if ( p_data->i_xfer_function == 1 )
+                    {
                         p_track->fmt.video.transfer = TRANSFER_FUNC_SMPTE_ST2084;
+                        p_track->fmt.video.hdr_type = HDR_TYPE_HDR10;
+                    }
                 }
                 else
                 {
@@ -646,6 +697,10 @@ int SetupVideoES( demux_t *p_demux, mp4_track_t *p_track, MP4_Box_t *p_sample )
                             iso_23001_8_cp_to_vlc_primaries( p_data->i_color_primaries );
                     p_track->fmt.video.transfer =
                             iso_23001_8_tc_to_vlc_xfer( p_data->i_xfer_function );
+                    if (p_track->fmt.video.transfer == TRANSFER_FUNC_SMPTE_ST2084)
+                    {
+                        p_track->fmt.video.hdr_type = HDR_TYPE_HDR10;
+                    }
                     p_track->fmt.video.space =
                             iso_23001_8_mc_to_vlc_coeffs( p_data->i_matrix_coeffs );
                 }

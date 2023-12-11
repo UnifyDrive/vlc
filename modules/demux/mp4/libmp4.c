@@ -71,6 +71,7 @@ static void MP4_ConvertDate2Str( char *psz, uint64_t i_date, bool b_relative )
 #endif
 
 #define MP4_GET1BYTE( dst )  MP4_GETX_PRIVATE( dst, *p_peek, 1 )
+#define MP4_GET2BYTES( dst ) MP4_GETX_PRIVATE( dst, GetWBE(p_peek), 2 )
 #define MP4_GET3BYTES( dst ) MP4_GETX_PRIVATE( dst, Get24bBE(p_peek), 3 )
 #define MP4_GET4BYTES( dst ) MP4_GETX_PRIVATE( dst, GetDWBE(p_peek), 4 )
 #define MP4_GET8BYTES( dst ) MP4_GETX_PRIVATE( dst, GetQWBE(p_peek), 8 )
@@ -4018,6 +4019,31 @@ static int MP4_ReadBox_colr( stream_t *p_stream, MP4_Box_t *p_box )
     MP4_READBOX_EXIT( 1 );
 }
 
+static int MP4_ReadBox_dvcC( stream_t *p_stream, MP4_Box_t *p_box )
+{
+    MP4_Box_data_dvcC_t *p_dvcC;
+    uint16_t flags;
+    uint64_t size;
+    MP4_READBOX_ENTER( MP4_Box_data_dvcC_t, NULL );
+    size = p_box->i_size;
+    p_dvcC = p_box->data.p_dvcC;
+    MP4_GET1BYTE( p_dvcC->i_version_major );
+    MP4_GET1BYTE( p_dvcC->i_version_minor );
+    MP4_GET2BYTES( flags );
+    p_dvcC->i_profile       = (flags >> 9) & 0x7f;  // 7 bits
+    p_dvcC->i_level         = (flags >> 3) & 0x3f;  // 6 bits
+    p_dvcC->i_rpu_present   = (flags >> 2) & 0x01;  // 1 bit
+    p_dvcC->i_el_present    = (flags >> 1) & 0x01;  // 1 bit
+    p_dvcC->i_bl_present    =  flags       & 0x01;  // 1 bit
+    MP4_GET1BYTE( p_dvcC->i_dv_bl_signal_compatibility_id );
+    if (size >= 5) {
+        p_dvcC->i_dv_bl_signal_compatibility_id = (p_dvcC->i_dv_bl_signal_compatibility_id >> 4) & 0x0f; // 4 bits
+    } else {
+        p_dvcC->i_dv_bl_signal_compatibility_id = 0;
+    }
+    /* TODO: remainder of box, if needed */
+    MP4_READBOX_EXIT( 1 );
+}
 static int MP4_ReadBox_meta( stream_t *p_stream, MP4_Box_t *p_box )
 {
     const uint8_t *p_peek;
@@ -4582,6 +4608,9 @@ static const struct
     { ATOM_btrt,    MP4_ReadBox_btrt,         0 }, /* codecs bitrate stsd/????/btrt */
     { ATOM_keys,    MP4_ReadBox_keys,         ATOM_meta },
     { ATOM_colr,    MP4_ReadBox_colr,         0 },
+    { ATOM_dvcC,    MP4_ReadBox_dvcC,         0 }, /* dolby vision config record */
+    { ATOM_dvvC,    MP4_ReadBox_dvcC,         0 },
+    { ATOM_dvwC,    MP4_ReadBox_dvcC,         0 },
 
     /* XiphQT */
     { ATOM_vCtH,    MP4_ReadBox_Binary,       ATOM_wave },
