@@ -64,7 +64,7 @@ vlc_gl_interop_GenerateTextures(const struct vlc_gl_interop *interop,
         priv->gl.BindTexture(interop->tex_target, textures[i]);
 
 #if !defined(USE_OPENGL_ES2)
-        if (interop->gl->api_type == VLC_OPENGL)
+        //if (interop->gl->api_type == VLC_OPENGL)
         {
             /* Set the texture parameters */
             priv->gl.TexParameterf(interop->tex_target, GL_TEXTURE_PRIORITY, 1.0);
