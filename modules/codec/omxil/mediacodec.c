@@ -312,6 +312,37 @@ static int HEVCSetCSD(decoder_t *p_dec, bool *p_size_changed)
     return VLC_SUCCESS;
 }
 
+static int SetHDRType(decoder_t *p_dec)
+{
+    decoder_sys_t *p_sys = p_dec->p_sys;
+    struct hxxx_helper *hh = &p_sys->video.hh;
+
+    if (!strcmp(p_dec->demux_module, "mp4") && (p_dec->fmt_in.video.hdr_type == HDR_TYPE_UNDEF))
+    {
+        video_color_primaries_t primaries;
+        video_transfer_func_t transfer;
+        video_color_space_t colorspace;
+        bool full_range;
+        if (hxxx_helper_get_colorimetry(&p_sys->video.hh,
+                                            &primaries,
+                                            &transfer,
+                                            &colorspace,
+                                            &full_range) == VLC_SUCCESS)
+        {
+            if (transfer == TRANSFER_FUNC_SMPTE_ST2084)
+            {
+                p_dec->fmt_in.video.hdr_type = HDR_TYPE_HDR10;
+            }
+            else if (transfer == TRANSFER_FUNC_HLG)
+            {
+                p_dec->fmt_in.video.hdr_type = HDR_TYPE_HLG;
+            }
+
+            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: set hdr_type = %d. transfer %d", __FILE__ , __FUNCTION__, __LINE__, p_dec->fmt_in.video.hdr_type, transfer);
+
+        }
+    }
+}
 static int ParseVideoExtraH264(decoder_t *p_dec, uint8_t *p_extra, int i_extra)
 {
     decoder_sys_t *p_sys = p_dec->p_sys;
@@ -320,6 +351,7 @@ static int ParseVideoExtraH264(decoder_t *p_dec, uint8_t *p_extra, int i_extra)
     int i_ret = hxxx_helper_set_extra(hh, p_extra, i_extra);
     if (i_ret != VLC_SUCCESS)
         return i_ret;
+    SetHDRType(p_dec);
     assert(hh->pf_process_block != NULL);
 
     if (p_sys->api.i_quirks & MC_API_VIDEO_QUIRKS_ADAPTIVE)
@@ -340,6 +372,7 @@ static int ParseVideoExtraHEVC(decoder_t *p_dec, uint8_t *p_extra, int i_extra)
     int i_ret = hxxx_helper_set_extra(hh, p_extra, i_extra);
     if (i_ret != VLC_SUCCESS)
         return i_ret;
+    SetHDRType(p_dec);
     assert(hh->pf_process_block != NULL);
 
     if (p_sys->api.i_quirks & MC_API_VIDEO_QUIRKS_ADAPTIVE)
