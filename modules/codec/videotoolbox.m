@@ -565,6 +565,40 @@ static bool ConfigureVoutH264(decoder_t *p_dec)
             p_dec->fmt_out.video.transfer = transfer;
             p_dec->fmt_out.video.space = colorspace;
             p_dec->fmt_out.video.b_color_range_full = full_range;
+
+            /* mp4 demux can't get hdr info when hdr info is in NAL, so we need do it in decoder */
+            if (!strcmp(p_dec->demux_module, "mp4") && (p_dec->fmt_in.video.hdr_type == HDR_TYPE_UNDEF))
+            {
+                int set_hdr_type = 0;
+                char *var = NULL;
+                var = var_InheritString (p_dec, "vout");
+#if TARGET_OS_OSX
+                if (var && 0 == strcmp(var, "avsamplebufferdisplaylayer"))
+                    set_hdr_type = 1;
+#elif TARGET_OS_TV
+                set_hdr_type = 1;
+#elif TARGET_OS_IPHONE
+                if (var && 0 == strcmp(var, "avsamplebufferdisplaylayer"))
+                    set_hdr_type = 1;
+#endif
+                if (set_hdr_type == 1)
+                {
+                    if (p_dec->fmt_out.video.transfer == TRANSFER_FUNC_SMPTE_ST2084)
+                    {
+                        p_dec->fmt_in.video.hdr_type = HDR_TYPE_HDR10;
+                    }
+                    else if (p_dec->fmt_out.video.transfer == TRANSFER_FUNC_HLG)
+                    {
+                        p_dec->fmt_in.video.hdr_type = HDR_TYPE_HLG;
+                    }
+                    p_dec->fmt_out.video.hdr_type = p_dec->fmt_in.video.hdr_type;
+                    p_dec->fmt_in.video.primaries = primaries;
+                    p_dec->fmt_in.video.transfer = transfer;
+                    p_dec->fmt_in.video.space = colorspace;
+                    p_dec->fmt_in.video.b_color_range_full = full_range;
+                    msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: set hdr_type = %d.", __FILE__ , __FUNCTION__, __LINE__, p_dec->fmt_in.video.hdr_type);
+                }
+            }
         }
     }
 

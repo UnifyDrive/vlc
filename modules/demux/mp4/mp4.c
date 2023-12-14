@@ -2882,10 +2882,6 @@ static int TrackCreateES( demux_t *p_demux, mp4_track_t *p_track,
         if ( p_sample->i_handler != ATOM_vide ||
              !SetupVideoES( p_demux, p_track, p_sample ) )
             return VLC_EGENERIC;
-        if (p_track->fmt.video.transfer == TRANSFER_FUNC_SMPTE_ST2084)
-            p_track->fmt.video.hdr_type = HDR_TYPE_HDR10;
-
-
 
         /* Set frame rate */
         TrackGetESSampleRate( p_demux,

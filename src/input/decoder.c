@@ -1884,6 +1884,15 @@ static decoder_t * CreateDecoder( vlc_object_t *p_parent,
     p_dec->pf_get_display_date = DecoderGetDisplayDate;
     p_dec->pf_get_display_rate = DecoderGetDisplayRate;
 
+    if (fmt->i_cat == VIDEO_ES)
+    {
+        input_thread_private_t *priv = input_priv(p_owner->p_input);
+        char * module_name = module_get_object (priv->master->p_demux->p_module);
+        memset(p_dec->demux_module, 0x00, sizeof(p_dec->demux_module));
+        memcpy(p_dec->demux_module, module_name, sizeof(p_dec->demux_module));
+        msg_Dbg( p_dec, "[%s:%s:%d]=zspace=: demux module_name = %s", __FILE__ , __FUNCTION__, __LINE__, p_dec->demux_module);
+    }
+
     /* Load a packetizer module if the input is not already packetized */
     if( p_sout == NULL && !fmt->b_packetized )
     {

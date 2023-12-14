@@ -438,6 +438,7 @@ int SetupVideoES( demux_t *p_demux, mp4_track_t *p_track, MP4_Box_t *p_sample )
             if (p_track->fmt.video.transfer == TRANSFER_FUNC_SMPTE_ST2084)
             {
                 p_track->fmt.video.hdr_type = HDR_TYPE_HDR10;
+                msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: HDR10 video.", __FILE__ , __FUNCTION__, __LINE__);
             }
             p_track->fmt.video.space =
                     iso_23001_8_mc_to_vlc_coeffs( BOXDATA( p_colr )->nclc.i_matrix_idx );
@@ -689,6 +690,7 @@ int SetupVideoES( demux_t *p_demux, mp4_track_t *p_track, MP4_Box_t *p_sample )
                     {
                         p_track->fmt.video.transfer = TRANSFER_FUNC_SMPTE_ST2084;
                         p_track->fmt.video.hdr_type = HDR_TYPE_HDR10;
+                        msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: HDR10 video.", __FILE__ , __FUNCTION__, __LINE__);
                     }
                 }
                 else
@@ -700,6 +702,7 @@ int SetupVideoES( demux_t *p_demux, mp4_track_t *p_track, MP4_Box_t *p_sample )
                     if (p_track->fmt.video.transfer == TRANSFER_FUNC_SMPTE_ST2084)
                     {
                         p_track->fmt.video.hdr_type = HDR_TYPE_HDR10;
+                        msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: HDR10 video.", __FILE__ , __FUNCTION__, __LINE__);
                     }
                     p_track->fmt.video.space =
                             iso_23001_8_mc_to_vlc_coeffs( p_data->i_matrix_coeffs );
@@ -720,6 +723,8 @@ int SetupVideoES( demux_t *p_demux, mp4_track_t *p_track, MP4_Box_t *p_sample )
                 }
 
                 const MP4_Box_t *p_SmDm = MP4_BoxGet( p_sample, "SmDm" );
+                if( !p_SmDm )
+                    p_SmDm = MP4_BoxGet( p_sample, "mdcv" );
                 if( p_SmDm && BOXDATA(p_SmDm) )
                 {
                     memcpy( p_track->fmt.video.mastering.primaries,
@@ -731,6 +736,8 @@ int SetupVideoES( demux_t *p_demux, mp4_track_t *p_track, MP4_Box_t *p_sample )
                 }
 
                 const MP4_Box_t *p_CoLL = MP4_BoxGet( p_sample, "CoLL" );
+                if( !p_CoLL )
+                    p_CoLL = MP4_BoxGet( p_sample, "clli" );
                 if( p_CoLL && BOXDATA(p_CoLL) )
                 {
                     p_track->fmt.video.lighting.MaxCLL = BOXDATA(p_CoLL)->i_maxCLL;
