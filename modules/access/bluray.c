@@ -1272,7 +1272,7 @@ static int blurayOpen(vlc_object_t *object)
     } else {
         /* set start title number */
         int i_index = -1;
-        if (p_sys->i_start_title_idx >= 0 && p_sys->i_start_title_idx < p_sys->i_title-1)
+        if (p_sys->i_start_title_idx >= 0 && p_sys->i_start_title_idx < p_sys->i_title)
             i_index = p_sys->i_start_title_idx;
         else 
             i_index = p_sys->i_longest_title;
@@ -2496,7 +2496,7 @@ static void blurayInitTitles(demux_t *p_demux, uint32_t menu_titles)
     if (!p_sys->b_menu) {
         i_title = bd_get_titles(p_sys->bluray, TITLES_RELEVANT, 60);
         p_sys->i_longest_title = bd_get_main_title(p_sys->bluray);
-        msg_Dbg(p_demux, "[%s:%s:%d]=zspace=: Get p_sys->i_longest_title=%d, titles=%d, initial_dynamic_range_type=%d.", __FILE__ , __FUNCTION__, __LINE__, p_sys->i_longest_title, i_title, di->initial_dynamic_range_type);
+        msg_Dbg(p_demux, "[%s:%s:%d]=zspace=: Get main title index=%d, titles=%d, initial_dynamic_range_type=%d.", __FILE__ , __FUNCTION__, __LINE__, p_sys->i_longest_title, i_title, di->initial_dynamic_range_type);
     }
 
     uint64_t duration = 0;
@@ -2525,6 +2525,9 @@ static void blurayInitTitles(demux_t *p_demux, uint32_t menu_titles)
                         msg_Dbg(p_demux, "[%s:%s:%d]=zspace=: Get t->psz_name=[%s].", __FILE__ , __FUNCTION__, __LINE__, t->psz_name);
                     }
                 }
+                if (i == p_sys->i_longest_title) {
+                    t->i_flags = 0x04;
+                }
                 blurayUpdateTitleInfo(t, title_info);
                 bd_free_title_info(title_info);
             }
@@ -2551,7 +2554,7 @@ static void blurayInitTitles(demux_t *p_demux, uint32_t menu_titles)
 
         TAB_APPEND(p_sys->i_title, p_sys->pp_title, t);
     }
-    msg_Dbg(p_demux, "[%s:%s:%d]=zspace=: Get longest Title[%05d.mpls], total=%d.", __FILE__ , __FUNCTION__, __LINE__, i_longest_playlist, p_sys->i_title);
+    msg_Dbg(p_demux, "[%s:%s:%d]=zspace=: Get first longest Title[%05d.mpls].", __FILE__ , __FUNCTION__, __LINE__, i_longest_playlist);
 }
 
 static void blurayRestartParser(demux_t *p_demux, bool b_flush, bool b_random_access)
