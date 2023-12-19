@@ -1497,6 +1497,8 @@ static int Seek( demux_t *p_demux, mtime_t i_date, bool b_accurate )
 
     if( b_accurate )
         es_out_Control( p_demux->out, ES_OUT_SET_NEXT_DISPLAY_TIME, i_date );
+    else
+        es_out_Control( p_demux->out, ES_OUT_SET_NEXT_DISPLAY_TIME, i_start );
 
     return VLC_SUCCESS;
 }
@@ -1942,7 +1944,8 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
             if ( p_demux->pf_demux == DemuxFrag )
                 return FragSeekToTime( p_demux, i64, b );
             else
-                return Seek( p_demux, i64 + start_time, b );
+                /* Don't use accurate seek, accurate seek can cause to seek slow */
+                return Seek( p_demux, i64 + start_time, false );
         }
 
         case DEMUX_GET_LENGTH:
