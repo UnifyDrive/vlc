@@ -1067,6 +1067,8 @@ static subpicture_t *SpuRenderSubpictures(spu_t *spu,
     if (subtitle_region_count > sizeof(subtitle_area_buffer)/sizeof(*subtitle_area_buffer))
         subtitle_area = calloc(subtitle_region_count, sizeof(*subtitle_area));
 
+    //msg_Warn(spu, "output subpic size [%d,%d], i_subpicture=%d.", output->i_original_picture_width, output->i_original_picture_height, i_subpicture);
+
     /* Process all subpictures and regions (in the right order) */
     for (unsigned int index = 0; index < i_subpicture; index++) {
         subpicture_t        *subpic = pp_subpicture[index];
@@ -1075,16 +1077,21 @@ static subpicture_t *SpuRenderSubpictures(spu_t *spu,
         if (!subpic->p_region)
             continue;
 
-        subpic->b_subtitle_rescale = false;
+        /*msg_Warn(spu, "original subpic size [%d,%d]is undefined. Use fmt_src->visible[%d,%d],b_subtitle_rescale=%s",
+                    subpic->i_original_picture_width, subpic->i_original_picture_height,
+                    fmt_src->i_visible_width, fmt_src->i_visible_height,
+                    subpic->b_subtitle_rescale?"True":"False");*/
+
+        //subpic->b_subtitle_rescale = false;
         if (subpic->i_original_picture_width  <= 0 ||
-            subpic->i_original_picture_height <= 0 || subpic->b_subtitle_rescale) {
+            subpic->i_original_picture_height <= 0/* || subpic->b_subtitle_rescale*/) {
             /*if (subpic->i_original_picture_width  > 0 ||
                 subpic->i_original_picture_height > 0)
                 msg_Err(spu, "original picture size %dx%d is unsupported",
                          subpic->i_original_picture_width,
                          subpic->i_original_picture_height);
             else
-                msg_Warn(spu, "original picture size [%d,%d]is undefined. Use fmt_src->visible[%d,%d],b_subtitle_rescale=%s",
+                msg_Warn(spu, "original subpic size [%d,%d]is undefined. Use fmt_src->visible[%d,%d],b_subtitle_rescale=%s",
                     subpic->i_original_picture_width, subpic->i_original_picture_height,
                     fmt_src->i_visible_width, fmt_src->i_visible_height,
                     subpic->b_subtitle_rescale?"True":"False");*/
@@ -1093,6 +1100,10 @@ static subpicture_t *SpuRenderSubpictures(spu_t *spu,
                     subpic->i_original_picture_height = fmt_src->i_visible_height;
                 }else {
                     subpic->i_original_picture_height = fmt_src->i_visible_height * subpic->i_original_picture_width / fmt_src->i_visible_width ;
+                    /*msg_Warn(spu, "scaled subpic size [%d,%d]is undefined. Use fmt_src->visible[%d,%d],b_subtitle_rescale=%s",
+                    subpic->i_original_picture_width, subpic->i_original_picture_height,
+                    fmt_src->i_visible_width, fmt_src->i_visible_height,
+                    subpic->b_subtitle_rescale?"True":"False");*/
                 }
             }else {
                 subpic->i_original_picture_width  = fmt_src->i_visible_width;
@@ -1118,6 +1129,7 @@ static subpicture_t *SpuRenderSubpictures(spu_t *spu,
 
             /* Compute region scale AR */
             video_format_t region_fmt = region->fmt;
+            //msg_Warn(spu, "subpic ori region sar[%d,%d].", region_fmt.i_sar_num, region_fmt.i_sar_den);
             if (region_fmt.i_sar_num <= 0 || region_fmt.i_sar_den <= 0) {
 
                 const uint64_t i_sar_num = (uint64_t)fmt_dst->i_visible_width  *
@@ -1127,6 +1139,7 @@ static subpicture_t *SpuRenderSubpictures(spu_t *spu,
 
                 vlc_ureduce(&region_fmt.i_sar_num, &region_fmt.i_sar_den,
                             i_sar_num, i_sar_den, 65536);
+                //msg_Warn(spu, "subpic final region sar[%d,%d], fmt_dst sar[%d,%d].", region_fmt.i_sar_num, region_fmt.i_sar_den, fmt_dst->i_sar_num, fmt_dst->i_sar_den);
             }
 
             /* Compute scaling from original size to destination size
@@ -1141,10 +1154,15 @@ static subpicture_t *SpuRenderSubpictures(spu_t *spu,
             /* Check scale validity */
             if (scale.w <= 0 || scale.h <= 0)
                 continue;
+            //msg_Warn(spu, "subpic spu_scale_t [%d,%d].", scale.w, scale.h);
+            if (subpic->b_subtitle_rescale) {
+                scale.h = scale.w;
+            }
 
             /* Fix the problem that low resolution video subtitles cannot reach the top*/
             int margin_scale = fmt_dst->i_visible_height*SCALE_UNIT/fmt_src->i_height;
             /* */
+            //msg_Warn(spu, "subpic area before [%d,%d][%d,%d] area.scale[%d,%d].", area.x, area.y, area.width, area.height, area.scale.w, area.scale.h);
             SpuRenderRegion(spu, output_last_ptr, &area,
                             subpic, region, scale,
                             chroma_list, fmt_dst,
@@ -1153,11 +1171,14 @@ static subpicture_t *SpuRenderSubpictures(spu_t *spu,
             if (*output_last_ptr)
                 output_last_ptr = &(*output_last_ptr)->p_next;
 
+            //msg_Warn(spu, "subpic area after [%d,%d][%d,%d] area.scale[%d,%d].", area.x, area.y, area.width, area.height, area.scale.w, area.scale.h);
             if (subpic->b_subtitle) {
                 area = spu_area_unscaled(area, scale);
+                //msg_Warn(spu, "subpic area unscaled[%d,%d][%d,%d].", area.x, area.y, area.width, area.height);
                 if (!subpic->b_absolute && area.width > 0 && area.height > 0) {
                     region->i_x = area.x;
                     region->i_y = area.y;
+                    //msg_Warn(spu, "subpic final region xy[%d,%d].", region_fmt.i_sar_num, region_fmt.i_sar_den);
                 }
                 if (subtitle_area)
                     subtitle_area[subtitle_area_count++] = area;
