@@ -60,7 +60,8 @@ typedef struct libvlc_track_description_t
 enum
 {
     libvlc_title_menu          = 0x01,
-    libvlc_title_interactive   = 0x02
+    libvlc_title_interactive   = 0x02,
+    libvlc_title_main          = 0x04
 };
 
 typedef struct libvlc_title_description_t
