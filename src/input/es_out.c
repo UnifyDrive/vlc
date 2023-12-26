@@ -54,6 +54,7 @@
 /* FIXME we should find a better way than including that */
 #include "../text/iso-639_def.h"
 #define  ZS_DEBUG      (0)
+#define MAX_CACHING_DURATION 60000
 
 /*****************************************************************************
  * Local prototypes
@@ -1165,7 +1166,7 @@ static es_out_pgrm_t *EsOutProgramAdd( es_out_t *out, int i_group )
     input_clock_SetJitter( p_pgrm->p_clock, p_sys->i_pts_delay, p_sys->i_cr_average );
     mtime_t i_max_caching = var_InheritInteger( p_sys->p_input, "network-max-caching" );
     msg_Dbg( p_input, "network-max-caching %lld", i_max_caching);
-    if (i_max_caching < 0 || i_max_caching > 30000)
+    if (i_max_caching < 0 || i_max_caching > MAX_CACHING_DURATION)
     {
         i_max_caching = 0;
     }

@@ -514,6 +514,10 @@ static const char *const ppsz_pos_descriptions[] =
 #define NETWORK_CACHING_LONGTEXT N_( \
     "Caching value for network resources, in milliseconds." )
 
+#define NETWORK_MAX_CACHING_TEXT N_("Network max caching (ms)")
+#define NETWORK_MAX_CACHING_LONGTEXT N_( \
+    "Caching value for network resources, in milliseconds." )
+
 #define CR_AVERAGE_TEXT N_("Clock reference average counter")
 #define CR_AVERAGE_LONGTEXT N_( \
     "When using the PVR input (or a very irregular source), you should " \
@@ -1908,7 +1912,10 @@ vlc_module_begin ()
                  NETWORK_CACHING_TEXT, NETWORK_CACHING_LONGTEXT, true )
         change_integer_range( 0, 60000 )
         change_safe()
-    add_obsolete_integer( "network-max-caching" )
+    add_integer( "network-max-caching", CLOCK_FREQ / 1000,
+                 NETWORK_MAX_CACHING_TEXT, NETWORK_MAX_CACHING_LONGTEXT, true )
+        change_integer_range( 0, 60000 )
+        change_safe()
     add_obsolete_integer( "ftp-caching" ) /* 2.0.0 */
     add_obsolete_integer( "http-caching" ) /* 2.0.0 */
     add_obsolete_integer( "mms-caching" ) /* 2.0.0 */
