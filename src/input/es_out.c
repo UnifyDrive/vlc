@@ -161,6 +161,7 @@ struct es_out_sys_t
     mtime_t     i_pts_jitter;
     int         i_cr_average;
     int         i_rate;
+    mtime_t     i_max_cache;
 
     /* */
     bool        b_paused;
@@ -1162,6 +1163,16 @@ static es_out_pgrm_t *EsOutProgramAdd( es_out_t *out, int i_group )
     if( p_sys->b_paused )
         input_clock_ChangePause( p_pgrm->p_clock, p_sys->b_paused, p_sys->i_pause_date );
     input_clock_SetJitter( p_pgrm->p_clock, p_sys->i_pts_delay, p_sys->i_cr_average );
+    mtime_t i_max_caching = var_InheritInteger( p_sys->p_input, "network-max-caching" );
+    msg_Dbg( p_input, "network-max-caching %lld", i_max_caching);
+    if (i_max_caching < 0 || i_max_caching > 30000)
+    {
+        i_max_caching = 0;
+    }
+    /* Convert milliseconds to microseconds */
+    i_max_caching = INT64_C(1000) * i_max_caching;
+
+    input_clock_SetMaxCaching( p_pgrm->p_clock, i_max_caching);
 
     /* Append it */
     TAB_APPEND( p_sys->i_pgrm, p_sys->pgrm, p_pgrm );

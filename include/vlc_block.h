@@ -472,7 +472,10 @@ VLC_API block_t *block_FifoGet(block_fifo_t *) VLC_USED;
  * @return a valid block.
  */
 VLC_API block_t *block_FifoShow(block_fifo_t *);
-
+//#define AV_BUFFER_DURATION
+#ifdef AV_BUFFER_DURATION
+VLC_API block_t *block_FifoShowLast(block_fifo_t *);
+#endif
 size_t block_FifoSize(block_fifo_t *) VLC_USED VLC_DEPRECATED;
 VLC_API size_t block_FifoCount(block_fifo_t *) VLC_USED VLC_DEPRECATED;
 

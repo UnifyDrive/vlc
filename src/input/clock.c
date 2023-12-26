@@ -178,6 +178,7 @@ struct input_clock_t
     int     i_rate;
     mtime_t i_pts_delay;
     mtime_t i_pause_date;
+    mtime_t i_max_caching;
 };
 
 static mtime_t ClockStreamToSystem( input_clock_t *, mtime_t i_stream );
@@ -216,6 +217,7 @@ input_clock_t *input_clock_New( int i_rate )
     cl->i_pts_delay = 0;
     cl->b_paused = false;
     cl->i_pause_date = VLC_TS_INVALID;
+    cl->i_max_caching = 0;
 
     return cl;
 }
@@ -397,7 +399,7 @@ mtime_t input_clock_GetWakeup( input_clock_t *cl )
 
     /* Synchronized, we can wait */
     if( cl->b_has_reference )
-        i_wakeup = ClockStreamToSystem( cl, cl->last.i_stream + AvgGet( &cl->drift ) - cl->i_buffering_duration );
+        i_wakeup = ClockStreamToSystem( cl, cl->last.i_stream + AvgGet( &cl->drift ) - cl->i_buffering_duration - cl->i_max_caching);
 
     vlc_mutex_unlock( &cl->lock );
 
@@ -582,6 +584,13 @@ void input_clock_SetJitter( input_clock_t *cl,
     vlc_mutex_unlock( &cl->lock );
 }
 
+void input_clock_SetMaxCaching( input_clock_t *cl,
+                            mtime_t i_max_caching)
+{
+    vlc_mutex_lock( &cl->lock );
+    cl->i_max_caching = i_max_caching;
+    vlc_mutex_unlock( &cl->lock );
+}
 mtime_t input_clock_GetJitter( input_clock_t *cl )
 {
     vlc_mutex_lock( &cl->lock );

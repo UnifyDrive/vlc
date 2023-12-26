@@ -2236,6 +2236,17 @@ void input_DecoderDecode( decoder_t *p_dec, block_t *p_block, bool b_do_pace )
 
     vlc_fifo_QueueUnlocked( p_owner->p_fifo, p_block );
     vlc_fifo_Unlock( p_owner->p_fifo );
+#ifdef AV_BUFFER_DURATION
+    block_t *last_block = block_FifoShowLast(p_owner->p_fifo);
+    block_t *curr_block = block_FifoShow(p_owner->p_fifo);
+    if (last_block && curr_block) {
+        if (p_dec->fmt_out.i_cat == VIDEO_ES || p_owner->fmt.i_cat == VIDEO_ES)
+            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=:  input video decoder duration %lld size %d ", __FILE__ , __FUNCTION__, __LINE__, last_block->i_pts - curr_block->i_pts, block_FifoSize(p_owner->p_fifo));
+        else if (p_dec->fmt_out.i_cat == AUDIO_ES || p_owner->fmt.i_cat == AUDIO_ES)
+            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=:  input audio decoder duration %lld size %d ", __FILE__ , __FUNCTION__, __LINE__, last_block->i_pts - curr_block->i_pts, block_FifoSize(p_owner->p_fifo));
+
+    }
+#endif
 }
 
 bool input_DecoderIsEmpty( decoder_t * p_dec )

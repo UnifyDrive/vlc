@@ -1908,6 +1908,7 @@ vlc_module_begin ()
                  NETWORK_CACHING_TEXT, NETWORK_CACHING_LONGTEXT, true )
         change_integer_range( 0, 60000 )
         change_safe()
+    add_obsolete_integer( "network-max-caching" )
     add_obsolete_integer( "ftp-caching" ) /* 2.0.0 */
     add_obsolete_integer( "http-caching" ) /* 2.0.0 */
     add_obsolete_integer( "mms-caching" ) /* 2.0.0 */
