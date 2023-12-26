@@ -218,6 +218,8 @@ void input_ControlVarInit ( input_thread_t *p_input )
     /* Special "intf-event" variable. */
     var_Create( p_input, "intf-event", VLC_VAR_INTEGER );
 
+    var_Create( p_input, "demux-name", VLC_VAR_STRING | VLC_VAR_DOINHERIT );
+
     /* Add all callbacks
      * XXX we put callback only in non preparsing mode. We need to create the variable
      * unless someone want to check all var_Get/var_Change return value ... */

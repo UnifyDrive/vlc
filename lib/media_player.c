@@ -86,6 +86,10 @@ static int
 vout_module_name(vlc_object_t *obj, const char *name, vlc_value_t old,
                vlc_value_t cur, void *opaque);
 
+static int
+demux_module_name(vlc_object_t *obj, const char *name, vlc_value_t old,
+               vlc_value_t cur, void *opaque);
+
 static void
 add_es_callbacks( input_thread_t *p_input_thread, libvlc_media_player_t *p_mi );
 
@@ -212,6 +216,8 @@ stop_input_thread( libvlc_media_player_t *p_mi )
                     input_scrambled_changed, p_mi );
     var_DelCallback( p_input_thread, "intf-event",
                      input_event_changed, p_mi );
+    var_DelCallback( p_input_thread, "demux-name",
+                         demux_module_name, p_mi );
     del_es_callbacks( p_input_thread, p_mi );
 
     /* We owned this one */
@@ -697,6 +703,24 @@ static int vout_module_name(vlc_object_t *obj, const char *name, vlc_value_t old
     return VLC_SUCCESS;
 }
 
+static int demux_module_name(vlc_object_t *obj, const char *name, vlc_value_t old,
+                          vlc_value_t cur, void *opaque)
+{
+    libvlc_event_t event;
+    libvlc_media_player_t * p_mi = opaque;
+    input_thread_t *p_input_thread;
+
+    p_input_thread = libvlc_get_input_thread ( p_mi );
+    if( !p_input_thread )
+        return 0;
+
+    msg_Dbg(p_input_thread, "[%s:%s:%d]=zspace=: demux_name %s", __FILE__ , __FUNCTION__, __LINE__, cur.psz_string);
+    event.type = libvlc_MediaPlayerDemuxModuleName;
+    event.u.media_player_demux_module_name.name = cur.psz_string;
+    libvlc_event_send(&p_mi->event_manager, &event);
+    VLC_UNUSED(name); VLC_UNUSED(old); VLC_UNUSED(opaque);
+    return VLC_SUCCESS;
+}
 /**************************************************************************
  * Create a Media Instance object.
  *
@@ -1139,6 +1163,7 @@ create_input_thread( libvlc_media_player_t *p_mi )
     var_AddCallback( p_input_thread, "can-pause", input_pausable_changed, p_mi );
     var_AddCallback( p_input_thread, "program-scrambled", input_scrambled_changed, p_mi );
     var_AddCallback( p_input_thread, "intf-event", input_event_changed, p_mi );
+    var_AddCallback(p_input_thread, "demux-name", demux_module_name, p_mi);
     add_es_callbacks( p_input_thread, p_mi );
 
     audio_output_t *aout = input_resource_GetAout(p_mi->input.p_resource);

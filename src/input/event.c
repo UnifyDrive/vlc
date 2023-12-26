@@ -315,6 +315,11 @@ void input_SendEventSWVdec( input_thread_t *p_input )
     Trigger( p_input, INPUT_EVENT_SWVDEC );
 }
 
+void input_SendEventDemuxModuleName( input_thread_t *p_input, char * name )
+{
+    var_SetString(p_input, "demux-name", name);
+}
+
 /*****************************************************************************
  * Event for control.c/input.c
  *****************************************************************************/

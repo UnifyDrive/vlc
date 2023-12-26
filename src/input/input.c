@@ -2753,6 +2753,9 @@ static input_source_t *InputSourceNew( input_thread_t *p_input,
         return NULL;
     }
 
+    char * module_name = module_get_object (in->p_demux->p_module);
+    input_SendEventDemuxModuleName(p_input, module_name);
+
     char *psz_demux_chain = NULL;
     if( priv->p_renderer )
     {

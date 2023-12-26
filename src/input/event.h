@@ -80,6 +80,7 @@ void input_SendEventAout( input_thread_t *p_input );
 * Event for tdx extendted
 *****************************************************************************/
 void input_SendEventSWVdec( input_thread_t *p_input );
+void input_SendEventDemuxModuleName( input_thread_t *p_input, char *name );
 
 /*****************************************************************************
  * Event for control.c/input.c

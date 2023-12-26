@@ -101,6 +101,7 @@ enum libvlc_event_e {
     libvlc_MediaPlayerSupportAudioCodecType,
     libvlc_MediaPlayerSupportVideoCodecType,
     libvlc_MediaPlayerVoutModuleName,
+    libvlc_MediaPlayerDemuxModuleName,
 
     libvlc_MediaListItemAdded=0x200,
     libvlc_MediaListWillAddItem,
@@ -293,6 +294,12 @@ typedef struct libvlc_event_t
         {
             const char * name;
         } media_player_vout_module_name;
+
+        /* demux moudule name */
+        struct
+        {
+            const char * name;
+        } media_player_demux_module_name;
 
         /* VLM media */
         struct
