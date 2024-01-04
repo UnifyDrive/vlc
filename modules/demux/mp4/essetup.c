@@ -482,6 +482,8 @@ int SetupVideoES( demux_t *p_demux, mp4_track_t *p_track, MP4_Box_t *p_sample )
             }
             if (p_track->fmt.video.p_dovi_extra)
                 memcpy( p_track->fmt.video.p_dovi_extra, (void*)dvcc_data, DVCC_SIZE );
+
+#endif
             msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: DOVI configuration record: version: %d.%d, profile: %d, level: %d, rpu flag: %d, el flag: %d, bl flag: %d, compatibility id: %d.", __FILE__ , __FUNCTION__, __LINE__,
                     p_data->i_version_major, p_data->i_version_minor,
                     p_data->i_profile, p_data->i_level,
@@ -489,7 +491,12 @@ int SetupVideoES( demux_t *p_demux, mp4_track_t *p_track, MP4_Box_t *p_sample )
                     p_data->i_el_present,
                     p_data->i_bl_present,
                     p_data->i_dv_bl_signal_compatibility_id);
-#endif
+            bool dolbyStatus = var_InheritBool( p_demux, "dolbyvisiondecoder");
+            if( !dolbyStatus ) {
+                p_track->fmt.i_profile = p_data->i_profile;
+                p_track->fmt.i_level = p_data->i_level;
+                msg_Dbg( p_demux, "[%s:%s:%d]=zspace=: Allow to use video/dolby-vision, set profile/level read from stream.", __FILE__ , __FUNCTION__, __LINE__);
+            }
     }
     SetupGlobalExtensions( p_track, p_sample );
 
