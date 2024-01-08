@@ -97,14 +97,11 @@ static bool is_big_endian( filter_t *p_filter, block_t *p_in_buf )
             case VLC_CODEC_EAC3:
             case VLC_CODEC_MLP:
             case VLC_CODEC_TRUEHD:
-                return true;
             case VLC_CODEC_DTS:
-               // return p_in_buf->p_buffer[0] == 0x1F
-               // || p_in_buf->p_buffer[0] == 0x7F;
+               
               return true;
             default:
-           // vlc_assert_unreachable();
-           return true;
+              return true;
         }
     }else{
         switch( p_filter->fmt_in.audio.i_format )
@@ -122,37 +119,6 @@ static bool is_big_endian( filter_t *p_filter, block_t *p_in_buf )
         }
     }
 
-#if defined( SPDIF_TDX )
-    switch( p_filter->fmt_in.audio.i_format )
-    {
-        case VLC_CODEC_A52:
-        case VLC_CODEC_EAC3:
-        case VLC_CODEC_MLP:
-        case VLC_CODEC_TRUEHD:
-            return true;
-        case VLC_CODEC_DTS:
-           return p_in_buf->p_buffer[0] == 0x1F
-                || p_in_buf->p_buffer[0] == 0x7F;
-        //    return true;
-        default:
-           // vlc_assert_unreachable();
-           return true;
-    }
-
-    switch( p_filter->fmt_in.audio.i_format )
-    {
-        case VLC_CODEC_A52:
-        case VLC_CODEC_EAC3:
-        case VLC_CODEC_MLP:
-        case VLC_CODEC_TRUEHD:
-            return true;
-        case VLC_CODEC_DTS:
-            return p_in_buf->p_buffer[0] == 0x1F
-                || p_in_buf->p_buffer[0] == 0x7F;
-        default:
-            vlc_assert_unreachable();
-    }
-#endif
 }
 
 static void set_16( filter_t *p_filter, void *p_buf, uint16_t i_val )
@@ -536,6 +502,7 @@ static int write_buffer_dtshd( filter_t *p_filter, block_t *p_in_buf )
         return SPDIF_ERROR;
     unsigned i_period = p_filter->fmt_out.audio.i_rate
                       * core.i_frame_length / core.i_rate;
+    //msg_Dbg( p_filter, "i_period=%d,fmt_out.rate=%d,core[%d, %d]", i_period, p_filter->fmt_out.audio.i_rate, core.i_frame_length, core.i_rate );
 
     int i_subtype = dtshd_get_subtype( i_period );
     if( i_subtype == -1 )
@@ -649,63 +616,6 @@ static block_t *DoWork( filter_t *p_filter, block_t *p_in_buf )
         }
     }
 
-#if defined( SPDIF_TDX )
-    switch( p_filter->fmt_in.audio.i_format )
-    {
-        case VLC_CODEC_A52:
-            i_ret = write_buffer_ac3( p_filter, p_in_buf );
-            break;
-        case VLC_CODEC_EAC3:
-          //  i_ret = write_buffer_eac3( p_filter, p_in_buf );
-            i_ret = write_buffer_ac3( p_filter, p_in_buf );
-            break;
-        case VLC_CODEC_MLP:
-        case VLC_CODEC_TRUEHD:
-           // i_ret = write_buffer_truehd( p_filter, p_in_buf );
-            i_ret = write_buffer_ac3( p_filter, p_in_buf );
-            break;
-        case VLC_CODEC_DTS:
-            /* if the fmt_out is configured for a higher rate than 48kHz
-             * (IEC958 rate), use the DTS-HD framing to pass the DTS Core and
-             * or DTS substreams (like DTS-HD MA). */
-            i_ret = write_buffer_ac3( p_filter, p_in_buf);
-        /*
-            if( p_filter->fmt_out.audio.i_rate > 48000 )
-                i_ret = write_buffer_dtshd( p_filter, p_in_buf );
-            else
-                i_ret = write_buffer_dts( p_filter, p_in_buf );
-            break;
-        */
-        default:
-            i_ret = write_buffer_ac3( p_filter, p_in_buf);
-          //  vlc_assert_unreachable();
-    }
-
-    switch( p_filter->fmt_in.audio.i_format )
-    {
-        case VLC_CODEC_A52:
-            i_ret = write_buffer_ac3( p_filter, p_in_buf );
-            break;
-        case VLC_CODEC_EAC3:
-            i_ret = write_buffer_eac3( p_filter, p_in_buf );
-            break;
-        case VLC_CODEC_MLP:
-        case VLC_CODEC_TRUEHD:
-            i_ret = write_buffer_truehd( p_filter, p_in_buf );
-            break;
-        case VLC_CODEC_DTS:
-            /* if the fmt_out is configured for a higher rate than 48kHz
-             * (IEC958 rate), use the DTS-HD framing to pass the DTS Core and
-             * or DTS substreams (like DTS-HD MA). */
-            if( p_filter->fmt_out.audio.i_rate > 48000 )
-                i_ret = write_buffer_dtshd( p_filter, p_in_buf );
-            else
-                i_ret = write_buffer_dts( p_filter, p_in_buf );
-            break;
-        default:
-            vlc_assert_unreachable();
-    }
-#endif
     switch( i_ret )
     {
         case SPDIF_SUCCESS:
