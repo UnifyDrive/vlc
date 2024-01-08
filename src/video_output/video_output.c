@@ -883,7 +883,7 @@ static int ThreadDisplayPreparePicture(vout_thread_t *vout, bool reuse, bool fra
                     const mtime_t late = predicted - decoded->date;
                     if (late > late_threshold) {
                         droped_pic_num++;
-                        msg_Warn(vout, "picture is too late to be displayed (missing %"PRId64" ms), droped_pic_num=%d", late/1000, droped_pic_num);
+                        msg_Warn(vout, "picture is too late to be displayed (missing %"PRId64" ms), droped_pic_num=%d, [%d/%d]", late/1000, droped_pic_num, decoded->format.i_frame_rate, decoded->format.i_frame_rate_base);
                         if (droped_pic_num < 10) {
                             picture_Release(decoded);
                             vout_statistic_AddLost(&vout->p->statistic, 1);

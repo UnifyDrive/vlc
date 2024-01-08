@@ -481,6 +481,8 @@ static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
 
     aout_FormatPrepare(fmt);
 
+    msg_Dbg( aout, "[%s:%s:%d]=zspace=:  Using opensles output for audio.", __FILE__ , __FUNCTION__, __LINE__);
+
     return VLC_SUCCESS;
 
 error:
