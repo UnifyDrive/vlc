@@ -1912,7 +1912,7 @@ vlc_module_begin ()
                  NETWORK_CACHING_TEXT, NETWORK_CACHING_LONGTEXT, true )
         change_integer_range( 0, 60000 )
         change_safe()
-    add_integer( "network-max-caching", CLOCK_FREQ / 1000,
+    add_integer( "network-max-caching", 0,
                  NETWORK_MAX_CACHING_TEXT, NETWORK_MAX_CACHING_LONGTEXT, true )
         change_integer_range( 0, 60000 )
         change_safe()
