@@ -710,8 +710,18 @@ static void VoutDisplayFitWindow(vout_display_t *vd, bool default_size)
     //cfg.display.width = display_width;
     //cfg.display.height = display_height;
     #endif
+
+    /* Fix sometimes MacOS window size is not right */
+#ifdef __APPLE__
+    #include"TargetConditionals.h"
+    #if !TARGET_OS_MAC
     msg_Dbg(vd, "[%s:%s:%d]=zspace=: Reset DisplayWindowSize (%d, %d) .", __FILE__ , __FUNCTION__, __LINE__, display_width, display_height);
     vout_SetDisplayWindowSize(osys->vout, display_width, display_height);
+    #endif
+#else
+    msg_Dbg(vd, "[%s:%s:%d]=zspace=: Reset DisplayWindowSize (%d, %d) .", __FILE__ , __FUNCTION__, __LINE__, display_width, display_height);
+    vout_SetDisplayWindowSize(osys->vout, display_width, display_height);
+#endif
 }
 
 static void VoutDisplayCropRatio(int *left, int *top, int *right, int *bottom,
