@@ -37,6 +37,7 @@
 #include "resource.h"
 #include "file.h"
 #include <vlc_stream.h>
+#include <vlc_interrupt.h>
 
 
 #pragma GCC visibility push(default)
@@ -290,6 +291,7 @@ block_t *vlc_http_file_read(struct vlc_http_resource *res)
     struct vlc_http_file *file = (struct vlc_http_file *)res;
     block_t *block = vlc_http_res_read(res);
     int try_times = 3;
+    int sleep_times = 0;
 
     while (block == vlc_http_error)
     {   /* Automatically reconnect on error if server supports seek */
@@ -299,9 +301,13 @@ block_t *vlc_http_file_read(struct vlc_http_resource *res)
          && file->offset < vlc_http_msg_get_file_size(res->response)
          && */vlc_http_file_seek(res, file->offset) == 0)
             block = vlc_http_res_read(res);
-
         if(try_times-- <= 0) {
             break;
+        }
+        sleep_times = 900;
+        while (block == vlc_http_error && !vlc_killed() && sleep_times > 0) {
+            msleep(10000);
+            sleep_times--;
         }
     };
 
