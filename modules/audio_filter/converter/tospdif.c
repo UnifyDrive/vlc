@@ -281,7 +281,7 @@ static int write_buffer_eac3( filter_t *p_filter, block_t *p_in_buf )
      * IEC61937_EAC3 frame will contain 12 a52 streams: 6 independent + 6
      * dependent EAC3 streams.
      */
-
+    //msg_Dbg( p_filter, "[%s:%s:%d]=zspace=: Begin size(%d).", __FILE__, __FUNCTION__, __LINE__, p_in_buf->i_buffer );
     vlc_a52_header_t a52;
     if( vlc_a52_header_Parse( &a52, p_in_buf->p_buffer, p_in_buf->i_buffer )
         != VLC_SUCCESS || a52.i_size > p_in_buf->i_buffer )
@@ -318,6 +318,7 @@ static int write_buffer_eac3( filter_t *p_filter, block_t *p_in_buf )
         return SPDIF_ERROR;
 
     write_finalize( p_filter, IEC61937_EAC3, 1 /* in bytes */ );
+    //msg_Dbg( p_filter, "[%s:%s:%d]=zspace=: End samples(%d), a52.size(%d), out(%d,%d).", __FILE__ , __FUNCTION__, __LINE__, a52.i_samples, a52.i_size, p_sys->p_out_buf->i_buffer, p_sys->i_out_offset );
     p_sys->eac3.i_nb_blocks = 0;
     return SPDIF_SUCCESS;
 }

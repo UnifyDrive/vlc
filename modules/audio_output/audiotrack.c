@@ -34,6 +34,8 @@
 #include <vlc_plugin.h>
 #include <vlc_aout.h>
 #include "../video_output/android/utils.h"
+#include "../packetizer/a52.h"
+
 
 #define FF_PROFILE_DTS         20
 #define FF_PROFILE_DTS_ES      30
@@ -196,6 +198,8 @@ struct aout_sys_t {
     uint32_t i_screwed_count;
     bool  b_after_flush;
     double d_duration_written;
+    vlc_a52_header_t a52;
+    bool  b_a52_align;
 };
 
 
@@ -611,6 +615,9 @@ frames_to_us( aout_sys_t *p_sys, uint64_t i_nb_frames )
 static inline uint64_t
 bytes_to_frames( aout_sys_t *p_sys, size_t i_bytes )
 {
+    if (p_sys->a52.i_samples != 0 && p_sys->a52.i_size != 0) {
+        return i_bytes * p_sys->fmt.i_frame_length * p_sys->a52.i_samples / p_sys->a52.i_size;
+    }
     return i_bytes * p_sys->fmt.i_frame_length / p_sys->fmt.i_bytes_per_frame;
 }
 #define BYTES_TO_FRAMES(x) bytes_to_frames( p_sys, (x) )
@@ -619,6 +626,9 @@ bytes_to_frames( aout_sys_t *p_sys, size_t i_bytes )
 static inline size_t
 frames_to_bytes( aout_sys_t *p_sys, uint64_t i_frames )
 {
+    if (p_sys->a52.i_samples != 0 && p_sys->a52.i_size != 0) {
+        return i_frames * p_sys->a52.i_size / p_sys->a52.i_samples / p_sys->fmt.i_frame_length;
+    }
     return i_frames * p_sys->fmt.i_bytes_per_frame / p_sys->fmt.i_frame_length;
 }
 #define FRAMES_TO_BYTES(x) frames_to_bytes( p_sys, (x) )
@@ -647,6 +657,7 @@ AudioTrack_getPlaybackHeadPosition( JNIEnv *env, audio_output_t *p_aout )
 
     /* int32_t to uint32_t */
     i_pos = 0xFFFFFFFFL & JNI_AT_CALL_INT( getPlaybackHeadPosition );
+    //msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Get PlaybackHeadPosition=%d. ", __FILE__ , __FUNCTION__, __LINE__, i_pos);
     /* uint32_t to uint64_t */
     if (p_sys->b_after_flush && p_sys->b_passthrough) {
         if (i_pos <= 0) {
@@ -750,13 +761,13 @@ AudioTrack_GetSmoothPositionUs( JNIEnv *env, audio_output_t *p_aout )
         if (p_sys->b_passthrough /*&& !jfields.AudioFormat.has_ENCODING_IEC61937 && p_sys->i_ori_format == VLC_CODEC_DTS*/ ) {
             if (i_audiotrack_us <= 0) {
                 AudioTrack_ResetPositions( env, p_aout );
-                //msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Not get usefull HeadPosition for passthrough, return 0. ", __FILE__ , __FUNCTION__, __LINE__);
+                msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Not get usefull HeadPosition for passthrough, return 0. ", __FILE__ , __FUNCTION__, __LINE__);
                 return 0;
             }
-            if (p_sys->i_ori_format == VLC_CODEC_EAC3 && p_sys->fmt.i_bytes_per_frame == 1) {
+            if (p_sys->i_ori_format == VLC_CODEC_EAC3 && p_sys->fmt.i_bytes_per_frame == 1 && p_sys->b_a52_align == true) {
                 p_sys->smoothpos.i_latency_us = -500000;
             }else if ((p_sys->i_ori_format == VLC_CODEC_EAC3 || p_sys->i_ori_format == VLC_CODEC_DTS) && p_sys->fmt.i_bytes_per_frame != 1) {
-                p_sys->smoothpos.i_latency_us = -100000;
+                p_sys->smoothpos.i_latency_us = -197000;
             }
         }
         else if( jfields.AudioSystem.getOutputLatency )
@@ -884,7 +895,7 @@ TimeGet( audio_output_t *p_aout, mtime_t *restrict p_delay )
 #endif
     if( i_audiotrack_us > 0 )
     {
-        //msg_Warn( p_aout, "i_samples_written_us=%lld, d_duration_written=%lf, frame_size=%d", FRAMES_TO_US( p_sys->i_samples_written ), p_sys->d_duration_written, p_sys->fmt.i_bytes_per_frame );
+        //msg_Warn( p_aout, "i_samples_written_us=%lld(us), i_samples_written=%lld, frame_size=%d", FRAMES_TO_US( p_sys->i_samples_written ), p_sys->i_samples_written, p_sys->fmt.i_bytes_per_frame );
         /* AudioTrack delay */
         mtime_t i_delay = FRAMES_TO_US( p_sys->i_samples_written )
                         - i_audiotrack_us;
@@ -896,6 +907,7 @@ TimeGet( audio_output_t *p_aout, mtime_t *restrict p_delay )
                                     - p_sys->circular.i_read );
             *p_delay = i_delay;
             vlc_mutex_unlock( &p_sys->lock );
+            //msg_Warn( p_aout, "Total i_delay=%lld", i_delay );
             return 0;
         }
         else
@@ -1289,7 +1301,6 @@ StartPassthrough( JNIEnv *env, audio_output_t *p_aout, bool ac3)
                     {
                         p_sys->fmt.i_rate = 192000;
                         //p_sys->fmt.i_bytes_per_frame = 16;
-                        //var_SetInteger( p_aout, "dtsDoSync", 0 );
                         if (p_sys->i_dts_profile == FF_PROFILE_DTS_HD_MA) {
                             msg_Warn( p_aout, "[%s:%s:%d]=zspace=: has_ENCODING_DTS_HD_MA=[%d]. ", __FILE__ , __FUNCTION__, __LINE__, jfields.AudioFormat.has_ENCODING_DTS_HD_MA);
                             if (jfields.AudioFormat.has_ENCODING_DTS_HD_MA) {
@@ -1364,13 +1375,13 @@ StartPassthrough( JNIEnv *env, audio_output_t *p_aout, bool ac3)
             }
             if (p_sys->fmt.i_format == VLC_CODEC_EAC3 ) {
                 if ((p_sys->fmt.i_bits_rate % p_sys->fmt.i_rate) != 0) {
-                    p_sys->fmt.i_bytes_per_frame = 4;
-                }else
-                    p_sys->fmt.i_bytes_per_frame = p_sys->fmt.i_bits_rate / p_sys->fmt.i_rate / 8;
+                    p_sys->b_a52_align = false;
+                }
+                p_sys->fmt.i_bytes_per_frame = p_sys->fmt.i_bits_rate / p_sys->fmt.i_rate / 8;
                 if (p_sys->fmt.i_bytes_per_frame <= 0)
-                    p_sys->fmt.i_bytes_per_frame = 4;
-                msg_Warn( p_aout, "[%s:%s:%d]=zspace=: p_sys->fmt.i_bytes_per_frame=[%d] for eac3. ", __FILE__ , __FUNCTION__, __LINE__, p_sys->fmt.i_bytes_per_frame);
-                
+                    p_sys->fmt.i_bytes_per_frame = 1;
+                msg_Warn( p_aout, "[%s:%s:%d]=zspace=: p_sys->fmt.i_bytes_per_frame=[%d] for eac3[%d,%d],b_a52_align=%d. ", __FILE__ , __FUNCTION__, __LINE__, p_sys->fmt.i_bytes_per_frame, p_sys->fmt.i_bits_rate, p_sys->fmt.i_rate, p_sys->b_a52_align);
+                var_SetInteger( p_aout, "spdifDoSync", 1 );
                 p_sys->fmt.i_frame_length = 1;
                 p_sys->fmt.i_physical_channels = AOUT_CHANS_STEREO;
                 p_sys->fmt.i_channels = 2;
@@ -1531,6 +1542,8 @@ Start( audio_output_t *p_aout, audio_sample_format_t *restrict p_fmt )
     p_sys->i_screwed_count = 0;
     p_sys->b_after_flush = false;
     p_sys->d_duration_written = 0.0;
+    p_sys->a52.i_samples = p_sys->a52.i_size = 0;
+    p_sys->b_a52_align = true;
 
     if( p_sys->at_dev == AT_DEV_ENCODED )
     {
@@ -1639,6 +1652,7 @@ Start( audio_output_t *p_aout, audio_sample_format_t *restrict p_fmt )
     p_sys->circular.i_size = (int)p_sys->fmt.i_rate
                            * p_sys->fmt.i_bytes_per_frame
                            / p_sys->fmt.i_frame_length;
+    msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Finally,i_bytes_per_frame=[%d], i_rate=[%d]. ", __FILE__ , __FUNCTION__, __LINE__, p_sys->fmt.i_bytes_per_frame, p_sys->fmt.i_rate);
     if (low_latency)
     {
         /* 40 ms of buffering */
@@ -2033,8 +2047,10 @@ AudioTrack_Play( JNIEnv *env, audio_output_t *p_aout, size_t i_data_size,
             p_sys->b_error = true;
         }
     } else {
-        p_sys->i_samples_written += BYTES_TO_FRAMES( i_ret );
-        p_sys->d_duration_written += 6144.0 / p_sys->fmt.i_rate / 4;;
+        int i_frames = BYTES_TO_FRAMES( i_ret );
+        p_sys->i_samples_written += i_frames;//BYTES_TO_FRAMES( i_ret );
+        //msg_Dbg( p_aout, "[%s:%s:%d]=zspace=: Write(%d,%d)(bytes,frame),input(%d).", __FILE__, __FUNCTION__, __LINE__, i_ret, i_frames, i_data_size );
+        //p_sys->d_duration_written += 6144.0 / p_sys->fmt.i_rate / 4;;
     }
 
     return i_ret;
@@ -2192,7 +2208,7 @@ ConvertFromIEC61937( audio_output_t *p_aout, block_t *p_buffer )
 
     p_buffer->p_buffer += 8; /* SPDIF_HEADER_SIZE */
     p_buffer->i_buffer = i_length;
-    //msg_Dbg( p_aout, "[%s:%s:%d]=zspace=: IEC61937 real codec size[%d] .", __FILE__ , __FUNCTION__, __LINE__, p_buffer->i_buffer);
+    //msg_Dbg( p_aout, "[%s:%s:%d]=zspace=: Final real size[%d] .", __FILE__ , __FUNCTION__, __LINE__, p_buffer->i_buffer);
 
     return 0;
 }
@@ -2209,6 +2225,13 @@ Play( audio_output_t *p_aout, block_t *p_buffer )
     {
         block_Release(p_buffer);
         return;
+    }
+
+    if( p_sys->b_passthrough && p_sys->fmt.i_format == VLC_CODEC_SPDIFB && p_sys->i_ori_format == VLC_CODEC_EAC3 && p_sys->a52.i_samples == 0 && p_sys->a52.i_size == 0)
+    {
+        vlc_a52_header_Parse(&(p_sys->a52), p_buffer->p_buffer, p_buffer->i_buffer);
+        p_sys->i_max_audiotrack_samples = BYTES_TO_FRAMES( p_sys->audiotrack_args.i_size );
+        msg_Dbg( p_aout, "[%s:%s:%d]=zspace=: a52.samples(%d), a52.size(%d) .", __FILE__ , __FUNCTION__, __LINE__, p_sys->a52.i_samples, p_sys->a52.i_size);
     }
 
     vlc_mutex_lock( &p_sys->lock );
@@ -2386,8 +2409,9 @@ Flush( audio_output_t *p_aout, bool b_wait )
      * recreate an AudioTrack object in that case. The AudioTimestamp class was
      * added in API Level 19, so if this class is not found, the Android
      * Version is 4.3 or before */
-    if( (!jfields.AudioTimestamp.clazz && p_sys->i_samples_written > 0) || (p_sys->b_passthrough && jfields.AudioFormat.has_ENCODING_IEC61937 && !var_InheritBool( p_aout, "spdif-ac3")) )
+    if( (!jfields.AudioTimestamp.clazz && p_sys->i_samples_written > 0) || (p_sys->b_passthrough /*&& jfields.AudioFormat.has_ENCODING_IEC61937*/ && !var_InheritBool( p_aout, "spdif-ac3")))
     {
+        msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Will run AudioTrack_Recreate(). ", __FILE__ , __FUNCTION__, __LINE__);
         if( AudioTrack_Recreate( env, p_aout ) != 0 )
         {
             p_sys->b_error = true;

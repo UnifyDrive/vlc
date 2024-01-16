@@ -246,13 +246,6 @@ static void aout_DecSynchronize (audio_output_t *aout, mtime_t dec_pts,
     aout_owner_t *owner = aout_owner (aout);
     mtime_t drift;
 
-    if (var_InheritInteger( aout, "dtsDoSync" ) == 0) {
-        //msg_Warn( aout, "[%s:%s:%d]=zspace=: dtsDoSync==0, return. ", __FILE__ , __FUNCTION__, __LINE__);
-        return;
-    }else {
-        //msg_Warn( aout, "[%s:%s:%d]=zspace=: Run Sync. ", __FILE__ , __FUNCTION__, __LINE__);
-    }
-
     /**
      * Depending on the drift between the actual and intended playback times,
      * the audio core may ignore the drift, trigger upsampling or downsampling,
@@ -274,6 +267,7 @@ static void aout_DecSynchronize (audio_output_t *aout, mtime_t dec_pts,
         return; /* nothing can be done if timing is unknown */
     }
     drift += mdate () - dec_pts;
+    //msg_Warn( aout, "[%s:%s:%d]=zspace=: drift=%lld, dec_pts=%lld,input_rate=%d. ", __FILE__ , __FUNCTION__, __LINE__, drift, dec_pts, input_rate);
 
     /* Late audio output.
      * This can happen due to insufficient caching, scheduling jitter
@@ -306,8 +300,13 @@ static void aout_DecSynchronize (audio_output_t *aout, mtime_t dec_pts,
 
     /* Early audio output.
      * This is rare except at startup when the buffers are still empty. */
+    int i_scale = 3;
+    if (var_InheritInteger( aout, "spdifDoSync" ) == 1) {
+        i_scale = 1;
+        //msg_Warn( aout, "[%s:%s:%d]=zspace=: Set i_scale=%d. ", __FILE__ , __FUNCTION__, __LINE__, i_scale);
+    }
     if (drift < (owner->sync.discontinuity ? 0
-                : -3 * input_rate * AOUT_MAX_PTS_ADVANCE / INPUT_RATE_DEFAULT))
+                : -1 * i_scale * input_rate * AOUT_MAX_PTS_ADVANCE / INPUT_RATE_DEFAULT))
     {
         if (!owner->sync.discontinuity)
             msg_Warn (aout, "playback way too early (%"PRId64"): "
