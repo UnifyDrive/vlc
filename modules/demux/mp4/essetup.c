@@ -1212,7 +1212,7 @@ int SetupAudioES( demux_t *p_demux, mp4_track_t *p_track, MP4_Box_t *p_sample )
             break;
     }
 
-
+    p_track->fmt.audio.i_bits_rate = p_track->fmt.i_bitrate;
     /* Process extensions */
 
     /* Lookup for then channels extension */
