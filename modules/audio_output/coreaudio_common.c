@@ -979,6 +979,8 @@ au_Initialize(audio_output_t *p_aout, AudioUnit au, audio_sample_format_t *fmt,
     else
         return VLC_EGENERIC;
 
+    if (fmt->i_rate > 48000)
+        fmt->i_rate = 48000;
     desc.mSampleRate = fmt->i_rate;
     desc.mFormatID = kAudioFormatLinearPCM;
     desc.mFramesPerPacket = 1;
