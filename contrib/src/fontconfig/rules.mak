@@ -37,6 +37,11 @@ ifdef HAVE_CROSS_COMPILE
 FONTCONFIG_CONF += --with-arch=$(ARCH)
 endif
 
+ifdef HAVE_LINUX
+FONTCONFIG_CONF += \
+        --with-cache-dir=/zspace/applications/services/player-qt/fontconfig
+endif
+
 ifdef HAVE_MACOSX
 FONTCONFIG_CONF += \
 	--with-cache-dir=~/Library/Caches/fontconfig \
