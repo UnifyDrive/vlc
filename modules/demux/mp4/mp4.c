@@ -175,6 +175,7 @@ static int FragCreateTrunIndex( demux_t *, MP4_Box_t *, MP4_Box_t *, stime_t, bo
 
 static int FragGetMoofBySidxIndex( demux_t *p_demux, mtime_t i_target_time,
                                    uint64_t *pi_moof_pos, mtime_t *pi_sampletime );
+static int FragGetMoofDurationBySidxIndex( demux_t *p_demux, mtime_t *pi_sampletime );
 static int FragGetMoofByTfraIndex( demux_t *p_demux, const mtime_t i_target_time, unsigned i_track_ID,
                                    uint64_t *pi_moof_pos, mtime_t *pi_sampletime );
 static void FragResetContext( demux_sys_t * );
@@ -997,6 +998,10 @@ static int Open( vlc_object_t * p_this )
     {
         p_demux->pf_demux = DemuxFrag;
         msg_Dbg( p_demux, "Set Fragmented demux mode" );
+        mtime_t i_duration = 0;
+        FragGetMoofDurationBySidxIndex(p_demux, &i_duration);
+        p_sys->i_duration = i_duration;
+        msg_Dbg( p_demux, "fmp4_duration %llu p_sys->i_duration %llu" ,i_duration, p_sys->i_duration);
     }
 
     if( !p_sys->b_seekable && p_demux->pf_demux == Demux )
@@ -4822,6 +4827,29 @@ static int FragGetMoofBySidxIndex( demux_t *p_demux, mtime_t i_target_time,
     }
 
     return VLC_EGENERIC;
+}
+
+static int FragGetMoofDurationBySidxIndex( demux_t *p_demux, mtime_t *pi_sampletime )
+{
+    const MP4_Box_t *p_sidx = MP4_BoxGet( p_demux->p_sys->p_root, "sidx" );
+    const MP4_Box_data_sidx_t *p_data;
+    if( !p_sidx || !((p_data = BOXDATA(p_sidx))) || !p_data->i_timescale )
+        return VLC_EGENERIC;
+
+    /* sidx refers to offsets from end of sidx pos in the file + first offset */
+    uint64_t i_pos = p_data->i_first_offset + p_sidx->i_pos + p_sidx->i_size;
+    stime_t i_time = 0;
+    for( uint16_t i=0; i<p_data->i_reference_count; i++ )
+    {
+        if(p_data->p_items[i].b_reference_type != 0)
+            continue;
+
+        i_pos += p_data->p_items[i].i_referenced_size;
+        i_time += p_data->p_items[i].i_subsegment_duration;
+    }
+    *pi_sampletime = i_time;
+
+    return VLC_SUCCESS;
 }
 
 static int FragGetMoofByTfraIndex( demux_t *p_demux, const mtime_t i_target_time, unsigned i_track_ID,
