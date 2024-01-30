@@ -286,6 +286,13 @@ static void aout_DecSynchronize (audio_output_t *aout, mtime_t dec_pts,
         else
             msg_Dbg (aout, "playback too late (%"PRId64"): "
                      "flushing buffers", drift);
+#ifdef __APPLE__
+        #include"TargetConditionals.h"
+        #if (TARGET_OS_IPHONE || TARGET_OS_TV)
+            msg_Warn (aout, "return");
+            return;
+        #endif
+#endif
         aout_OutputFlush (aout, false);
 
         aout_StopResampling (aout);
@@ -311,6 +318,13 @@ static void aout_DecSynchronize (audio_output_t *aout, mtime_t dec_pts,
         if (!owner->sync.discontinuity)
             msg_Warn (aout, "playback way too early (%"PRId64"): "
                       "playing silence", drift);
+#ifdef __APPLE__
+        #include"TargetConditionals.h"
+        #if (TARGET_OS_IPHONE || TARGET_OS_TV)
+            msg_Warn (aout, "return");
+            return;
+        #endif
+#endif
         aout_DecSilence (aout, -drift, dec_pts);
 
         aout_StopResampling (aout);

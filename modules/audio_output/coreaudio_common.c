@@ -383,7 +383,7 @@ ca_Play(audio_output_t * p_aout, block_t * p_block)
     {
         const size_t i_avalaible_bytes =
             __MIN(p_block->i_buffer, p_sys->i_out_max_size - p_sys->i_out_size);
-
+#if 0
         if (i_avalaible_bytes <= 0) {
             p_sys->i_no_space_times++;
             //msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: i_avalaible_bytes=%d, p_block->i_buffer=%d, p_sys->i_rate=%d,p_sys->i_no_space_times=%d.", __FILE__ , __FUNCTION__, __LINE__, i_avalaible_bytes, p_block->i_buffer, p_sys->i_rate, p_sys->i_no_space_times);
@@ -397,6 +397,7 @@ ca_Play(audio_output_t * p_aout, block_t * p_block)
             block_Release(p_block);
             return 1;
         }
+#endif
         if (unlikely(i_avalaible_bytes != p_block->i_buffer))
         {
             /* Not optimal but unlikely code path. */

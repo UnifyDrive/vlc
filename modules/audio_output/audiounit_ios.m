@@ -606,8 +606,8 @@ Pause (audio_output_t *p_aout, bool pause, mtime_t date)
      * synchronization glitches when resuming from pause. The main drawback is
      * that we loose 1-2 sec of audio when resuming. The order is important
      * here, ca_Flush need to be called when paused. */
-    if (pause)
-        ca_Flush(p_aout, false);
+    //if (pause)
+    //    ca_Flush(p_aout, false);
 }
 
 static void
