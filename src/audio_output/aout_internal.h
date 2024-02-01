@@ -94,6 +94,7 @@ typedef struct
     atomic_uint buffers_lost;
     atomic_uint buffers_played;
     atomic_uchar restart;
+    mtime_t audio_early_timeout;
 } aout_owner_t;
 
 typedef struct

@@ -118,6 +118,7 @@ error:
     owner->sync.resamp_type = AOUT_RESAMPLING_NONE;
     owner->sync.discontinuity = true;
     aout_OutputUnlock (p_aout);
+    owner->audio_early_timeout = 0;
 
     atomic_init (&owner->buffers_lost, 0);
     atomic_init (&owner->buffers_played, 0);
@@ -241,7 +242,7 @@ static void aout_DecSilence (audio_output_t *aout, mtime_t length, mtime_t pts)
 }
 
 static void aout_DecSynchronize (audio_output_t *aout, mtime_t dec_pts,
-                                 int input_rate)
+                                 int input_rate, bool *b_late)
 {
     aout_owner_t *owner = aout_owner (aout);
     mtime_t drift;
@@ -289,6 +290,7 @@ static void aout_DecSynchronize (audio_output_t *aout, mtime_t dec_pts,
 #ifdef __APPLE__
         #include"TargetConditionals.h"
         #if (TARGET_OS_IPHONE || TARGET_OS_TV)
+            *b_late = true;
             msg_Warn (aout, "return");
             return;
         #endif
@@ -321,8 +323,13 @@ static void aout_DecSynchronize (audio_output_t *aout, mtime_t dec_pts,
 #ifdef __APPLE__
         #include"TargetConditionals.h"
         #if (TARGET_OS_IPHONE || TARGET_OS_TV)
+        if (owner->audio_early_timeout == 0)
+            owner->audio_early_timeout = mdate();
+        if (mdate()-owner->audio_early_timeout < CLOCK_FREQ)
+        {
             msg_Warn (aout, "return");
             return;
+        }
         #endif
 #endif
         aout_DecSilence (aout, -drift, dec_pts);
@@ -331,6 +338,7 @@ static void aout_DecSynchronize (audio_output_t *aout, mtime_t dec_pts,
         owner->sync.discontinuity = true;
         drift = 0;
     }
+    owner->audio_early_timeout = 0;
 
     if (!aout_FiltersCanResample(owner->filters))
         return;
@@ -433,7 +441,10 @@ int aout_DecPlay (audio_output_t *aout, block_t *block, int input_rate)
     aout_volume_Amplify (owner->volume, block);
 
     /* Drift correction */
-    aout_DecSynchronize (aout, block->i_pts, input_rate);
+    bool b_late = false;
+    aout_DecSynchronize (aout, block->i_pts, input_rate, &b_late);
+    if (b_late)
+        goto drop;
 
     /* Output */
     owner->sync.end = block->i_pts + block->i_length + 1;
