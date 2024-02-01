@@ -1880,10 +1880,24 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
             return VLC_SUCCESS;
 
         case DEMUX_GET_POSITION:
+        {
+            int64_t best_start_time = INT_MAX;
+            for(int i=0; i<p_sys->i_tracks; i++)
+            {
+                mp4_track_t *cur = &p_sys->track[i];
+                if (cur->fmt.i_cat == VIDEO_ES || cur->fmt.i_cat == AUDIO_ES)
+                {
+                    int64_t cur_start_time = MP4_rescale( cur->i_elst_time, p_sys->i_timescale, CLOCK_FREQ );
+                    best_start_time = best_start_time < cur_start_time ? best_start_time : cur_start_time;
+                }
+            }
+            if (best_start_time != INT_MAX)
+                start_time = best_start_time;
+
             pf = va_arg( args, double * );
             if( i_duration > 0 )
             {
-                *pf = (double)p_sys->i_nztime /
+                *pf = (double)(p_sys->i_nztime-start_time) /
                       MP4_rescale( i_duration, p_sys->i_timescale, CLOCK_FREQ );
             }
             else
@@ -1891,10 +1905,25 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
                 *pf = 0.0;
             }
             return VLC_SUCCESS;
+        }
 
         case DEMUX_SET_POSITION:
+        {
+            int64_t best_start_time = INT_MAX;
             f = va_arg( args, double );
             b = va_arg( args, int );
+            pi64 = va_arg( args, int64_t * );
+            for(int i=0; i<p_sys->i_tracks; i++)
+            {
+                mp4_track_t *cur = &p_sys->track[i];
+                if (cur->fmt.i_cat == VIDEO_ES || cur->fmt.i_cat == AUDIO_ES)
+                {
+                    int64_t cur_start_time = MP4_rescale( cur->i_elst_time, p_sys->i_timescale, CLOCK_FREQ );
+                    best_start_time = best_start_time < cur_start_time ? best_start_time : cur_start_time;
+                }
+            }
+            if (best_start_time != INT_MAX)
+                start_time = best_start_time;
             if ( p_demux->pf_demux == DemuxFrag )
                 return FragSeekToPos( p_demux, f, b );
             else if( p_sys->i_timescale > 0 )
@@ -1902,9 +1931,10 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
                 i64 = (int64_t)( f * MP4_rescale( p_sys->i_duration,
                                                   p_sys->i_timescale, CLOCK_FREQ ) );
                 /* Don't use accurate seek, accurate seek can cause to seek slow */
-                return Seek( p_demux, i64, false );
+                return Seek( p_demux, i64 + start_time, false );
             }
             else return VLC_EGENERIC;
+        }
 
         case DEMUX_GET_TIME:
         {
