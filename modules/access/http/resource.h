@@ -27,7 +27,7 @@
 #if (TARGET_OS_IPHONE || TARGET_OS_TV)
 #define MAX_HTTP_MSG_NUM  (32)
 #else
-#define MAX_HTTP_MSG_NUM  (256)
+#define MAX_HTTP_MSG_NUM  (32)
 #endif
 
 #else
