@@ -175,6 +175,11 @@ static const char *ppsz_roles_text[] = {
 #define SPDIF_LONGTEXT N_( \
     "This option should be used when the audio output can't negotiate S/PDIF support.")
 
+#define FORCE_OPENSLES_TEXT N_("Force opensles")
+#define FORCE_OPENSLES_LONGTEXT N_( \
+    "Force opensles long.")
+
+
 #define FORCE_DOLBY_TEXT N_("Force detection of Dolby Surround")
 #define FORCE_DOLBY_LONGTEXT N_( \
     "Use this when you know your stream is (or is not) encoded with Dolby "\
@@ -1517,6 +1522,7 @@ vlc_module_begin ()
     add_bool( "spdif-isjiguang4pro", false, SPDIF_TEXT, SPDIF_LONGTEXT, true);
     add_bool( "spdif-isz9x", false, SPDIF_TEXT, SPDIF_LONGTEXT, true);
     add_bool( "dolbyvisiondecoder", false, SPDIF_TEXT, SPDIF_LONGTEXT, true);
+    add_bool( "force-opensles", false, FORCE_OPENSLES_TEXT, FORCE_OPENSLES_LONGTEXT, true);
 
     add_integer( "force-dolby-surround", 0, FORCE_DOLBY_TEXT,
                  FORCE_DOLBY_LONGTEXT, false )

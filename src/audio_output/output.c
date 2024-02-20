@@ -258,6 +258,11 @@ audio_output_t *aout_New (vlc_object_t *parent)
     aout->volume_set = NULL;
     aout->mute_set = NULL;
     aout->device_select = NULL;
+    char *var = NULL;
+    var = var_InheritString (aout, "aout");
+    if (var) {
+        msg_Err (aout, "Now --aout=%s", var);
+    }
     owner->module = module_need (aout, "audio output", "$aout", false);
     if (owner->module == NULL)
     {

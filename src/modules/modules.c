@@ -225,6 +225,13 @@ module_t *vlc_module_load(vlc_object_t *obj, const char *capability,
     {
         var = var_InheritString (obj, name + 1);
         name = (var != NULL) ? var : "any";
+        if (!strcasecmp ("android_audiotrack,none", name)){
+            bool force_opensles = var_InheritBool (obj, "force-opensles");
+            if (force_opensles) {
+                msg_Err (obj, "Force use opensles.");
+                name = "opensles";
+            }
+        }
     }
 
     /* Find matching modules */
