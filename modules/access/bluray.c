@@ -1012,6 +1012,8 @@ static int blurayOpen(vlc_object_t *object)
 #endif
 
     forced = !strcasecmp(p_demux->psz_access, "bluray");
+    //msg_Dbg(p_demux, "[%s:%s:%d]=zspace=: 000 p_demux->psz_access=[%s], p_demux->psz_location=[%s],p_demux->s=[%p],p_demux->psz_file=[%s].", __FILE__ , __FUNCTION__, __LINE__, 
+    //    p_demux->psz_access, p_demux->psz_location, p_demux->s, p_demux->psz_file);
 
     if (p_demux->s) {
         if (!strcasecmp(p_demux->psz_access, "file")) {
@@ -1171,7 +1173,7 @@ static int blurayOpen(vlc_object_t *object)
 
     /* AACS */
     msg_Dbg(p_demux, "Disc AACS........................");
-    if (disc_info->aacs_detected) {
+    if (disc_info->aacs_detected && 0) {
         msg_Dbg(p_demux, "Disc is using AACS");
         if (!disc_info->libaacs_detected)
             BLURAY_ERROR(_("This Blu-ray Disc needs a library for AACS decoding"
