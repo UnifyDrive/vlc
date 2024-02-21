@@ -138,6 +138,8 @@ struct vout_thread_sys_t
     vout_chrono_t   render;           /**< picture render time estimator */
     bool            has_spu;
     int             force_display_size;
+    /* subtitles can be moved to out of the picture */
+    bool            black_area_subtitles;
 };
 
 /* TODO to move them to vlc_vout.h */

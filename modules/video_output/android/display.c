@@ -74,6 +74,8 @@ vlc_module_begin()
                       NULL, false )
     add_bool( "support-opengl-render-subtitles", false, NULL,
                           NULL, false )
+    add_bool( "support-black-area-subtitles", false, NULL,
+                              NULL, false )
     set_callbacks(Open, Close)
 
     add_submodule ()
@@ -188,6 +190,8 @@ struct vout_display_sys_t
     ARect jg5pro_sub_region;
     /* render subtitle with opengl */
     bool b_opengl_render_subtitles;
+    /* subtitles can be moved to out of the picture */
+    bool b_black_area_subtitles;
     struct subpicture sub;
 };
 
@@ -339,10 +343,19 @@ static void FixSubtitleFormat(vout_display_sys_t *sys)
     if (sys->embed) {
         msg_Dbg(sys->embed, "[%s:%s:%d]=zspace=: Subtitle [%4.4s] i_width=%d, i_height=%d", __FILE__ , __FUNCTION__, __LINE__, (char *)&p_subfmt->i_chroma, i_width, i_height);
     }
+    float scale_factor = 1;
+    float video_ratio = (float)sys->p_window->fmt.i_height / (float)sys->p_window->fmt.i_width;
+    float display_ratio = (float)sys->i_display_height / (float)sys->i_display_width;
+    if (sys->b_black_area_subtitles && (video_ratio < display_ratio)) {
+        int new_height = i_video_height * sys->i_display_width/i_video_width;
+        scale_factor = (float)sys->i_display_height/(float)new_height;
+    }
+
+    msg_Dbg(sys->embed, "[%s:%s:%d]=zspace=: scale_factor=%f sys->i_display_width %d sys->i_display_height %d", __FILE__ , __FUNCTION__, __LINE__, scale_factor,sys->i_display_width,sys->i_display_height);
     p_subfmt->i_width =
     p_subfmt->i_visible_width = i_width;
     p_subfmt->i_height =
-    p_subfmt->i_visible_height = i_height;
+    p_subfmt->i_visible_height = i_height * scale_factor;
     p_subfmt->i_x_offset = 0;
     p_subfmt->i_y_offset = 0;
     p_subfmt->i_sar_num = 1;
@@ -802,6 +815,8 @@ static int OpenCommon(vout_display_t *vd)
 
     SetRGBMask(&sub_fmt);
     video_format_FixRgb(&sub_fmt);
+
+    sys->b_black_area_subtitles = var_InheritBool(vd, "support-black-area-subtitles");
 
     sys->b_opengl_render_subtitles = var_InheritBool(vd, "support-opengl-render-subtitles");
     msg_Warn(vd, "opengl render %d", sys->b_opengl_render_subtitles);
@@ -1731,6 +1746,13 @@ static int Control(vout_display_t *vd, int query, va_list args)
             CopySourceAspect(&sys->p_window->fmt, &vd->source);
 
         UpdateVideoSize(sys, &sys->p_window->fmt, sys->p_window->b_use_priv);
+
+        float video_ratio = (float)sys->p_window->fmt.i_height / (float)sys->p_window->fmt.i_width;
+        float display_ratio = (float)sys->i_display_height / (float)sys->i_display_width;
+        if (sys->b_black_area_subtitles && (query == VOUT_DISPLAY_CHANGE_SOURCE_ASPECT) && (video_ratio < display_ratio)) {
+            msg_Dbg(vd, "[%s:%s:%d]=zspace=: ignore change video aspect method", __FILE__ , __FUNCTION__, __LINE__);
+            return VLC_SUCCESS;
+        }
         if(!sys->b_opengl_render_subtitles)
             FixSubtitleFormat(sys);
         return VLC_SUCCESS;

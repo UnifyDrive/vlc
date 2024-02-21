@@ -1045,8 +1045,8 @@ static int ThreadDisplayRenderPicture(vout_thread_t *vout, bool is_forced)
             //msg_Warn(vout, "Set force_use_display to true.");
         }
         #endif
-        /*msg_Warn( vout, "[%s:%s:%d]=zspace=: fmt[(%d,%d) (%d,%d)] place[%d,%d].", __FILE__ , __FUNCTION__, __LINE__, 
-            fmt_spu.i_width, fmt_spu.i_height, fmt_spu.i_visible_width, fmt_spu.i_visible_height, place.width, place.height );*/
+        /*msg_Warn( vout, "[%s:%s:%d]=zspace=: fmt[(%d,%d) (%d,%d)] place[%d,%d]. vd->cfg->display.width %d height %d", __FILE__ , __FUNCTION__, __LINE__,
+            fmt_spu.i_width, fmt_spu.i_height, fmt_spu.i_visible_width, fmt_spu.i_visible_height, place.width, place.height, vd->cfg->display.width,vd->cfg->display.height);*/
         if (force_use_display || fmt_spu.i_width * fmt_spu.i_height < place.width * place.height) {
             fmt_spu.i_sar_num = vd->cfg->display.sar.num;
             fmt_spu.i_sar_den = vd->cfg->display.sar.den;
@@ -1054,6 +1054,14 @@ static int ThreadDisplayRenderPicture(vout_thread_t *vout, bool is_forced)
             fmt_spu.i_visible_width  = place.width;
             fmt_spu.i_height         =
             fmt_spu.i_visible_height = place.height;
+            float video_ratio = (float)vd->source.i_height / (float)vd->source.i_width;
+            float display_ratio = (float)vd->cfg->display.height / (float)vd->cfg->display.width;
+            if (sys->black_area_subtitles && (video_ratio < display_ratio)) {
+                fmt_spu.i_width          =
+                fmt_spu.i_visible_width  = vd->cfg->display.width;
+                fmt_spu.i_height         =
+                fmt_spu.i_visible_height = vd->cfg->display.height;
+            }
         }
         subpicture_chromas = vd->info.subpicture_chromas;
     } else {
@@ -1083,10 +1091,19 @@ static int ThreadDisplayRenderPicture(vout_thread_t *vout, bool is_forced)
     video_format_t fmt_spu_rot;
     video_format_ApplyRotation(&fmt_spu_rot, &fmt_spu);
 
+    video_format_t fmt_src = vd->source;
+    float video_ratio = (float)vd->source.i_height / (float)vd->source.i_width;
+    float display_ratio = (float)vd->cfg->display.height / (float)vd->cfg->display.width;
+    if (sys->black_area_subtitles && (video_ratio < display_ratio)) {
+        int new_height = fmt_spu_rot.i_visible_height * vd->cfg->display.width/fmt_spu_rot.i_visible_width;
+        float scale_factor = (float)vd->cfg->display.height/(float)new_height;
+        fmt_spu_rot.i_height  = fmt_spu_rot.i_visible_height = scale_factor * fmt_spu_rot.i_visible_height;
+        video_format_CopyCrop(&fmt_src,&fmt_spu_rot);
+    }
     bool got_spu =  false;
     subpicture_t *subpic = spu_Render(vout->p->spu,
                                       subpicture_chromas, &fmt_spu_rot,
-                                      &vd->source,
+                                      &fmt_src,
                                       render_subtitle_date, render_osd_date,
                                       do_snapshot, &got_spu);
 
@@ -1670,6 +1687,7 @@ static void ThreadInit(vout_thread_t *vout)
     vout->p->is_late_dropped = var_InheritBool(vout, "drop-late-frames");
     vout->p->pause.is_on     = false;
     vout->p->pause.date      = VLC_TS_INVALID;
+    vout->p->black_area_subtitles = var_InheritBool(vout, "support-black-area-subtitles");
 
     vout_chrono_Init(&vout->p->render, 5, 10000); /* Arbitrary initial time */
 }
