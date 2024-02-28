@@ -384,7 +384,7 @@ static int DecodeBlock( decoder_t *p_dec, block_t **pp_block )
             }
             else if ( ret != AVERROR(EAGAIN) ) /* Errors other than buffer full */
             {
-                if( ret == AVERROR(ENOMEM) || ret == AVERROR(EINVAL) )
+                if( ret == AVERROR(ENOMEM) /*|| ret == AVERROR(EINVAL)*/ )
                     goto end;
                 else
                     goto drop;
