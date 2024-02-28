@@ -1445,6 +1445,10 @@ static void *OutThread(void *data)
                 vlc_restorecancel(canc);
                 continue;
             }
+        }else if (i_index == MC_API_ERROR && p_sys->b_aborted == false) {
+            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Try output again.", __FILE__ , __FUNCTION__, __LINE__);
+            vlc_restorecancel(canc);
+            continue;
         }
 
         /* Process output returned by dequeue_out */
@@ -1473,7 +1477,7 @@ static void *OutThread(void *data)
 
                 if (out.b_eos)
                 {
-                    msg_Warn(p_dec, "EOS received");
+                    msg_Warn(p_dec, "EOS received frome MediaCodec.");
                     p_sys->b_drained = true;
                     vlc_cond_signal(&p_sys->dec_cond);
                 }
@@ -1690,6 +1694,7 @@ static int DecodeBlock(decoder_t *p_dec, block_t *p_in_block)
 
     if (p_in_block->i_flags & (BLOCK_FLAG_DISCONTINUITY|BLOCK_FLAG_CORRUPTED))
     {
+        msg_Err(p_dec, "Decoder is draining, meet BLOCK_FLAG_DISCONTINUITY|BLOCK_FLAG_CORRUPTED.");
         if (p_sys->b_output_ready)
             QueueBlockLocked(p_dec, NULL, true);
         DecodeFlushLocked(p_dec);
