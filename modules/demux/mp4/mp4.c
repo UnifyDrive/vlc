@@ -3559,6 +3559,13 @@ static void MP4_TrackSetup( demux_t *p_demux, mp4_track_t *p_track,
         p_track->fmt.i_priority = ES_PRIORITY_NOT_DEFAULTABLE;
     }
 
+    /* Enable video es if it's not enable*/
+    if ( p_track->fmt.i_cat == VIDEO_ES && !p_track->b_enable)
+    {
+        p_track->b_enable = true;
+        p_track->fmt.i_priority = ES_PRIORITY_SELECTABLE_MIN;
+    }
+
     if( !p_track->b_enable )
         p_track->fmt.i_priority = ES_PRIORITY_NOT_DEFAULTABLE;
 
