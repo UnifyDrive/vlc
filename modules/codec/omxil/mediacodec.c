@@ -1392,17 +1392,25 @@ static void *OutThread(void *data)
         if (p_sys->b_flush_out)
         {
             if (p_sys->b_mediacodec_error == true || p_sys->b_is_jg5pro) {
-                msg_Warn(p_dec, "[%s:%s:%d]=zspace=: Get outbuf failed, restart mediacodec(%d).", __FILE__ , __FUNCTION__, __LINE__, p_sys->b_is_jg5pro);
+                msg_Warn(p_dec, "[%s:%s:%d]=zspace=: Get outbuf failed after flush out, restart mediacodec(%d).", __FILE__ , __FUNCTION__, __LINE__, p_sys->b_is_jg5pro);
                 StopMediaCodec(p_dec);
                 StartMediaCodec(p_dec);
                 p_sys->b_mediacodec_error = false;
                 p_sys->b_is_jg5pro = false;
+                p_sys->i_mediacodec_try_times = 0;
             }
             /* Acknowledge flushed state */
             p_sys->b_flush_out = false;
             vlc_cond_broadcast(&p_sys->dec_cond);
             //msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: b_flush_out == true.", __FILE__ , __FUNCTION__, __LINE__);
             continue;
+        }else if (p_sys->b_mediacodec_error == true) {
+            msg_Warn(p_dec, "[%s:%s:%d]=zspace=: Get outbuf failed, restart mediacodec(%d).", __FILE__ , __FUNCTION__, __LINE__, p_sys->b_is_jg5pro);
+            StopMediaCodec(p_dec);
+            StartMediaCodec(p_dec);
+            p_sys->b_mediacodec_error = false;
+            p_sys->b_is_jg5pro = false;
+            p_sys->i_mediacodec_try_times = 0;
         }
 
         int canc = vlc_savecancel();
@@ -1601,7 +1609,8 @@ static int QueueBlockLocked(decoder_t *p_dec, block_t *p_in_block,
             } else
             {
                 msg_Err(p_dec, "queue_in failed");
-                goto error;
+                //goto error;
+                return VLC_ENOINPUTBUF;
             }
         }
         else if (i_index == MC_API_INFO_TRYAGAIN)
