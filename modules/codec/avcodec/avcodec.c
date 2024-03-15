@@ -266,8 +266,33 @@ AVCodecContext *ffmpeg_AllocContext( decoder_t *p_dec,
 
     /* *** ask ffmpeg for a decoder *** */
     char *psz_decoder = var_InheritString( p_dec, "avcodec-codec" );
+#ifdef __APPLE__
+    #include"TargetConditionals.h"
+    #if (TARGET_OS_IPHONE || TARGET_OS_TV)
+    if( psz_decoder == NULL && var_InheritBool( p_dec, "hwdecoder-at")) {
+        if (p_dec->fmt_in.i_codec == VLC_CODEC_EAC3 || p_dec->fmt_in.i_codec == VLC_CODEC_A52) {
+            psz_decoder = malloc(16);
+            memset(psz_decoder, 0x0, 16);
+            if (psz_decoder) {
+                if (p_dec->fmt_in.i_codec == VLC_CODEC_EAC3) {
+                    memcpy(psz_decoder, "eac3_at", strlen("eac3_at"));
+                    msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Audio type is VLC_CODEC_EAC3.", __FILE__ , __FUNCTION__, __LINE__);
+                }else if (p_dec->fmt_in.i_codec == VLC_CODEC_A52) {
+                    memcpy(psz_decoder, "ac3_at", strlen("ac3_at"));
+                    msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Audio type is VLC_CODEC_A52.", __FILE__ , __FUNCTION__, __LINE__);
+                }else {
+                    free( psz_decoder );
+                    psz_decoder = NULL;
+                }
+            }
+        }
+    }
+    #endif
+#endif
+
     if( psz_decoder != NULL )
     {
+        msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Find audio/video decoder [%s] by name.", __FILE__ , __FUNCTION__, __LINE__, psz_decoder);
         p_codec = avcodec_find_decoder_by_name( psz_decoder );
         if( !p_codec )
             msg_Err( p_dec, "Decoder `%s' not found", psz_decoder );

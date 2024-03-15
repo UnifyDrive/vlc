@@ -179,6 +179,11 @@ static const char *ppsz_roles_text[] = {
 #define FORCE_OPENSLES_LONGTEXT N_( \
     "Force opensles long.")
 
+#define HW_DECODER_AT_TEXT N_("hw decoder at")
+#define HW_DECODER_AT_LONGTEXT N_( \
+    "hardware decoder audiotoolbox.")
+
+
 
 #define FORCE_DOLBY_TEXT N_("Force detection of Dolby Surround")
 #define FORCE_DOLBY_LONGTEXT N_( \
@@ -1523,6 +1528,7 @@ vlc_module_begin ()
     add_bool( "spdif-isz9x", false, SPDIF_TEXT, SPDIF_LONGTEXT, true);
     add_bool( "dolbyvisiondecoder", false, SPDIF_TEXT, SPDIF_LONGTEXT, true);
     add_bool( "force-opensles", false, FORCE_OPENSLES_TEXT, FORCE_OPENSLES_LONGTEXT, true);
+    add_bool( "hwdecoder-at", false, HW_DECODER_AT_TEXT, HW_DECODER_AT_LONGTEXT, true);
 
     add_integer( "force-dolby-surround", 0, FORCE_DOLBY_TEXT,
                  FORCE_DOLBY_LONGTEXT, false )
