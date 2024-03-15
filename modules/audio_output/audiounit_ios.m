@@ -196,15 +196,16 @@ enum port_type
     NSInteger routeChangeReason =
         [[userInfo valueForKey:AVAudioSessionRouteChangeReasonKey] integerValue];
 
-    msg_Dbg(p_aout, "Audio route changed: %ld", (long) routeChangeReason);
+    msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: Audio route changed: %ld", __FILE__ , __FUNCTION__, __LINE__, (long) routeChangeReason);
 
     if (routeChangeReason == AVAudioSessionRouteChangeReasonNewDeviceAvailable
-     || routeChangeReason == AVAudioSessionRouteChangeReasonOldDeviceUnavailable)
+     || routeChangeReason == AVAudioSessionRouteChangeReasonOldDeviceUnavailable) {
         aout_RestartRequest(p_aout, AOUT_RESTART_OUTPUT);
-    else{
+        msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: Audio route changed,restart request.", __FILE__ , __FUNCTION__, __LINE__);
+    } else {
         const mtime_t latency_us = [p_sys->avInstance outputLatency] * CLOCK_FREQ;
         ca_SetDeviceLatency(p_aout, latency_us);
-        msg_Dbg(p_aout, "Current device has a new latency of %lld us", latency_us);
+        msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: Current device has a new latency of %lld us", __FILE__ , __FUNCTION__, __LINE__, latency_us);
     }
 }
 
@@ -220,8 +221,10 @@ enum port_type
 
     if (interruptionType == AVAudioSessionInterruptionTypeBegan) {
         ca_SetAliveState(p_aout, false);
+        msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: AVAudioSessionInterruptionTypeBegan, set audio alive false.", __FILE__ , __FUNCTION__, __LINE__);
     } else if (interruptionType == AVAudioSessionInterruptionTypeEnded
                && [userInfo[AVAudioSessionInterruptionOptionKey] unsignedIntegerValue] == AVAudioSessionInterruptionOptionShouldResume) {
+        msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: AVAudioSessionInterruptionTypeEnded, set audio alive true.", __FILE__ , __FUNCTION__, __LINE__);
         ca_SetAliveState(p_aout, true);
     }
 }
@@ -236,7 +239,7 @@ enum port_type
         BOOL spatialAudioEnabled =
             [[userInfo valueForKey:AVAudioSessionSpatialAudioEnabledKey] boolValue];
 
-        msg_Dbg(p_aout, "Spatial Audio availability changed: %i", spatialAudioEnabled);
+        msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: Spatial Audio availability changed: %i", __FILE__ , __FUNCTION__, __LINE__, spatialAudioEnabled);
 
         if (spatialAudioEnabled) {
             aout_RestartRequest(p_aout, AOUT_RESTART_OUTPUT);
@@ -320,19 +323,21 @@ avas_setPreferredNumberOfChannels(audio_output_t *p_aout,
     NSInteger max_channel_count = [instance maximumOutputNumberOfChannels];
     unsigned channel_count = aout_FormatNbChannels(fmt);
 
-    msg_Warn(p_aout, "[%s:%s:%d]=zspace=: channel_count=%d, max_channel_count=%d .", __FILE__ , __FUNCTION__, __LINE__, channel_count, max_channel_count);
+    msg_Warn(p_aout, "[%s:%s:%d]=zspace=: Data channel_count=%d, Device max_channel_count=%d .", __FILE__ , __FUNCTION__, __LINE__, channel_count, max_channel_count);
     /* Increase the preferred number of output channels if possible */
     if (channel_count > 2 && max_channel_count > 2)
     {
         channel_count = __MIN(channel_count, max_channel_count);
         bool success = [instance setPreferredOutputNumberOfChannels:channel_count
                         error:nil];
-        if (success && [instance outputNumberOfChannels] == channel_count)
+        if (success && [instance outputNumberOfChannels] == channel_count) {
             p_sys->b_preferred_channels_set = true;
+            msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: setPreferredOutputNumberOfChannels success.", __FILE__ , __FUNCTION__, __LINE__);
+        }
         else
         {
             /* Not critical, output channels layout will be Stereo */
-            msg_Warn(p_aout, "setPreferredOutputNumberOfChannels failed");
+            msg_Warn(p_aout, "[%s:%s:%d]=zspace=: setPreferredOutputNumberOfChannels failed", __FILE__ , __FUNCTION__, __LINE__);
             #if TARGET_OS_TV
             p_sys->c.max_channels = 2;
             #endif
@@ -351,6 +356,7 @@ avas_resetPreferredNumberOfChannels(audio_output_t *p_aout)
         [instance setPreferredOutputNumberOfChannels:2 error:nil];
         p_sys->b_preferred_channels_set = false;
     }
+    msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: resetPreferredOutputNumberOfChannels end.", __FILE__ , __FUNCTION__, __LINE__);
 }
 
 static int
@@ -381,13 +387,15 @@ avas_GetOptimalChannelLayout(audio_output_t *p_aout, enum port_type *pport_type,
 
         if (@available(iOS 15.0, tvOS 15.0, *)) {
             p_sys->b_spatial_audio_supported = out.spatialAudioEnabled;
-        }
+            msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: Spatial audio is supported[%d].", __FILE__ , __FUNCTION__, __LINE__, p_sys->b_spatial_audio_supported);
+        }else
+            msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: Spatial audio is not supported.", __FILE__ , __FUNCTION__, __LINE__);
 
         NSArray<AVAudioSessionChannelDescription *> *chans = [out channels];
         #if TARGET_OS_TV
         p_sys->c.i_current_channels = chans.count;
         #endif
-        msg_Warn(p_aout, "[%s:%s:%d]=zspace=: It has %d channels.", __FILE__ , __FUNCTION__, __LINE__, chans.count);
+        msg_Warn(p_aout, "[%s:%s:%d]=zspace=: The apple device has %d channels.", __FILE__ , __FUNCTION__, __LINE__, chans.count);
         if (chans.count > last_channel_count || port_type == PORT_TYPE_HDMI)
         {
             /* We don't need a layout specification for stereo */
@@ -437,7 +445,7 @@ avas_GetOptimalChannelLayout(audio_output_t *p_aout, enum port_type *pport_type,
             break;
     }
 
-    msg_Dbg(p_aout, "Output on %s, channel count: %u, spatialAudioEnabled %i",
+    msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: Output on %s, channel count: %u, spatialAudioEnabled %i", __FILE__ , __FUNCTION__, __LINE__,
             *pport_type == PORT_TYPE_HDMI ? "HDMI" :
             *pport_type == PORT_TYPE_USB ? "USB" :
             *pport_type == PORT_TYPE_HEADPHONES ? "Headphones" : "Default",
@@ -531,6 +539,7 @@ avas_SetActive(audio_output_t *p_aout, bool active, NSUInteger options)
         }
         if (@available(iOS 15.0, tvOS 15.0, *)) {
             ret = ret && [instance setSupportsMultichannelContent:p_sys->b_spatial_audio_supported error:&error];
+            msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: Set spatial audio ret=%d.", __FILE__ , __FUNCTION__, __LINE__, ret);
         }
         ret = ret && [instance setActive:YES withOptions:options error:&error];
         if (ret)
@@ -580,7 +589,7 @@ Pause (audio_output_t *p_aout, bool pause, mtime_t date)
         if (err != noErr)
             ca_LogErr("AudioOutputUnitStart failed");
         avas_SetActive(p_aout, false, 0);
-        msg_Warn(p_aout, "[%s:%s:%d]=zspace=: Stoped AudioUnit.", __FILE__ , __FUNCTION__, __LINE__);
+        msg_Warn(p_aout, "[%s:%s:%d]=zspace=: Stoped AudioUnit for pause.", __FILE__ , __FUNCTION__, __LINE__);
     }
     else
     {
@@ -773,6 +782,15 @@ Start(audio_output_t *p_aout, audio_sample_format_t *restrict fmt)
         if (p_sys->au_dev != AU_DEV_ENCODED
          || (port_type != PORT_TYPE_USB && port_type != PORT_TYPE_HDMI))
             goto error;
+    }
+
+    if (!p_sys->b_preferred_channels_set && fmt->i_channels > 2)
+    {
+        /* Ask the core to downmix to stereo if the preferred number of
+         * channels can't be set. */
+        fmt->i_physical_channels = AOUT_CHANS_STEREO;
+        aout_FormatPrepare(fmt);
+        msg_Warn(p_aout, "[%s:%s:%d]=zspace=: Force use AOUT_CHANS_STEREO .", __FILE__ , __FUNCTION__, __LINE__);
     }
 
     p_aout->current_sink_info.headphones = port_type == PORT_TYPE_HEADPHONES;
