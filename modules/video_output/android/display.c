@@ -817,7 +817,7 @@ static int OpenCommon(vout_display_t *vd)
     video_format_FixRgb(&sub_fmt);
 
     sys->b_black_area_subtitles = var_InheritBool(vd, "support-black-area-subtitles");
-
+    msg_Warn(vd, "b_black_area_subtitles %d", sys->b_black_area_subtitles);
     sys->b_opengl_render_subtitles = var_InheritBool(vd, "support-opengl-render-subtitles");
     msg_Warn(vd, "opengl render %d", sys->b_opengl_render_subtitles);
     if(!sys->b_opengl_render_subtitles)

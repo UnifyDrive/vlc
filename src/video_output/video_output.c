@@ -1616,6 +1616,12 @@ static int ThreadStart(vout_thread_t *vout, vout_display_state_t *state)
         state = &state_default;
     }
 
+    /* Only Android display can support black_area_subtitles */
+    if (vout->p->original.i_chroma != VLC_CODEC_ANDROID_OPAQUE) {
+        vout->p->black_area_subtitles = false;
+    }
+    msg_Dbg(vout, "[%s:%s:%d]=zspace=: black_area_subtitles %d.", __FILE__ , __FUNCTION__, __LINE__, vout->p->black_area_subtitles);
+
     if (vout_OpenWrapper(vout, vout->p->splitter_name, state))
         goto error;
     if (vout_InitWrapper(vout))
