@@ -64,6 +64,9 @@ BUILT_SOURCES += dummy.cpp
 dummy.cpp:
 	touch dummy.cpp
 
+AM_CPPFLAGS += -Wno-incompatible-pointer-types
+AM_CFLAGS += -Wno-incompatible-pointer-types
+
 if HAVE_WIN32
 BUILT_SOURCES += module.rc.lo
 CLEANFILES += module.rc

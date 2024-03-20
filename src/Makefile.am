@@ -177,6 +177,8 @@ AM_CPPFLAGS = $(INCICONV) $(IDN_CFLAGS) \
 	-DPKGDATADIR=\"$(vlcdatadir)\" \
 	-DPKGLIBDIR=\"$(vlclibdir)\"
 AM_CFLAGS = $(CFLAGS_libvlccore)
+AM_CPPFLAGS += -Wno-incompatible-pointer-types
+AM_CFLAGS += -Wno-incompatible-pointer-types
 if HAVE_DYNAMIC_PLUGINS
 AM_CPPFLAGS += -DHAVE_DYNAMIC_PLUGINS
 endif
