@@ -149,6 +149,9 @@ endif
 libavformat_plugin_la_CFLAGS = $(AM_CFLAGS) $(AVFORMAT_CFLAGS) $(AVUTIL_CFLAGS)
 libavformat_plugin_la_LIBADD = $(AVFORMAT_LIBS) $(AVUTIL_LIBS) $(LIBM) libavcodec_common.la
 libavformat_plugin_la_LDFLAGS = $(AM_LDFLAGS) $(SYMBOLIC_LDFLAGS)
+if HAVE_LINUX
+libavformat_plugin_la_LDFLAGS += -L/usr/lib/x86_64-linux-gnu/ -llzma
+endif
 if HAVE_ZLIB
 libavformat_plugin_la_LIBADD += -lz
 endif

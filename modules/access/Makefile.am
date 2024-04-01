@@ -256,6 +256,9 @@ liblibbluray_plugin_la_SOURCES = access/bluray.c
 liblibbluray_plugin_la_CFLAGS = $(AM_CFLAGS) $(BLURAY_CFLAGS) $(AVFORMAT_CFLAGS) $(AVUTIL_CFLAGS)
 liblibbluray_plugin_la_LIBADD = $(BLURAY_LIBS) $(AVFORMAT_LIBS) $(AVUTIL_LIBS) $(LIBM) libavcodec_common.la
 liblibbluray_plugin_la_LDFLAGS = $(AM_LDFLAGS) $(SYMBOLIC_LDFLAGS) -rpath '$(accessdir)'
+if HAVE_LINUX
+liblibbluray_plugin_la_LDFLAGS += -L/usr/lib/x86_64-linux-gnu/ -llzma
+endif
 access_LTLIBRARIES += $(LTLIBlibbluray)
 EXTRA_LTLIBRARIES += liblibbluray_plugin.la
 
@@ -402,6 +405,9 @@ libavio_plugin_la_SOURCES = access/avio.c access/avio.h
 libavio_plugin_la_CFLAGS = $(AM_CFLAGS) $(AVFORMAT_CFLAGS) $(AVUTIL_CFLAGS)
 libavio_plugin_la_LDFLAGS = $(AM_LDFLAGS) $(SYMBOLIC_LDFLAGS)
 libavio_plugin_la_LIBADD = $(AVFORMAT_LIBS) $(AVUTIL_LIBS) $(LIBM)
+if HAVE_LINUX
+libavio_plugin_la_LDFLAGS += -L/usr/lib/x86_64-linux-gnu/ -llzma
+endif
 if HAVE_AVFORMAT
 if !MERGE_FFMPEG
 access_LTLIBRARIES += libavio_plugin.la
