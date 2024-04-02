@@ -663,9 +663,11 @@ static int vout_update_format( decoder_t *p_dec )
         }else if (p_dec->fmt_in.video.hdr_type == HDR_TYPE_HLG){
             status = asprintf(&codecStatus,"%s","hlg");
         }else{
-            status = asprintf(&codecStatus,"%s","other");
+            status = asprintf(&codecStatus,"%s","sdr");
         }
-        if(status != -1){
+        if(status != -1 && p_dec->i_codecType_times <= 3){
+            p_dec->i_codecType_times++;
+            msg_Dbg( p_dec, "[%s:%s:%d]=zspace=: Get codecType=[%s].", __FILE__ , __FUNCTION__, __LINE__, codecStatus);
             input_SendEventSupportVideoCodecType(p_owner->p_input,codecStatus);
             free(codecStatus);
         }
@@ -1883,6 +1885,7 @@ static decoder_t * CreateDecoder( vlc_object_t *p_parent,
     p_dec->pf_get_attachments  = DecoderGetInputAttachments;
     p_dec->pf_get_display_date = DecoderGetDisplayDate;
     p_dec->pf_get_display_rate = DecoderGetDisplayRate;
+    p_dec->i_codecType_times = 0;
 
     if (fmt->i_cat == VIDEO_ES)
     {

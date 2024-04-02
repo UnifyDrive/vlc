@@ -188,6 +188,7 @@ struct decoder_t
     /* Private structure for the owner of the decoder */
     decoder_owner_sys_t *p_owner;
     char demux_module[256];
+    int  i_codecType_times;
 };
 
 /* struct for packetizer get_cc polling/decoder queue_cc
