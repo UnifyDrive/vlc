@@ -526,6 +526,9 @@ static int
 hevc_helper_set_extra(struct hxxx_helper *hh, const void *p_extra,
                       size_t i_extra)
 {
+    const uint8_t *p_buf = p_extra;
+    if (hh->p_obj && i_extra >= 4)
+        msg_Warn(hh->p_obj, "[%s:%s:%d]=zspace=: [0x%02x 0x%02x 0x%02x 0x%02x]!", __FILE__ , __FUNCTION__, __LINE__, p_buf[0], p_buf[1], p_buf[2], p_buf[3]);
     if (hevc_ishvcC(p_extra, i_extra))
     {
         hh->i_nal_length_size = hevc_getNALLengthSize(p_extra);
