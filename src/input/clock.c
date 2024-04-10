@@ -349,15 +349,22 @@ void input_clock_Reset( input_clock_t *cl )
 /*****************************************************************************
  * input_clock_ChangeRate:
  *****************************************************************************/
-void input_clock_ChangeRate( input_clock_t *cl, int i_rate )
+void input_clock_ChangeRate(vlc_object_t *p_input, input_clock_t *cl, int i_rate )
 {
     vlc_mutex_lock( &cl->lock );
 
     if( cl->b_has_reference )
     {
+        msg_Dbg(p_input, "[%s:%s:%d]=zspace=: change rate from %d to %d, cl->ref.i_system %lld cl->last.i_system %lld", __FILE__ , __FUNCTION__, __LINE__, cl->i_rate, i_rate, cl->ref.i_system, cl->last.i_system);
         /* Move the reference point (as if we were playing at the new rate
          * from the start */
-        cl->ref.i_system = cl->last.i_system - (cl->last.i_system - cl->ref.i_system) * i_rate / cl->i_rate;
+        mtime_t last_pts = input_resource_GetAoutPts(p_input);
+        if( !last_pts )
+        {
+            last_pts = cl->last.i_system;
+        }
+        cl->ref.i_system = last_pts - (last_pts - cl->ref.i_system) * i_rate / cl->i_rate;
+        msg_Dbg(p_input, "[%s:%s:%d]=zspace=: cl->ref.i_system %lld cl->last.i_system %lld", __FILE__ , __FUNCTION__, __LINE__, cl->ref.i_system, cl->last.i_system);
     }
     cl->i_rate = i_rate;
 

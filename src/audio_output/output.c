@@ -925,3 +925,10 @@ error:
     free(tabid);
     return -1;
 }
+
+mtime_t aout_GetPts(audio_output_t *aout)
+{
+    aout_owner_t *owner = aout_owner (aout);
+
+    return owner->aout_pts;
+}

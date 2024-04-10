@@ -424,6 +424,7 @@ VLC_API void     aout_FiltersChangeViewpoint(aout_filters_t *, const vlc_viewpoi
 
 VLC_API vout_thread_t * aout_filter_RequestVout( filter_t *, vout_thread_t *p_vout, const video_format_t *p_fmt );
 
+VLC_API mtime_t aout_GetPts(audio_output_t *);
 /** @} */
 
 #endif /* VLC_AOUT_H */

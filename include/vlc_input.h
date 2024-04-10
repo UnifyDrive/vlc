@@ -678,5 +678,6 @@ VLC_API void input_resource_PutAout_win32( input_resource_t *, audio_output_t * 
  */
 VLC_API void input_resource_ResetAout( input_resource_t * );
 
+VLC_API mtime_t input_resource_GetAoutPts( vlc_object_t *p_input );
 /** @} */
 #endif

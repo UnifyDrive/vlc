@@ -549,3 +549,12 @@ void input_resource_Terminate( input_resource_t *p_resource )
     input_resource_TerminateVout( p_resource );
 }
 
+mtime_t input_resource_GetAoutPts( vlc_object_t *p_input )
+{
+     audio_output_t *p_aout;
+
+     if (input_Control( (input_thread_t*)p_input, INPUT_GET_AOUT, &p_aout ) == VLC_SUCCESS)
+     {
+        return aout_GetPts(p_aout);
+     }
+}

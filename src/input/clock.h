@@ -73,7 +73,7 @@ mtime_t input_clock_GetWakeup( input_clock_t * );
 /**
  * This functions allows changing the actual reading speed.
  */
-void    input_clock_ChangeRate( input_clock_t *, int i_rate );
+void    input_clock_ChangeRate(vlc_object_t *p_input, input_clock_t *, int i_rate );
 
 /**
  * This function allows changing the pause status.

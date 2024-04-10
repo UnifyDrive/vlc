@@ -493,7 +493,7 @@ ca_Initialize(audio_output_t *p_aout, const audio_sample_format_t *fmt,
     else
     {
         /* 2 seconds of buffering */
-        p_sys->i_out_max_size = i_audiobuffer_size * 2;
+        p_sys->i_out_max_size = i_audiobuffer_size * 1;
     }
     p_sys->i_no_space_times = 0;
 

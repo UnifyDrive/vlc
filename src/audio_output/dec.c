@@ -119,6 +119,7 @@ error:
     owner->sync.discontinuity = true;
     aout_OutputUnlock (p_aout);
     owner->audio_early_timeout = 0;
+    owner->aout_pts = 0;
 
     atomic_init (&owner->buffers_lost, 0);
     atomic_init (&owner->buffers_played, 0);
@@ -432,6 +433,13 @@ int aout_DecPlay (audio_output_t *aout, block_t *block, int input_rate)
         aout_FiltersChangeViewpoint (owner->filters, &owner->vp.value);
         vlc_mutex_unlock (&owner->vp.lock);
     }
+
+#ifdef __APPLE__
+    #include"TargetConditionals.h"
+    #if (TARGET_OS_IPHONE || TARGET_OS_TV)
+    owner->aout_pts = block->i_pts;
+    #endif
+#endif
 
     block = aout_FiltersPlay (owner->filters, block, input_rate);
     if (block == NULL)
