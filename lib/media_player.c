@@ -426,6 +426,11 @@ input_event_changed( vlc_object_t * p_this, char const * psz_cmd,
         event.type = libvlc_MediaPlayerTimeChanged;
         event.u.media_player_time_changed.new_time =
            from_mtime(var_GetInteger( p_input, "time" ));
+        if (event.u.media_player_time_changed.new_time < p_mi->last_time && (p_mi->last_time - event.u.media_player_time_changed.new_time) < 1000)
+        {
+            return VLC_SUCCESS;
+        }
+        p_mi->last_time = event.u.media_player_time_changed.new_time;
         libvlc_event_send( &p_mi->event_manager, &event );
     }
     else if( newval.i_int == INPUT_EVENT_LENGTH )
@@ -932,6 +937,7 @@ libvlc_media_player_new( libvlc_instance_t *instance )
     mp->worker.running = true;
     mp->worker.open_next = false;
     mp->worker.close_input = NULL;
+    mp->last_time = 0;
     if (vlc_clone(&mp->worker.thread, worker_thread,
                   mp, VLC_THREAD_PRIORITY_LOW) != 0)
     {
@@ -1026,6 +1032,7 @@ void libvlc_media_player_release( libvlc_media_player_t *p_mi )
     lock(p_mi);
     destroy = !--p_mi->i_refcount;
     unlock(p_mi);
+    p_mi->last_time = 0;
 
     if( destroy )
         libvlc_media_player_destroy( p_mi );

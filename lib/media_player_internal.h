@@ -66,6 +66,7 @@ struct libvlc_media_player_t
     libvlc_state_t state;
     vlc_viewpoint_t viewpoint;
     int selected_es[3];
+    libvlc_time_t last_time;
 };
 
 /* Media player - audio, video */
