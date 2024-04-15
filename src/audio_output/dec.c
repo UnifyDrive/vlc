@@ -434,12 +434,10 @@ int aout_DecPlay (audio_output_t *aout, block_t *block, int input_rate)
         vlc_mutex_unlock (&owner->vp.lock);
     }
 
-#ifdef __APPLE__
-    #include"TargetConditionals.h"
-    #if (TARGET_OS_IPHONE || TARGET_OS_TV)
-    owner->aout_pts = block->i_pts;
-    #endif
-#endif
+    if (!var_InheritBool(aout, "spdif") && !var_InheritBool(aout, "spdif-ac3"))
+    {
+        owner->aout_pts = block->i_pts;
+    }
 
     block = aout_FiltersPlay (owner->filters, block, input_rate);
     if (block == NULL)
