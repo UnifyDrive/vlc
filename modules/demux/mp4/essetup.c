@@ -455,6 +455,7 @@ int SetupVideoES( demux_t *p_demux, mp4_track_t *p_track, MP4_Box_t *p_sample )
     if( p_dvcC && BOXDATA(p_dvcC) )
     {
         const MP4_Box_data_dvcC_t *p_data = BOXDATA( p_dvcC );
+        p_track->fmt.video.hdr_type = HDR_TYPE_DOLBYVISION;
 #if defined(__APPLE__)
 #define DVCC_SIZE 24
             uint8_t dvcc_data[DVCC_SIZE];
@@ -470,7 +471,6 @@ int SetupVideoES( demux_t *p_demux, mp4_track_t *p_track, MP4_Box_t *p_sample )
             if (p_data->i_dv_bl_signal_compatibility_id > 0)
                 dvcc_data[4] = p_data->i_dv_bl_signal_compatibility_id << 4 & 0xf0;
 
-            p_track->fmt.video.hdr_type = HDR_TYPE_DOLBYVISION;
             if ((p_data->i_profile == 5) || (p_data->i_profile == 8 && p_data->i_dv_bl_signal_compatibility_id == 4))
             {
                 p_track->fmt.video.i_dovi_extra = DVCC_SIZE;
