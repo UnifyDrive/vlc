@@ -1747,14 +1747,16 @@ static int Control(vout_display_t *vd, int query, va_list args)
 
         UpdateVideoSize(sys, &sys->p_window->fmt, sys->p_window->b_use_priv);
 
-        float video_ratio = (float)sys->p_window->fmt.i_height / (float)sys->p_window->fmt.i_width;
-        float display_ratio = (float)sys->i_display_height / (float)sys->i_display_width;
-        if (sys->b_black_area_subtitles && (query == VOUT_DISPLAY_CHANGE_SOURCE_ASPECT) && (video_ratio < display_ratio)) {
-            msg_Dbg(vd, "[%s:%s:%d]=zspace=: ignore change video aspect method", __FILE__ , __FUNCTION__, __LINE__);
-            return VLC_SUCCESS;
-        }
-        if(!sys->b_opengl_render_subtitles)
+
+        if(!sys->b_opengl_render_subtitles) {
+            float video_ratio = (float)sys->p_window->fmt.i_height / (float)sys->p_window->fmt.i_width;
+            float display_ratio = (float)sys->i_display_height / (float)sys->i_display_width;
+            if (sys->b_black_area_subtitles && (query == VOUT_DISPLAY_CHANGE_SOURCE_ASPECT) && (video_ratio < display_ratio)) {
+                msg_Dbg(vd, "[%s:%s:%d]=zspace=: ignore change video aspect method", __FILE__ , __FUNCTION__, __LINE__);
+                return VLC_SUCCESS;
+            }
             FixSubtitleFormat(sys);
+        }
         return VLC_SUCCESS;
     }
     case VOUT_DISPLAY_CHANGE_DISPLAY_SIZE:

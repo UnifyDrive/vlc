@@ -1693,7 +1693,13 @@ static void ThreadInit(vout_thread_t *vout)
     vout->p->is_late_dropped = var_InheritBool(vout, "drop-late-frames");
     vout->p->pause.is_on     = false;
     vout->p->pause.date      = VLC_TS_INVALID;
-    vout->p->black_area_subtitles = var_InheritBool(vout, "support-black-area-subtitles");
+    if (!var_InheritBool(vout, "support-opengl-render-subtitles")) {
+        vout->p->black_area_subtitles = var_InheritBool(vout, "support-black-area-subtitles");
+    }
+    else {
+        vout->p->black_area_subtitles = false;
+        msg_Dbg(vout, "[%s:%s:%d]=zspace=: disable black_area_subtitles if support-opengl-render-subtitles is enabled.", __FILE__ , __FUNCTION__, __LINE__);
+    }
 
     vout_chrono_Init(&vout->p->render, 5, 10000); /* Arbitrary initial time */
 }
