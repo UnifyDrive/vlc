@@ -691,7 +691,7 @@ static void Blend(filter_t *filter,
                         filter->fmt_in.video.i_x_offset,
                         filter->fmt_in.video.i_y_offset),
                width, height, alpha, sys->b_optimize_subtitle);
-    msg_Err( filter, "sys->blend end" );
+    //msg_Err( filter, "sys->blend end" );
 }
 
 static int Open(vlc_object_t *object)
