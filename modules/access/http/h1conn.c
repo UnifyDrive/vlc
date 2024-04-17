@@ -232,6 +232,7 @@ static block_t *vlc_h1_stream_read(struct vlc_http_stream *stream)
 {
     struct vlc_h1_conn *conn = vlc_h1_stream_conn(stream);
     size_t size = 2048;
+    static int64_t i_readover_len = 0;
 
     assert(conn->active);
 
@@ -264,6 +265,8 @@ static block_t *vlc_h1_stream_read(struct vlc_http_stream *stream)
         return NULL;
     }
 
+    i_readover_len += val;
+    //vlc_http_err(CO(conn), "Range: bytes i_readover_len=%lld.", i_readover_len);
     block->i_buffer = val;
     if (conn->content_length != UINTMAX_MAX)
         conn->content_length -= val;

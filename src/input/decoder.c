@@ -2213,6 +2213,14 @@ void input_DecoderDelete( decoder_t *p_dec )
 void input_DecoderDecode( decoder_t *p_dec, block_t *p_block, bool b_do_pace )
 {
     decoder_owner_sys_t *p_owner = p_dec->p_owner;
+    static int64_t i_block_total_len = 0;
+    block_t *block = p_block;
+    while (block != NULL)
+    {
+        i_block_total_len += block->i_buffer;
+        block = block->p_next;
+    }
+    //msg_Dbg( p_dec, "Range: bytes i_block_total_len=%lld.", i_block_total_len );
 
     vlc_fifo_Lock( p_owner->p_fifo );
     if( !b_do_pace )
@@ -2220,7 +2228,9 @@ void input_DecoderDecode( decoder_t *p_dec, block_t *p_block, bool b_do_pace )
         /* FIXME: ideally we would check the time amount of data
          * in the FIFO instead of its size. */
         /* 400 MiB, i.e. ~ 50mb/s for 60s */
-        if( vlc_fifo_GetBytes( p_owner->p_fifo ) > 400*1024*1024 )
+        size_t i_fifo_size_now = vlc_fifo_GetBytes( p_owner->p_fifo );
+        //msg_Dbg( p_dec, "Range: bytes i_fifo_size_now=%lld.", i_fifo_size_now );
+        if( i_fifo_size_now > 400*1024*1024 )
         {
             msg_Warn( p_dec, "decoder/packetizer fifo full (data not "
                       "consumed quickly enough), resetting fifo!" );
