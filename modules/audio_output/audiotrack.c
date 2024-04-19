@@ -1661,8 +1661,13 @@ Start( audio_output_t *p_aout, audio_sample_format_t *restrict p_fmt )
     else
     {
         /* 2 seconds of buffering */
-        p_sys->circular.i_size = p_sys->circular.i_size * AOUT_MAX_PREPARE_TIME
+        if (!var_InheritBool(p_aout, "spdif") && !var_InheritBool(p_aout, "spdif-ac3")) {
+            /* 200 ms of buffering */
+            p_sys->circular.i_size = p_sys->circular.i_size / 5;
+        } else {
+            p_sys->circular.i_size = p_sys->circular.i_size * AOUT_MAX_PREPARE_TIME
                                / CLOCK_FREQ * 10;
+        }
     }
 
     if(p_sys->isjiguang4pro){
