@@ -1382,6 +1382,10 @@ static void *OutThread(void *data)
     for (;;)
     {
 
+        if (p_sys->b_aborted) {
+            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: b_aborted is true, break out.", __FILE__ , __FUNCTION__, __LINE__);
+            break;
+        }
         i_index = -1;
         /* Wait for output ready */
         while (!p_sys->b_flush_out && !p_sys->b_output_ready) {
@@ -1404,13 +1408,18 @@ static void *OutThread(void *data)
             vlc_cond_broadcast(&p_sys->dec_cond);
             //msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: b_flush_out == true.", __FILE__ , __FUNCTION__, __LINE__);
             continue;
-        }else if (p_sys->b_mediacodec_error == true) {
+        }else if (p_sys->b_mediacodec_error == true && p_sys->b_aborted == false) {
             msg_Warn(p_dec, "[%s:%s:%d]=zspace=: Get outbuf failed, restart mediacodec(%d).", __FILE__ , __FUNCTION__, __LINE__, p_sys->b_is_jg5pro);
             StopMediaCodec(p_dec);
             StartMediaCodec(p_dec);
             p_sys->b_mediacodec_error = false;
             p_sys->b_is_jg5pro = false;
             p_sys->i_mediacodec_try_times = 0;
+        }
+
+        if (p_sys->b_aborted) {
+            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: b_aborted is true, break out.", __FILE__ , __FUNCTION__, __LINE__);
+            break;
         }
 
         int canc = vlc_savecancel();
@@ -1425,7 +1434,7 @@ static void *OutThread(void *data)
         i_index = p_sys->api.dequeue_out(&p_sys->api, -1);
         if (i_index == MC_API_ERROR) {
             p_sys->i_mediacodec_try_times++;
-            if (p_sys->i_mediacodec_try_times >= 2) {
+            if (p_sys->i_mediacodec_try_times >= 3 && p_sys->b_aborted == false) {
                 p_sys->b_mediacodec_error = true;
             }
             msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Get out index error = %d, i_mediacodec_try_times=%d.", __FILE__ , __FUNCTION__, __LINE__, i_index, p_sys->i_mediacodec_try_times);
@@ -1771,7 +1780,7 @@ static int DecodeBlock(decoder_t *p_dec, block_t *p_in_block)
     if (p_sys->api.b_started) {
         //msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: p_in_block = %p.", __FILE__ , __FUNCTION__, __LINE__, p_in_block);
         i_ret = QueueBlockLocked(p_dec, p_in_block, false);
-        if (i_ret == VLC_ENOINPUTBUF) {
+        if (i_ret == VLC_ENOINPUTBUF && p_sys->b_aborted == false) {
             vlc_mutex_unlock(&p_sys->lock);
             msg_Warn(p_dec, "Decoder : Send video data failed, reload mediacodec!");
             return VLCDEC_RELOAD;
