@@ -147,6 +147,7 @@ struct frame_info_t
 
 #define H264_MAX_DPB 16
 #define VT_MAX_SEI_COUNT 16
+#define MAX_B_FRAME_COUNT 7
 
 struct decoder_sys_t
 {
@@ -195,6 +196,9 @@ struct decoder_sys_t
     date_t                      pts;
 
     struct pic_holder          *pic_holder;
+    VTDecodeFrameFlags          decoderFlags;
+    enum hevc_slice_type_e      hevc_slice_type;
+    uint8_t                     hevc_b_frame_count;
 };
 
 struct pic_holder
@@ -784,6 +788,7 @@ static bool FillReorderInfoHEVC(decoder_t *p_dec, const block_t *p_block,
             if(hevc_get_slice_type(p_sli, &slice_type))
             {
                 p_info->b_keyframe |= (slice_type == HEVC_SLICE_TYPE_I);
+                p_sys->hevc_slice_type = slice_type;
             }
 
             hevc_sequence_parameter_set_t *p_sps;
@@ -1643,6 +1648,9 @@ static int OpenDecoder(vlc_object_t *p_this)
     p_sys->i_pic_reorder_max = 4;
     p_sys->vtsession_status = VTSESSION_STATUS_OK;
     p_sys->b_cvpx_format_forced = false;
+    p_sys->decoderFlags = kVTDecodeFrame_EnableAsynchronousDecompression;
+    p_sys->hevc_b_frame_count = 0;
+    p_sys->hevc_slice_type = 0;
 
     char *cvpx_chroma = var_InheritString(p_dec, "videotoolbox-cvpx-chroma");
     if (cvpx_chroma != NULL)
@@ -2341,16 +2349,19 @@ static int DecodeBlock(decoder_t *p_dec, block_t *p_block)
     }
 
     VTDecodeInfoFlags flagOut;
-    VTDecodeFrameFlags decoderFlags = 0;
-    if (var_InheritBool(p_dec, "videotoolbox-async-decode")) {
-#if !TARGET_OS_OSX
-        decoderFlags = kVTDecodeFrame_EnableAsynchronousDecompression;
-#endif
+
+    if (p_sys->hevc_slice_type == HEVC_SLICE_TYPE_B)
+        p_sys->hevc_b_frame_count ++;
+    else
+        p_sys->hevc_b_frame_count = 0;
+    if (p_sys->hevc_b_frame_count >= MAX_B_FRAME_COUNT && p_sys->decoderFlags == kVTDecodeFrame_EnableAsynchronousDecompression) {
+        p_sys->decoderFlags = 0;
+        msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: switch to synchronous decoding", __FILE__ , __FUNCTION__, __LINE__);
     }
 
     OSStatus status =
         VTDecompressionSessionDecodeFrame(p_sys->session, sampleBuffer,
-                                          decoderFlags, p_info, &flagOut);
+                                          p_sys->decoderFlags, p_info, &flagOut);
 
     enum vtsession_status vtsession_status;
     if (HandleVTStatus(p_dec, status, &vtsession_status) == VLC_SUCCESS)
