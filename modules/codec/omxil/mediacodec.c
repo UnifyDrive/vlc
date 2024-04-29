@@ -109,7 +109,8 @@ struct decoder_sys_t
     bool            b_adaptive;
     int             i_decode_flags;
     bool            b_mediacodec_error;
-    int             i_mediacodec_try_times;
+    int             i_mediacodec_out_try_times;
+    int             i_mediacodec_in_try_times;
     bool            b_is_jg5pro;
 
     union
@@ -751,7 +752,8 @@ static int OpenDecoder(vlc_object_t *p_this, pf_MediaCodecApi_init pf_init)
     p_sys->video.i_mpeg_dar_num = 0;
     p_sys->video.i_mpeg_dar_den = 0;
     p_sys->b_mediacodec_error = false;
-    p_sys->i_mediacodec_try_times = 0;
+    p_sys->i_mediacodec_out_try_times = 0;
+    p_sys->i_mediacodec_in_try_times = 0;
     p_sys->b_is_jg5pro = var_InheritBool(p_dec, "support-jiguang5pro-subtitles");
 
     if (pf_init(&p_sys->api) != 0)
@@ -1401,7 +1403,7 @@ static void *OutThread(void *data)
                 StartMediaCodec(p_dec);
                 p_sys->b_mediacodec_error = false;
                 p_sys->b_is_jg5pro = false;
-                p_sys->i_mediacodec_try_times = 0;
+                p_sys->i_mediacodec_out_try_times = 0;
             }
             /* Acknowledge flushed state */
             p_sys->b_flush_out = false;
@@ -1414,7 +1416,7 @@ static void *OutThread(void *data)
             StartMediaCodec(p_dec);
             p_sys->b_mediacodec_error = false;
             p_sys->b_is_jg5pro = false;
-            p_sys->i_mediacodec_try_times = 0;
+            p_sys->i_mediacodec_out_try_times = 0;
         }
 
         if (p_sys->b_aborted) {
@@ -1433,14 +1435,14 @@ static void *OutThread(void *data)
         }
         i_index = p_sys->api.dequeue_out(&p_sys->api, -1);
         if (i_index == MC_API_ERROR) {
-            p_sys->i_mediacodec_try_times++;
-            if (p_sys->i_mediacodec_try_times >= 3 && p_sys->b_aborted == false) {
+            p_sys->i_mediacodec_out_try_times++;
+            if (p_sys->i_mediacodec_out_try_times >= 3 && p_sys->b_aborted == false) {
                 p_sys->b_mediacodec_error = true;
             }
-            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Get out index error = %d, i_mediacodec_try_times=%d.", __FILE__ , __FUNCTION__, __LINE__, i_index, p_sys->i_mediacodec_try_times);
-        }else if (p_sys->i_mediacodec_try_times > 0){
-            p_sys->i_mediacodec_try_times = 0;
-            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Get out index = %d, reset i_mediacodec_try_times to 0.", __FILE__ , __FUNCTION__, __LINE__, i_index);
+            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Get out index error = %d, i_mediacodec_out_try_times=%d.", __FILE__ , __FUNCTION__, __LINE__, i_index, p_sys->i_mediacodec_out_try_times);
+        }else if (p_sys->i_mediacodec_out_try_times > 0){
+            p_sys->i_mediacodec_out_try_times = 0;
+            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Get out index = %d, reset i_mediacodec_out_try_times to 0.", __FILE__ , __FUNCTION__, __LINE__, i_index);
         }else if(p_dec && ZSPACE_NAL_INFO_DEBUG){
             msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: Get out index = %d.", __FILE__ , __FUNCTION__, __LINE__, i_index);
         }
@@ -1780,7 +1782,8 @@ static int DecodeBlock(decoder_t *p_dec, block_t *p_in_block)
     if (p_sys->api.b_started) {
         //msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: p_in_block = %p.", __FILE__ , __FUNCTION__, __LINE__, p_in_block);
         i_ret = QueueBlockLocked(p_dec, p_in_block, false);
-        if (i_ret == VLC_ENOINPUTBUF && p_sys->b_aborted == false) {
+        if (i_ret == VLC_ENOINPUTBUF && p_sys->b_aborted == false && p_sys->i_mediacodec_in_try_times++ >=3) {
+            p_sys->i_mediacodec_in_try_times = 0;
             vlc_mutex_unlock(&p_sys->lock);
             msg_Warn(p_dec, "Decoder : Send video data failed, reload mediacodec!");
             return VLCDEC_RELOAD;
