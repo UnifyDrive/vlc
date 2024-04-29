@@ -168,6 +168,8 @@ struct demux_sys_t
     mtime_t     i_pgc_length;
     int         i_vobu_index;
     int         i_vobu_flush;
+    int64_t       i_max_length;
+    int           i_max_title;
 };
 
 static int Control( demux_t *, int, va_list );
@@ -216,6 +218,8 @@ static int CommonOpen( vlc_object_t *p_this,
     /* Fill p_demux field */
     DEMUX_INIT_COMMON(); p_sys = p_demux->p_sys;
     p_sys->dvdnav = p_dvdnav;
+    p_sys->i_max_length = 0;
+    p_sys->i_max_title = 1;
 
     ps_track_init( p_sys->tk );
     p_sys->b_readahead = b_readahead;
@@ -660,6 +664,7 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
 
         case DEMUX_SET_TITLE:
             i = va_arg( args, int );
+            msg_Warn( p_demux, "Set title/chapter %d now", i );
             if( i == 0 && dvdnav_menu_call( p_sys->dvdnav, DVD_MENU_Root )
                   != DVDNAV_STATUS_OK )
             {
@@ -669,6 +674,7 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
 
             if( i != 0 )
             {
+                i = p_sys->i_max_title;
                 dvdnav_still_skip( p_sys->dvdnav );
                 if( dvdnav_title_play( p_sys->dvdnav, i ) != DVDNAV_STATUS_OK )
                 {
@@ -740,12 +746,28 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
 
         case DEMUX_NAV_ACTIVATE:
         {
-            pci_t *pci = dvdnav_get_current_nav_pci( p_sys->dvdnav );
+            /*pci_t *pci = dvdnav_get_current_nav_pci( p_sys->dvdnav );
 
             if( dvdnav_button_activate( p_sys->dvdnav, pci ) != DVDNAV_STATUS_OK )
                 return VLC_EGENERIC;
             ButtonUpdate( p_demux, true );
-            break;
+            break;*/
+            int i = p_sys->i_max_title;
+            if( i != 0 )
+            {
+                dvdnav_still_skip( p_sys->dvdnav );
+                if( dvdnav_title_play( p_sys->dvdnav, i ) != DVDNAV_STATUS_OK )
+                {
+                    msg_Warn( p_demux, "cannot set title/chapter" );
+                    return VLC_EGENERIC;
+                }
+            }
+
+            p_demux->info.i_update |=
+                INPUT_UPDATE_TITLE | INPUT_UPDATE_SEEKPOINT;
+            p_sys->cur_title = i;
+            p_sys->cur_seekpoint = 0;
+            return VLC_SUCCESS;
         }
 
         case DEMUX_NAV_UP:
@@ -1261,6 +1283,12 @@ static void DemuxTitles( demux_t *p_demux )
         }
         t = vlc_input_title_New();
         t->i_length = i_title_length * 1000 / 90;
+        msg_Dbg( p_demux, "title:%d=%lld", i, t->i_length);
+        if (p_sys->i_max_length < t->i_length) {
+            p_sys->i_max_length = t->i_length;
+            p_sys->i_max_title = i;
+            msg_Dbg( p_demux, "Update max title to:%d.", i);
+        }
         for( int j = 0; j < __MAX( i_chapters, 1 ); j++ )
         {
             s = vlc_seekpoint_New();
