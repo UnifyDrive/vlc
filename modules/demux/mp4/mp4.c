@@ -4028,7 +4028,7 @@ static void MP4_TrackSetELST( demux_t *p_demux, mp4_track_t *tk,
     if( i_elst_last != tk->i_elst )
     {
         msg_Warn( p_demux, "elst old=%d new=%d", i_elst_last, tk->i_elst );
-        tk->i_next_block_flags |= BLOCK_FLAG_DISCONTINUITY;
+        //tk->i_next_block_flags |= BLOCK_FLAG_DISCONTINUITY;
     }
 }
 
