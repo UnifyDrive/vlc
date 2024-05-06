@@ -1307,6 +1307,13 @@ static CFMutableDictionaryRef CreateSessionDescriptionFormat(decoder_t *p_dec,
 #if TARGET_OS_OSX
     enableHardwareAccelerate = true;
 #elif TARGET_OS_TV
+    char *var = NULL;
+    var = var_InheritString (p_dec, "vout");
+    if ( (var && 0 == strncmp(var, "ios", 3)) || (p_dec->fmt_in.video.hdr_type == HDR_TYPE_UNDEF))
+    {
+        enableHardwareAccelerate = true;
+    }
+    msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: vout=[%s]. enableHardwareAccelerate = %d", __FILE__ , __FUNCTION__, __LINE__, var, enableHardwareAccelerate);
 #elif TARGET_OS_IPHONE
     char *var = NULL;
     var = var_InheritString (p_dec, "vout");
