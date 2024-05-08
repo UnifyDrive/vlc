@@ -1019,6 +1019,7 @@ static void CloseDecoder(vlc_object_t *p_this)
 {
     decoder_t *p_dec = (decoder_t *)p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;
+    msg_Warn(p_dec, "[%s:%s:%d]=zspace=: Begin flush and abort outthread.", __FILE__ , __FUNCTION__, __LINE__);
 
     vlc_mutex_lock(&p_sys->lock);
     /* Unblock output thread waiting in dequeue_out */
@@ -1026,10 +1027,13 @@ static void CloseDecoder(vlc_object_t *p_this)
     /* Cancel the output thread */
     AbortDecoderLocked(p_dec);
     vlc_mutex_unlock(&p_sys->lock);
+    msg_Warn(p_dec, "[%s:%s:%d]=zspace=: Join outthread.", __FILE__ , __FUNCTION__, __LINE__);
 
     vlc_join(p_sys->out_thread, NULL);
+    msg_Warn(p_dec, "[%s:%s:%d]=zspace=: Join outthread over.", __FILE__ , __FUNCTION__, __LINE__);
 
     CleanDecoder(p_dec);
+    msg_Warn(p_dec, "[%s:%s:%d]=zspace=: Clean decoder over.", __FILE__ , __FUNCTION__, __LINE__);
 }
 
 /*****************************************************************************
@@ -1412,11 +1416,11 @@ static void *OutThread(void *data)
             continue;
         }else if (p_sys->b_mediacodec_error == true && p_sys->b_aborted == false) {
             msg_Warn(p_dec, "[%s:%s:%d]=zspace=: Get outbuf failed, restart mediacodec(%d).", __FILE__ , __FUNCTION__, __LINE__, p_sys->b_is_jg5pro);
-            StopMediaCodec(p_dec);
-            StartMediaCodec(p_dec);
-            p_sys->b_mediacodec_error = false;
-            p_sys->b_is_jg5pro = false;
-            p_sys->i_mediacodec_out_try_times = 0;
+            //StopMediaCodec(p_dec);
+            //StartMediaCodec(p_dec);
+            //p_sys->b_mediacodec_error = false;
+            //p_sys->b_is_jg5pro = false;
+            //p_sys->i_mediacodec_out_try_times = 0;
         }
 
         if (p_sys->b_aborted) {
