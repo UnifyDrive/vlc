@@ -999,8 +999,11 @@ static int Open( vlc_object_t * p_this )
         p_demux->pf_demux = DemuxFrag;
         msg_Dbg( p_demux, "Set Fragmented demux mode" );
         mtime_t i_duration = 0;
-        FragGetMoofDurationBySidxIndex(p_demux, &i_duration);
-        p_sys->i_duration = i_duration;
+        if (!p_sys->i_duration)
+        {
+            FragGetMoofDurationBySidxIndex(p_demux, &i_duration);
+            p_sys->i_duration = i_duration;
+        }
         msg_Dbg( p_demux, "fmp4_duration %llu p_sys->i_duration %llu" ,i_duration, p_sys->i_duration);
     }
 
