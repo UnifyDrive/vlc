@@ -181,7 +181,7 @@ static int Open(vlc_object_t *obj)
 
     if (unlikely(sys == NULL))
         return VLC_ENOMEM;
-    //vlc_http_file_setPrintObj((void *) access);
+    vlc_http_file_setPrintObj((void *) access);
 
     sys->manager = NULL;
     sys->resource = NULL;

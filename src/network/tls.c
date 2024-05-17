@@ -56,7 +56,12 @@
 #include <vlc_interrupt.h>
 
 /*** TLS credentials ***/
+static vlc_object_t *mPrintObj = NULL;
 
+void vlc_tls_setPrintObj(void *tmp)
+{
+    mPrintObj = (vlc_object_t*)tmp;
+}
 static int tls_server_load(void *func, va_list ap)
 {
     int (*activate) (vlc_tls_creds_t *, const char *, const char *) = func;
@@ -510,6 +515,8 @@ static vlc_tls_t *vlc_tls_SocketAddrInfo(const struct addrinfo *restrict info)
     vlc_tls_t *sk = vlc_tls_SocketAlloc(fd, info->ai_addr, info->ai_addrlen);
     if (unlikely(sk == NULL))
         net_Close(fd);
+    if (mPrintObj)
+        msg_Dbg(mPrintObj, "[%s:%s:%d]=zspace=: create socket fd=%d", __FILE__ , __FUNCTION__, __LINE__, fd);
     return sk;
 }
 
@@ -608,7 +615,11 @@ static ssize_t vlc_tls_ConnectWrite(vlc_tls_t *tls,
 #endif
 
     if (vlc_tls_Connect(tls))
+    {
+        if (mPrintObj)
+            msg_Dbg(mPrintObj, "[%s:%s:%d]=zspace=: failed to connect fd=%d.", __FILE__ , __FUNCTION__, __LINE__, vlc_tls_SocketGetFD(tls));
         return -1;
+    }
 
     return vlc_tls_SocketWrite(tls, iov, count);
 }

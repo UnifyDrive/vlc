@@ -254,6 +254,7 @@ static block_t *vlc_h1_stream_read(struct vlc_http_stream *stream)
         block->p_buffer[0], block->p_buffer[1], block->p_buffer[2], block->p_buffer[3]);*/
     if (val <= 0)
     {
+        vlc_http_err(CO(conn), "vlc_tls_Read_zs read val=%d.", val);
         block_Release(block);
         if (val < 0)
             return vlc_http_error;
@@ -312,8 +313,10 @@ static void vlc_h1_conn_destroy(struct vlc_h1_conn *conn)
 
     if (conn->conn.tls != NULL)
     {
+        vlc_http_err(CO(conn), "vlc_h1_conn_destroy fd=%d.",vlc_tls_GetFD(conn->conn.tls));
         vlc_tls_Shutdown(conn->conn.tls, true);
         vlc_tls_Close(conn->conn.tls);
+        vlc_tls_setPrintObj(NULL);
     }
     free(conn);
 }
@@ -374,6 +377,7 @@ struct vlc_http_stream *vlc_h1_request(void *ctx, const char *hostname,
         return NULL;
     }
 
+    vlc_tls_setPrintObj(ctx);
     for (const struct addrinfo *p = res; p != NULL; p = p->ai_next)
     {
         vlc_tls_t *tcp = vlc_tls_SocketOpenAddrInfo(p, idempotent);

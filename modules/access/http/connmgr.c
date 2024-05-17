@@ -112,6 +112,8 @@ static void vlc_http_mgr_release(struct vlc_http_mgr *mgr,
 {
     assert(mgr->conn == conn);
     mgr->conn = NULL;
+    if (conn->tls)
+        msg_Dbg(mgr->obj, "[%s:%s:%d]=zspace=: vlc_http_mgr_release socket fd=%d", __FILE__ , __FUNCTION__, __LINE__, conn->tls->get_fd(conn->tls));
 
     vlc_http_conn_release(conn);
 }
@@ -124,7 +126,8 @@ struct vlc_http_msg *vlc_http_mgr_reuse(struct vlc_http_mgr *mgr,
     struct vlc_http_conn *conn = vlc_http_mgr_find(mgr, host, port);
     if (conn == NULL)
         return NULL;
-
+    if (conn->tls)
+        msg_Dbg(mgr->obj, "[%s:%s:%d]=zspace=: vlc_http_mgr_reuse fd=%d", __FILE__ , __FUNCTION__, __LINE__, conn->tls->get_fd(conn->tls));
     struct vlc_http_stream *stream = vlc_http_stream_open(conn, req);
     if (stream != NULL)
     {

@@ -259,7 +259,12 @@ int vlc_http_file_seek(struct vlc_http_resource *res, uintmax_t offset)
 
     resp = vlc_http_res_open(res, &offset);
     if (resp == NULL)
+    {
+        if (mPrintObj) {
+            msg_Dbg((stream_t *)mPrintObj, "[%s:%s:%d]=zspace=: vlc_http_res_open return null.", __FILE__ , __FUNCTION__, __LINE__);
+        }
         return -1;
+    }
 
     int status = vlc_http_msg_get_status(resp);
     if (res->response != NULL)
@@ -270,6 +275,9 @@ int vlc_http_file_seek(struct vlc_http_resource *res, uintmax_t offset)
          */
         if (status != 206 && status != 416 && (offset != 0 || status >= 300))
         {
+            if (mPrintObj) {
+                msg_Dbg((stream_t *)mPrintObj, "[%s:%s:%d]=zspace=: offset=%d ,status=%d.", __FILE__ , __FUNCTION__, __LINE__, offset, status);
+            }
             vlc_http_msg_destroy(resp);
             return -1;
         }
@@ -330,8 +338,8 @@ block_t *vlc_http_file_read(struct vlc_http_resource *res)
 
 void vlc_http_file_setPrintObj(void *tmp)
 {
-    //mPrintObj = tmp;
-    //vlc_http_res_setPrintObj(tmp);
+    mPrintObj = tmp;
+    vlc_http_res_setPrintObj(tmp);
     mPrintReleaseObj = tmp;
 }
 

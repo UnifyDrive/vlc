@@ -166,6 +166,9 @@ int vlc_http_res_get_status(struct vlc_http_resource *res)
         res->response = vlc_http_res_open(res, res + 1);
         if (res->response == NULL)
         {
+            if (mPrintObj) {
+                msg_Dbg((stream_t *)mPrintObj, "[%s:%s:%d]=zspace=: vlc_http_res_open return null.", __FILE__ , __FUNCTION__, __LINE__, *((uintmax_t *)(res + 1)));
+            }
             res->failure = true;
             return -1;
         }
