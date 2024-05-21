@@ -218,6 +218,7 @@ enum port_type
     }
 
     NSUInteger interruptionType = [userInfo[AVAudioSessionInterruptionTypeKey] unsignedIntegerValue];
+    msg_Warn(p_aout, "[%s:%s:%d]=zspace=: interruptionType=%d.", __FILE__ , __FUNCTION__, __LINE__, interruptionType);
 
     if (interruptionType == AVAudioSessionInterruptionTypeBegan) {
         ca_SetAliveState(p_aout, false);
@@ -228,6 +229,27 @@ enum port_type
         ca_SetAliveState(p_aout, true);
     }
 }
+
+- (void)handleSilenceSecondaryAudioHint:(NSNotification *)notification
+{
+    audio_output_t *p_aout = [self aout];
+    NSDictionary *userInfo = notification.userInfo;
+    if (!userInfo || !userInfo[AVAudioSessionSilenceSecondaryAudioHintTypeKey]) {
+        return;
+    }
+
+    NSUInteger SilenceSecondaryAudioHintType = [userInfo[AVAudioSessionSilenceSecondaryAudioHintTypeKey] unsignedIntegerValue];
+    msg_Warn(p_aout, "[%s:%s:%d]=zspace=: SilenceSecondaryAudioHintType=%d.", __FILE__ , __FUNCTION__, __LINE__, SilenceSecondaryAudioHintType);
+
+    if (SilenceSecondaryAudioHintType == AVAudioSessionSilenceSecondaryAudioHintTypeBegin) {
+        ca_SetAliveState(p_aout, false);
+        msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: AVAudioSessionSilenceSecondaryAudioHintTypeBegin, set audio alive false.", __FILE__ , __FUNCTION__, __LINE__);
+    } else if (SilenceSecondaryAudioHintType == AVAudioSessionSilenceSecondaryAudioHintTypeEnd) {
+        msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: AVAudioSessionSilenceSecondaryAudioHintTypeEnd, set audio alive true.", __FILE__ , __FUNCTION__, __LINE__);
+        ca_SetAliveState(p_aout, true);
+    }
+}
+
 
 - (void)handleSpatialCapabilityChange:(NSNotification *)notification
 {
@@ -746,6 +768,10 @@ Start(audio_output_t *p_aout, audio_sample_format_t *restrict fmt)
     [notificationCenter addObserver:p_sys->aoutWrapper
                            selector:@selector(handleInterruption:)
                                name:AVAudioSessionInterruptionNotification
+                             object:nil];
+    [notificationCenter addObserver:p_sys->aoutWrapper
+                           selector:@selector(handleSilenceSecondaryAudioHint:)
+                               name:AVAudioSessionSilenceSecondaryAudioHintNotification
                              object:nil];
     if (@available(iOS 15.0, tvOS 15.0, *)) {
         [notificationCenter addObserver:p_sys->aoutWrapper
