@@ -634,13 +634,14 @@ static int MainLoopTryRepeat( input_thread_t *p_input )
         input_ControlPush( p_input,
                            INPUT_CONTROL_SET_SEEKPOINT, &val );
 
+    //说明：因为start-time被业务层用来实现用户历史记录播放，所以循环播放时强制从头开始播放
     /* Seek to start position */
-    if( input_priv(p_input)->i_start > 0 )
+    /*if( input_priv(p_input)->i_start > 0 )
     {
         val.i_int = input_priv(p_input)->i_start;
         input_ControlPush( p_input, INPUT_CONTROL_SET_TIME, &val );
     }
-    else
+    else*/
     {
         val.f_float = 0.f;
         input_ControlPush( p_input, INPUT_CONTROL_SET_POSITION, &val );
