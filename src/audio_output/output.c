@@ -243,6 +243,8 @@ audio_output_t *aout_New (vlc_object_t *parent)
     var_Create (aout, "dtsProfile", VLC_VAR_INTEGER | VLC_VAR_DOINHERIT);
     var_Create (aout, "spdifDoSync", VLC_VAR_INTEGER | VLC_VAR_DOINHERIT);
     var_SetInteger( aout, "spdifDoSync", 0 );
+    var_Create (aout, "audio-latency-less-us", VLC_VAR_INTEGER | VLC_VAR_DOINHERIT);
+    var_SetInteger( aout, "audio-latency-less-us", 0 );
 
     aout->event.volume_report = aout_VolumeNotify;
     aout->event.mute_report = aout_MuteNotify;

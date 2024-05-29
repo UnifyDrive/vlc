@@ -1043,6 +1043,8 @@ VLC_API const char * VLC_Compiler( void ) VLC_USED;
 #   define PATH_SEP ":"
 #endif
 
+#define ASNYC_DEBUG_INFO   (0)
+
 #define LICENSE_MSG \
   _("This program comes with NO WARRANTY, to the extent permitted by " \
     "law.\nYou may redistribute it under the terms of the GNU General " \

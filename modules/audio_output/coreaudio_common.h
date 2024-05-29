@@ -62,6 +62,7 @@ struct aout_sys_common
 #if TARGET_OS_TV
     int                 max_channels;
     int                 i_current_channels;
+    int                 i_use_times;
 #endif
     size_t              i_underrun_size;
     bool                b_paused;
@@ -95,6 +96,8 @@ struct aout_sys_common
     uint8_t             chan_table[AOUT_CHAN_MAX];
     /* ca_TimeGet extra latency, in micro-seconds */
     mtime_t             i_dev_latency_us;
+    /* AudioUnit Latency */
+    mtime_t             au_latency_ticks;
     enum au_dev au_dev;
 };
 

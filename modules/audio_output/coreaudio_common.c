@@ -271,8 +271,10 @@ ca_GetLatencyLocked(audio_output_t *p_aout)
     struct aout_sys_common *p_sys = (struct aout_sys_common *) p_aout->sys;
 
     const int64_t i_out_frames = BytesToFrames(p_sys, p_sys->i_out_size);
-    return FramesToUs(p_sys, i_out_frames + p_sys->i_render_frames)
-           + p_sys->i_dev_latency_us;
+    mtime_t i_cache_duration = FramesToUs(p_sys, i_out_frames + p_sys->i_render_frames);
+    if (ASNYC_DEBUG_INFO)
+        msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: i_cache_duration=%lld, i_cache_frames=%d,i_render_frames=%d.", __FILE__ , __FUNCTION__, __LINE__, i_cache_duration, i_out_frames, p_sys->i_render_frames);
+    return (i_cache_duration + p_sys->i_dev_latency_us);
 }
 
 int
@@ -292,6 +294,8 @@ ca_TimeGet(audio_output_t *p_aout, mtime_t *delay)
     const mtime_t i_render_time_us =
         HostTimeToTick(p_sys, p_sys->i_render_host_time);
     const mtime_t i_render_delay = i_render_time_us - mdate();
+    if (ASNYC_DEBUG_INFO)
+        msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: i_render_delay=%lld.", __FILE__ , __FUNCTION__, __LINE__, i_render_delay);
 
     *delay = ca_GetLatencyLocked(p_aout) + i_render_delay;
     lock_unlock(p_sys);
@@ -361,10 +365,12 @@ ca_Play(audio_output_t * p_aout, block_t * p_block)
     struct aout_sys_common *p_sys = (struct aout_sys_common *) p_aout->sys;
 
     /* Do the channel reordering */
-    if (p_sys->chans_to_reorder)
+    if (p_sys->chans_to_reorder) {
+       msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: reorder audio channel first.", __FILE__ , __FUNCTION__, __LINE__);
        aout_ChannelReorder(p_block->p_buffer, p_block->i_buffer,
                            p_sys->chans_to_reorder, p_sys->chan_table,
                            VLC_CODEC_FL32);
+    }
 
     lock_lock(p_sys);
 
@@ -377,6 +383,7 @@ ca_Play(audio_output_t * p_aout, block_t * p_block)
         const mtime_t first_render_time = p_block->i_pts - ca_GetLatencyLocked(p_aout);
         p_sys->i_first_render_host_time =
             TickToHostTime(p_sys, first_render_time);
+        msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: first_render_time Latency=%lld.", __FILE__ , __FUNCTION__, __LINE__, ca_GetLatencyLocked(p_aout));
     }
 
     do
@@ -473,13 +480,19 @@ ca_Initialize(audio_output_t *p_aout, const audio_sample_format_t *fmt,
     p_sys->i_frame_length = fmt->i_frame_length;
 
     /* TODO VLC can't handle latency higher than 1 seconds */
+    var_SetInteger( p_aout, "audio-latency-less-us", 0 );
     if (i_dev_latency_us > 1000000)
     {
+        #if TARGET_OS_TV
+        if (p_sys->i_use_times == 1 && 1)
+            var_SetInteger( p_aout, "audio-latency-less-us", 1000000-i_dev_latency_us );
+        #endif
         i_dev_latency_us = 1000000;
         msg_Warn(p_aout, "VLC can't handle this device latency, lowering it to "
                  "%lld", i_dev_latency_us);
     }
     p_sys->i_dev_latency_us = i_dev_latency_us;
+    p_sys->au_latency_ticks = 0;
 
     /* setup circular buffer */
     size_t i_audiobuffer_size = fmt->i_rate * fmt->i_bytes_per_frame
@@ -646,8 +659,8 @@ MapOutputLayout(audio_output_t *p_aout, audio_sample_format_t *fmt,
                 const AudioChannelLayout *outlayout, bool *warn_configuration)
 {
     /* Fill VLC physical_channels from output layout */
-    fmt->i_physical_channels = 0;
     uint32_t i_original = fmt->i_physical_channels;
+    //fmt->i_physical_channels = 0;
     AudioChannelLayout *reslayout = NULL;
     struct aout_sys_common *p_sys = (struct aout_sys_common *) p_aout->sys;
 
@@ -667,10 +680,10 @@ MapOutputLayout(audio_output_t *p_aout, audio_sample_format_t *fmt,
         }
 
         #if TARGET_OS_TV
-        msg_Warn(p_aout, "[%s:%s:%d]=zspace=: OutLayout is NULL,set it p_sys->max_channels=%d, p_sys->i_current_channels=%d, fmt->i_channels=%d, fmt->i_physical_channels=%d.", 
+        msg_Warn(p_aout, "[%s:%s:%d]=zspace=: OutLayout is NULL,set it p_sys->max_channels=%d, p_sys->i_current_channels=%d, fmt->i_channels=%d, fmt->i_physical_channels=%s.", 
             __FILE__ , __FUNCTION__, __LINE__, 
             p_sys->max_channels, p_sys->i_current_channels, 
-            fmt->i_channels, fmt->i_physical_channels);
+            fmt->i_channels, aout_FormatPrintChannels( fmt ));
         #endif
         goto end;
     }else {
@@ -1051,6 +1064,16 @@ au_Initialize(audio_output_t *p_aout, AudioUnit au, audio_sample_format_t *fmt,
     {
         AudioUnitUninitialize(au);
         return VLC_EGENERIC;
+    }
+
+    struct aout_sys_common *p_sys = (struct aout_sys_common *) p_aout->sys;
+    Float64 unit_s;
+    if (AudioUnitGetProperty(au, kAudioUnitProperty_Latency,
+                             kAudioUnitScope_Global, 0, &unit_s,
+                             &(UInt32) { sizeof(unit_s) }) == noErr)
+    {
+        p_sys->au_latency_ticks = unit_s * CLOCK_FREQ;
+        msg_Dbg(p_aout, "AudioUnit latency: %" PRId64 "us", p_sys->au_latency_ticks);
     }
 
     return VLC_SUCCESS;

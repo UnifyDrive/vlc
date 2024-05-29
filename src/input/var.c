@@ -176,7 +176,7 @@ void input_ControlVarInit ( input_thread_t *p_input )
     var_Change( p_input, "chapter", VLC_VAR_SETTEXT, &text, NULL );
 
     /* Delay */
-    var_Create( p_input, "audio-delay", VLC_VAR_INTEGER );
+    var_Create( p_input, "audio-delay", VLC_VAR_INTEGER | VLC_VAR_DOINHERIT );
     var_SetInteger( p_input, "audio-delay",
                     1000 * var_GetInteger( p_input, "audio-desync" ) );
     var_Create( p_input, "spu-delay", VLC_VAR_INTEGER );

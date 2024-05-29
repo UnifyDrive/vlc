@@ -246,7 +246,7 @@ static void aout_DecSynchronize (audio_output_t *aout, mtime_t dec_pts,
                                  int input_rate, bool *b_late)
 {
     aout_owner_t *owner = aout_owner (aout);
-    mtime_t drift;
+    mtime_t drift,time_diff;
 
     /**
      * Depending on the drift between the actual and intended playback times,
@@ -268,8 +268,10 @@ static void aout_DecSynchronize (audio_output_t *aout, mtime_t dec_pts,
         msg_Warn( aout, "[%s:%s:%d]=zspace=: Nothing can be done if timing is unknown. ", __FILE__ , __FUNCTION__, __LINE__);
         return; /* nothing can be done if timing is unknown */
     }
-    drift += mdate () - dec_pts;
-    //msg_Warn( aout, "[%s:%s:%d]=zspace=: drift=%lld, dec_pts=%lld,input_rate=%d. ", __FILE__ , __FUNCTION__, __LINE__, drift, dec_pts, input_rate);
+    time_diff = mdate () - dec_pts;
+    drift += time_diff;
+    if (ASNYC_DEBUG_INFO)
+        msg_Warn( aout, "[%s:%s:%d]=zspace=: drift=%lld, dec_pts=%lld, time_diff=%lld, input_rate=%d. ", __FILE__ , __FUNCTION__, __LINE__, drift, dec_pts, time_diff, input_rate);
 
     /* Late audio output.
      * This can happen due to insufficient caching, scheduling jitter
@@ -278,8 +280,7 @@ static void aout_DecSynchronize (audio_output_t *aout, mtime_t dec_pts,
      * where supported. The other alternative is to flush the buffers
      * completely. */
 
-
-    if (drift > (owner->sync.discontinuity ? 0
+    if (drift > ((owner->sync.discontinuity) ? 0
                   : +3 * input_rate * AOUT_MAX_PTS_DELAY / INPUT_RATE_DEFAULT))
     {
         if (!owner->sync.discontinuity)

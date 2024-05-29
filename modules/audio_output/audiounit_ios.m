@@ -38,6 +38,7 @@
 
 static int  Open  (vlc_object_t *);
 static void Close (vlc_object_t *);
+static int i_local_use_times = 0;
 
 vlc_module_begin ()
     set_shortname("audiounit_ios")
@@ -345,7 +346,7 @@ avas_setPreferredNumberOfChannels(audio_output_t *p_aout,
     NSInteger max_channel_count = [instance maximumOutputNumberOfChannels];
     unsigned channel_count = aout_FormatNbChannels(fmt);
 
-    msg_Warn(p_aout, "[%s:%s:%d]=zspace=: Data channel_count=%d, Device max_channel_count=%d .", __FILE__ , __FUNCTION__, __LINE__, channel_count, max_channel_count);
+    msg_Warn(p_aout, "[%s:%s:%d]=zspace=: Data channel_count=%d, Device[%p] max_channel_count=%d .", __FILE__ , __FUNCTION__, __LINE__, channel_count, instance, max_channel_count);
     /* Increase the preferred number of output channels if possible */
     if (channel_count > 2 && max_channel_count > 2)
     {
@@ -435,7 +436,7 @@ avas_GetOptimalChannelLayout(audio_output_t *p_aout, enum port_type *pport_type,
                 if (!labels_valid)
                 {
                     /* TODO: Guess labels ? */
-                    msg_Warn(p_aout, "no valid channel labels");
+                    msg_Warn(p_aout, "[%s:%s:%d]=zspace=: no valid channel labels for this audiosession port.", __FILE__ , __FUNCTION__, __LINE__);
                     continue;
                 }
 
@@ -561,7 +562,7 @@ avas_SetActive(audio_output_t *p_aout, bool active, NSUInteger options)
         }
         if (@available(iOS 15.0, tvOS 15.0, *)) {
             ret = ret && [instance setSupportsMultichannelContent:p_sys->b_spatial_audio_supported error:&error];
-            msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: Set spatial audio ret=%d.", __FILE__ , __FUNCTION__, __LINE__, ret);
+            msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: Set spatial audio ret=%d, value=%d.", __FILE__ , __FUNCTION__, __LINE__, ret, p_sys->b_spatial_audio_supported);
         }
         ret = ret && [instance setActive:YES withOptions:options error:&error];
         if (ret)
@@ -833,7 +834,13 @@ Start(audio_output_t *p_aout, audio_sample_format_t *restrict fmt)
         ca_LogWarn("failed to set IO mode");
 
     const mtime_t latency_us = [p_sys->avInstance outputLatency] * CLOCK_FREQ;
-    msg_Dbg(p_aout, "Current device has a latency of %lld us, layout=%p, fmt->i_physical_channels=%d", latency_us, layout, fmt->i_physical_channels);
+    i_local_use_times++;
+    #if TARGET_OS_TV
+    p_sys->c.i_use_times = i_local_use_times;
+    msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: Current Device[%p][%d] has a latency of %lld us, current_cha=%d, layout=%p, fmt->i_physical_channels=%s", __FILE__ , __FUNCTION__, __LINE__, p_sys->avInstance, p_sys->c.i_use_times, latency_us, p_sys->c.i_current_channels, layout, aout_FormatPrintChannels( fmt ));
+    #else
+    msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: Current Device[%p] has a latency of %lld us, layout=%p, fmt->i_physical_channels=%s", __FILE__ , __FUNCTION__, __LINE__, p_sys->avInstance, latency_us, layout, aout_FormatPrintChannels( fmt ));
+    #endif
 
     ret = au_Initialize(p_aout, p_sys->au_unit, fmt, layout, latency_us, NULL);
     if (ret != VLC_SUCCESS)
@@ -994,7 +1001,7 @@ Open(vlc_object_t *obj)
 #if TARGET_OS_TV
     AVAudioSessionRouteDescription *currentRoute = sys->avInstance.currentRoute;
     AVAudioChannelCount preferredOutputNumberOfChannels = sys->avInstance.maximumOutputNumberOfChannels;
-    msg_Warn(aout," preferredOutputNumberOfChannels %d, currentRoute.outputs.count=%d. ", (int)preferredOutputNumberOfChannels, currentRoute.outputs.count);
+    msg_Warn(aout," Device[%p] maximumOutputNumberOfChannels %d, currentRoute.outputs.count=%d. ", sys->avInstance, (int)preferredOutputNumberOfChannels, currentRoute.outputs.count);
 #endif
     sys->aoutWrapper = [[AoutWrapper alloc] initWithAout:aout];
     if (sys->aoutWrapper == NULL)
@@ -1012,6 +1019,7 @@ Open(vlc_object_t *obj)
 #if TARGET_OS_TV
     sys->c.max_channels  =  (int)preferredOutputNumberOfChannels;
     sys->c.i_current_channels = 2;
+    sys->c.i_use_times = 0;
 #endif
     aout->start = Start;
     aout->stop = Stop;

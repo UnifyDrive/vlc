@@ -916,7 +916,20 @@ static void DecoderFixTs( decoder_t *p_dec, mtime_t *pi_ts0, mtime_t *pi_ts1,
 
     vlc_assert_locked( &p_owner->lock );
 
-    const mtime_t i_es_delay = p_owner->i_ts_delay;
+    mtime_t i_es_delay = p_owner->i_ts_delay;
+    if (p_owner->p_aout) {
+        const mtime_t i_audio_delay = var_GetInteger( p_owner->p_aout, "audio-latency-less-us" );
+        if (i_audio_delay != 0) {
+            var_SetInteger( p_owner->p_aout, "audio-latency-less-us", 0 );
+            if (p_owner->p_input) {
+                var_SetInteger( p_owner->p_input, "audio-delay", i_audio_delay );
+                msg_Warn(p_dec, "[%s:%s:%d]=zspace=: Set audio-delay to %lld by auto.", __FILE__ , __FUNCTION__, __LINE__, i_audio_delay);
+            }
+            i_es_delay = i_audio_delay;
+        }
+        if (ASNYC_DEBUG_INFO)
+            msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: i_audio_delay=%lld i_es_delay=%lld for [%s].", __FILE__ , __FUNCTION__, __LINE__, i_audio_delay, i_es_delay, module_get_name( p_dec->p_module, false ));
+    }
 
     if( !p_clock )
         return;
@@ -1304,6 +1317,8 @@ static int DecoderPlayAudio( decoder_t *p_dec, block_t *p_audio,
         block_Release( p_audio );
         return 0;
     }
+    if (ASNYC_DEBUG_INFO)
+        msg_Dbg( p_dec, "discarded audio? in i_pts[%lld]............." , p_audio->i_pts );
 
     /* */
     vlc_mutex_lock( &p_owner->lock );
@@ -1323,6 +1338,8 @@ static int DecoderPlayAudio( decoder_t *p_dec, block_t *p_audio,
 
     audio_output_t *p_aout = p_owner->p_aout;
 
+    if (ASNYC_DEBUG_INFO)
+        msg_Dbg( p_dec, "discarded audio? p_aout[%p] i_pts[%lld]diff[%lld] i_rate[%d]" , p_aout , p_audio->i_pts, mdate () - p_audio->i_pts, i_rate );
     if( p_aout != NULL && p_audio->i_pts > VLC_TS_INVALID
      && i_rate >= INPUT_RATE_DEFAULT/AOUT_MAX_INPUT_RATE
      && i_rate <= INPUT_RATE_DEFAULT*AOUT_MAX_INPUT_RATE
@@ -1344,8 +1361,8 @@ static int DecoderPlayAudio( decoder_t *p_dec, block_t *p_audio,
     }
     else
     {
-        msg_Dbg( p_dec, "discarded audio buffer" );
         *pi_lost_sum += 1;
+        msg_Dbg( p_dec, "discarded audio buffer [%d] flushing [%d]" , *pi_lost_sum , p_owner->flushing);
         block_Release( p_audio );
     }
     return 0;
