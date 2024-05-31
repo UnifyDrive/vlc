@@ -349,7 +349,7 @@ vlc_tls_ClientSessionCreateFD(vlc_tls_creds_t *crd, int fd, const char *host,
     return tls;
 }
 
-void vlc_tls_setPrintObj(void *tmp);
+VLC_API void vlc_tls_setPrintObj(void *tmp);
 
 /** @} */
 

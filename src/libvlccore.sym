@@ -770,3 +770,4 @@ vlc_input_attachment_New
 vlc_input_attachment_Hold
 vlc_input_attachment_Release
 EsOutGetBufferSize
+vlc_tls_setPrintObj
