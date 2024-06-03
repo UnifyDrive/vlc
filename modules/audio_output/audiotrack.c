@@ -1589,11 +1589,29 @@ Start( audio_output_t *p_aout, audio_sample_format_t *restrict p_fmt )
         vlc_fourcc_t i_format_pass = p_sys->fmt.i_format;
         i_ret = StartPassthrough( env, p_aout, false);
         if(i_ret != 0){
-            msg_Dbg(p_aout,"  tdx  create  passthrough  failed ");
-            var_SetBool(p_aout,"outPassThroughError",true);
+            msg_Warn(p_aout, "StartPassthrough failed, will try again after 1000ms.");
+            usleep(1000);
+            p_sys->fmt.i_format = i_format_pass;
+            i_ret = StartPassthrough( env, p_aout, false);
+            if(i_ret != 0)
+            {
+                msg_Warn(p_aout,"tdx  create  passthrough  failed for twice.");
+                var_SetBool(p_aout,"outPassThroughError",true);
+            }
         }
     }else if(b_try_passthrough_ac3){
+        vlc_fourcc_t i_format_pass = p_sys->fmt.i_format;
         i_ret = StartPassthrough( env, p_aout, true);
+        if(i_ret != 0){
+            msg_Warn(p_aout, "StartPassthrough passthrough_ac3 failed, will try again after 1000ms.");
+            usleep(1000);
+            p_sys->fmt.i_format = i_format_pass;
+            i_ret = StartPassthrough( env, p_aout, true);
+            if(i_ret != 0)
+            {
+                msg_Warn(p_aout,"tdx  create  passthrough_ac3 failed for twice.");
+            }
+        }
     }else{
         return VLC_EGENERIC;
     }
