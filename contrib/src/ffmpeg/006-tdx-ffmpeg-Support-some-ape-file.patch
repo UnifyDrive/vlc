@@ -1,0 +1,56 @@
+From 9e5ed2ac2261409c750828246bc4e17104dc5ab7 Mon Sep 17 00:00:00 2001
+From: shixuehui <shixuehui@zspace.cn>
+Date: Tue, 4 Jun 2024 20:31:32 +0800
+Subject: [PATCH] Support some ape file.
+
+---
+ libavformat/ape.c | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/libavformat/ape.c b/libavformat/ape.c
+index d6c8ec23b0..29c9bab271 100644
+--- a/libavformat/ape.c
++++ b/libavformat/ape.c
+@@ -85,8 +85,8 @@ static int ape_probe(const AVProbeData * p)
+     if (AV_RL32(p->buf) != MKTAG('M', 'A', 'C', ' '))
+         return 0;
+ 
+-    if (version < APE_MIN_VERSION || version > APE_MAX_VERSION)
+-        return AVPROBE_SCORE_MAX/4;
++    //if (version < APE_MIN_VERSION || version > APE_MAX_VERSION)
++        //return AVPROBE_SCORE_MAX/4;
+ 
+     return AVPROBE_SCORE_MAX;
+ }
+@@ -160,9 +160,9 @@ static int ape_read_header(AVFormatContext * s)
+     ape->fileversion = avio_rl16(pb);
+ 
+     if (ape->fileversion < APE_MIN_VERSION || ape->fileversion > APE_MAX_VERSION) {
+-        av_log(s, AV_LOG_ERROR, "Unsupported file version - %d.%02d\n",
++        /*av_log(s, AV_LOG_ERROR, "Unsupported file version - %d.%02d\n",
+                ape->fileversion / 1000, (ape->fileversion % 1000) / 10);
+-        return AVERROR_PATCHWELCOME;
++        return AVERROR_PATCHWELCOME;*/
+     }
+ 
+     if (ape->fileversion >= 3980) {
+@@ -378,6 +378,8 @@ static int ape_read_packet(AVFormatContext * s, AVPacket * pkt)
+     if (ape->currentframe >= ape->totalframes)
+         return AVERROR_EOF;
+ 
++    av_log(s, AV_LOG_ERROR, "Range: bytes packet pos: %8"PRId64"  size: %8"PRId64"\n",
++               ape->frames[ape->currentframe].pos, ape->frames[ape->currentframe].size);
+     ret64 = avio_seek(s->pb, ape->frames[ape->currentframe].pos, SEEK_SET);
+     if (ret64 < 0)
+         return ret64;
+@@ -415,6 +417,7 @@ static int ape_read_packet(AVFormatContext * s, AVPacket * pkt)
+     pkt->size = ret + extra_size;
+ 
+     ape->currentframe++;
++    av_log(s, AV_LOG_ERROR, "Range: bytes read one packet over.\n");
+ 
+     return 0;
+ }
+-- 
+2.39.1
+

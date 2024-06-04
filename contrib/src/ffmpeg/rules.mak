@@ -264,6 +264,7 @@ ifdef USE_FFMPEG
 	$(APPLY) $(SRC)/ffmpeg/003-tdx-ffmpeg-mov.patch
 	$(APPLY) $(SRC)/ffmpeg/004-tdx-The-parsed-data-is-more-accurate.patch
 	$(APPLY) $(SRC)/ffmpeg/005-tdx-ffmpeg-copy-dovi.patch
+	$(APPLY) $(SRC)/ffmpeg/006-tdx-ffmpeg-Support-some-ape-file.patch
 endif
 ifdef USE_LIBAV
 	$(APPLY) $(SRC)/ffmpeg/libav_gsm.patch
