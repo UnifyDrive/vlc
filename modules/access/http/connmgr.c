@@ -219,7 +219,11 @@ static struct vlc_http_msg *vlc_http_request(struct vlc_http_mgr *mgr,
     struct vlc_http_conn *conn;
     struct vlc_http_stream *stream;
 
+    if (mgr && mgr->obj)
+        vlc_http_dbg((mgr->obj), "Now host=[%s], port=%d", host, port);
     char *proxy = vlc_http_proxy_find(host, port, false);
+    if (mgr && mgr->obj)
+        vlc_http_dbg((mgr->obj), "Now proxy=[%s]", proxy);
     if (proxy != NULL)
     {
         vlc_url_t url;

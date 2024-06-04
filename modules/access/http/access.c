@@ -195,7 +195,7 @@ static int Open(vlc_object_t *obj)
     struct vlc_url_t crd_url;
     char *psz_realm = NULL;
 
-    msg_Warn(access, "[%s:%s:%d]=zspace=: access->psz_url=[%s]", __FILE__ , __FUNCTION__, __LINE__, access->psz_url);
+    msg_Warn(access, "[%s:%s:%d]=zspace=: access->psz_url=[%s], jar=[%p]", __FILE__ , __FUNCTION__, __LINE__, access->psz_url, jar);
     vlc_UrlParse(&crd_url, access->psz_url);
     vlc_credential_init(&crd, &crd_url);
 
@@ -340,6 +340,9 @@ vlc_module_begin()
         change_safe()
         change_private()
     add_string("http-token", NULL, N_("Token"), N_("Token"), true)
+        change_safe()
+        change_private()
+    add_string("zspace-cookies", NULL, N_("Cookies"), N_("Cookies"), true)
         change_safe()
         change_private()
 vlc_module_end()

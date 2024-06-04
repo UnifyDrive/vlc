@@ -34,6 +34,7 @@
 #include <vlc_messages.h>
 #include <vlc_strings.h>
 #include <vlc_http.h>
+#include <vlc_stream.h>
 
 typedef struct http_cookie_t
 {
@@ -44,6 +45,14 @@ typedef struct http_cookie_t
     bool b_host_only;
     bool b_secure;
 } http_cookie_t;
+
+static void *mPrintObj = NULL;
+
+void vlc_http_cookies_set_printObj(void *tmp)
+{
+    mPrintObj = tmp;
+}
+
 
 static char *cookie_get_attribute_value( const char *cookie, const char *attr )
 {
@@ -357,6 +366,10 @@ char *vlc_http_cookies_fetch(vlc_http_cookie_jar_t *p_jar, bool secure,
                              const char *host, const char *path)
 {
     char *psz_cookiebuf = NULL;
+
+    if(mPrintObj) {
+        msg_Dbg((stream_t *)mPrintObj, "[%s:%s:%d]=zspace=: Input cookies array count=%d, host=[%s], path=[%s].", __FILE__ , __FUNCTION__, __LINE__, vlc_array_count( &p_jar->cookies ), host, path);
+    }
 
     vlc_mutex_lock( &p_jar->lock );
 

@@ -880,6 +880,7 @@ libvlc_media_player_new( libvlc_instance_t *instance )
     var_SetString (mp, "audio-meter", "ebur128");
 
     var_Create (mp, "start-title-id", VLC_VAR_INTEGER | VLC_VAR_DOINHERIT);
+    var_Create (mp, "zspace-cookies", VLC_VAR_STRING | VLC_VAR_DOINHERIT);
 
     /* Initialize the shared HTTP cookie jar */
     vlc_value_t cookies;

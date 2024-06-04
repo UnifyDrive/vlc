@@ -771,3 +771,4 @@ vlc_input_attachment_Hold
 vlc_input_attachment_Release
 EsOutGetBufferSize
 vlc_tls_setPrintObj
+vlc_http_cookies_set_printObj

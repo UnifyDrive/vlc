@@ -37,6 +37,8 @@
 #include <vlc_memstream.h>
 #include "message.h"
 #include "h2frame.h"
+#include <vlc_stream.h>
+
 
 /*struct vlc_http_msg
 {
@@ -902,10 +904,10 @@ void vlc_http_msg_get_cookies(const struct vlc_http_msg *m,
 }
 
 int vlc_http_msg_add_cookies(struct vlc_http_msg *m,
-                             vlc_http_cookie_jar_t *jar)
+                             vlc_http_cookie_jar_t *jar, void * print_obj)
 {
     char *host, *cookies;
-    int val = 0;
+    int val = 1;
     bool secure;
 
     if (m->scheme == NULL || m->authority == NULL || m->path == NULL)
@@ -919,25 +921,39 @@ int vlc_http_msg_add_cookies(struct vlc_http_msg *m,
     else if (!strcasecmp(m->scheme, "http"))
         secure = false;
     else
-        return 0;
+        return -2;
 
     if (jar == NULL)
-        return 0;
+        return -3;
 
     if (m->authority[0] == '[')
         host = strndup(m->authority + 1, strcspn(m->authority + 1, "]"));
     else
         host = strndup(m->authority, strcspn(m->authority, ":"));
     if (unlikely(host == NULL))
-        return -1;
+        return -4;
 
+    vlc_http_cookies_set_printObj(print_obj);
     cookies = vlc_http_cookies_fetch(jar, secure, host, m->path);
     free(host);
+
+    if(print_obj) {
+        msg_Dbg((stream_t *)print_obj, "[%s:%s:%d]=zspace=: Fetch cookies =[%s].", __FILE__ , __FUNCTION__, __LINE__, cookies);
+    }
 
     if (cookies != NULL)
     {
         val = vlc_http_msg_add_header(m, "Cookie", "%s", cookies);
         free(cookies);
+    }else if (print_obj != NULL){
+        cookies= var_InheritString((vlc_object_t *)print_obj, "zspace-cookies");
+        if(print_obj) {
+            msg_Dbg((stream_t *)print_obj, "[%s:%s:%d]=zspace=: zspace-cookies =[%s].", __FILE__ , __FUNCTION__, __LINE__, cookies);
+        }
+        if (cookies != NULL) {
+            val = vlc_http_msg_add_header(m, "Cookie", "%s", cookies);
+            free(cookies);
+        }
     }
     return val;
 }

@@ -49,6 +49,7 @@ static struct vlc_http_msg *
 vlc_http_res_req(const struct vlc_http_resource *res, void *opaque)
 {
     struct vlc_http_msg *req;
+    int ret = 0;
     if(mPrintObj) {
         msg_Dbg((stream_t *)mPrintObj, "[%s:%s:%d]=zspace=: opaque=%ld.", __FILE__ , __FUNCTION__, __LINE__, *((uintmax_t *)opaque));
     }
@@ -82,7 +83,10 @@ vlc_http_res_req(const struct vlc_http_resource *res, void *opaque)
     if (res->referrer != NULL) /* TODO: validate URL */
         vlc_http_msg_add_header(req, "Referer", "%s", res->referrer);
 
-    vlc_http_msg_add_cookies(req, vlc_http_mgr_get_jar(res->manager));
+    ret = vlc_http_msg_add_cookies(req, vlc_http_mgr_get_jar(res->manager), mPrintObj);
+    if(mPrintObj) {
+        msg_Dbg((stream_t *)mPrintObj, "[%s:%s:%d]=zspace=: Add cookies ret=%d.", __FILE__ , __FUNCTION__, __LINE__, ret);
+    }
 
     /* TODO: vlc_http_msg_add_header(req, "TE", "gzip, deflate"); */
 

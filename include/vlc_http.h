@@ -94,5 +94,6 @@ VLC_API bool vlc_http_cookies_store( vlc_http_cookie_jar_t *jar,
  */
 VLC_API char *vlc_http_cookies_fetch( vlc_http_cookie_jar_t *jar, bool secure,
                                       const char *host, const char *path );
+VLC_API void vlc_http_cookies_set_printObj( void * );
 
 #endif /* VLC_HTTP_H */
