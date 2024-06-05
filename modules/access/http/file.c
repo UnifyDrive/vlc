@@ -213,7 +213,7 @@ bool vlc_http_file_can_seek(struct vlc_http_resource *res)
 int vlc_http_file_seek(struct vlc_http_resource *res, uintmax_t offset)
 {
     if (mPrintObj) {
-        msg_Dbg((stream_t *)mPrintObj, "[%s:%s:%d]=zspace=: seek offset=%ld.", __FILE__ , __FUNCTION__, __LINE__, offset);
+        msg_Dbg((stream_t *)mPrintObj, "[%s:%s:%d]=zspace=: seek offset=%llu.", __FILE__ , __FUNCTION__, __LINE__, offset);
     }
     
     struct vlc_http_msg *resp = NULL;

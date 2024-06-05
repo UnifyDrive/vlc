@@ -71,7 +71,7 @@ static int FileSeek(stream_t *access, uint64_t pos)
 {
     access_sys_t *sys = access->p_sys;
 
-    msg_Dbg(access, "[%s:%s:%d]=zspace=: seek pos=%ld.", __FILE__ , __FUNCTION__, __LINE__, pos);
+    msg_Dbg(access, "[%s:%s:%d]=zspace=: seek pos=%llu.", __FILE__ , __FUNCTION__, __LINE__, pos);
     if (vlc_http_file_seek(sys->resource, pos))
         return VLC_EGENERIC;
     return VLC_SUCCESS;
