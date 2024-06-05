@@ -299,6 +299,9 @@ static subpicture_t *ConvertSubtitle(decoder_t *dec, AVSubtitle *ffsub, mtime_t 
     //        pts, ffsub->start_display_time, ffsub->end_display_time);
     spu->i_start    = pts + ffsub->start_display_time * INT64_C(1000);
     spu->i_stop     = pts + ffsub->end_display_time * INT64_C(1000);
+    /* Set pgs stop time to 5 second after start time to ensure sup subtitle can work fine */
+    if (dec->p_sys->p_codec->id == AV_CODEC_ID_HDMV_PGS_SUBTITLE)
+        spu->i_stop     = pts + ffsub->start_display_time * INT64_C(1000) + 5000000;
     spu->b_absolute = true; /* We have offset and size for subtitle */
     spu->b_ephemer  = dec->p_sys->b_need_ephemer;
                     /* We only show subtitle for i_stop time only */

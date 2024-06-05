@@ -107,6 +107,7 @@ struct demux_sys_t
     AVCodecContext *m_context;
     AVCodec *m_codec ;
     bool m_parser_split;
+    bool is_sup;
 };
 
 #define DEMUX_INCREMENT (CLOCK_FREQ / 4) /* How far the pcr will go, each round */
@@ -910,6 +911,14 @@ int avformat_OpenDemux( vlc_object_t *p_this )
     ResetTime( p_demux, 0 );
     p_sys->i_nztime = 0;
     p_sys->i_pcr  = VLC_TS_INVALID;
+    if( !strcmp( fmt->name, "sup" ) )
+    {
+        p_sys->is_sup = true;
+    }
+    else
+    {
+        p_sys->is_sup = false;
+    }
     return VLC_SUCCESS;
 }
 
@@ -1437,6 +1446,9 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
         {
             i64 = va_arg( args, int64_t );
             i64 = i64 *AV_TIME_BASE / 1000000 + i_start_time;
+            /* I can not find better way to make sup decoder work fine. */
+            if (p_sys->is_sup)
+                i64 = i_start_time;
 
             msg_Warn( p_demux, "DEMUX_SET_TIME: %"PRId64, i64 );
 
