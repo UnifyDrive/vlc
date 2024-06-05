@@ -2196,6 +2196,15 @@ static bool Control( input_thread_t *p_input,
             if( input_priv(p_input)->i_slave > 0 && var_GetInteger( p_input, "spu-es" ) == val.i_int )
                 SlaveSeek( p_input );
 
+            /* When selecting external subtitle, disable libbluray embedded subtitle */
+            char * module_name = module_get_object (input_priv(p_input)->master->p_demux->p_module);
+            if( (module_name && !strcmp(module_name, "libbluray"))
+                && (var_GetInteger( p_input, "spu-es" ) == val.i_int)
+                && (val.i_int < 0x1200) )
+            {
+                val.i_int = -SPU_ES;
+                msg_Dbg(p_input,"spu-es index = %d",var_GetInteger( p_input, "spu-es" ));
+            }
             demux_Control( input_priv(p_input)->master->p_demux, DEMUX_SET_ES, (int)val.i_int );
             break;
 
