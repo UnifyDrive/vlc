@@ -219,11 +219,20 @@ static struct vlc_http_msg *vlc_http_request(struct vlc_http_mgr *mgr,
     struct vlc_http_conn *conn;
     struct vlc_http_stream *stream;
 
+    if (mgr && mgr->obj) {
+        char *cookies = NULL;
+        cookies= var_InheritString(mgr->obj, "zspace-cookies");
+        msg_Dbg(mgr->obj, "[%s:%s:%d]=zspace=: zspace-cookies =[%s].", __FILE__ , __FUNCTION__, __LINE__, cookies);
+        if (cookies != NULL) {
+            vlc_http_msg_add_header(req, "Cookie", "%s", cookies);
+            free(cookies);
+        }
+    }
     if (mgr && mgr->obj)
-        vlc_http_dbg((mgr->obj), "Now host=[%s], port=%d", host, port);
+        vlc_http_dbg((mgr->obj), "[%s:%s:%d]=zspace=: Now host=[%s], port=%d", __FILE__ , __FUNCTION__, __LINE__, host, port);
     char *proxy = vlc_http_proxy_find(host, port, false);
     if (mgr && mgr->obj)
-        vlc_http_dbg((mgr->obj), "Now proxy=[%s]", proxy);
+        vlc_http_dbg((mgr->obj), "[%s:%s:%d]=zspace=: Now proxy=[%s]", __FILE__ , __FUNCTION__, __LINE__, proxy);
     if (proxy != NULL)
     {
         vlc_url_t url;
