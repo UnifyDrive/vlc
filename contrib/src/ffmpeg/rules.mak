@@ -235,6 +235,10 @@ endif
 
 FFMPEGCONF += --nm="$(NM)" --ar="$(AR)" --ranlib="$(RANLIB)"
 
+ifdef HAVE_TVOS
+	LDFLAGS += -ld64
+endif
+
 #ifeq ($(wildcard $(TARBALLS)/ffmpeg-$(FFMPEG_BASENAME).tar.xz),)
 
 $(TARBALLS)/ffmpeg-$(FFMPEG_BASENAME).tar.xz:
