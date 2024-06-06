@@ -141,6 +141,10 @@ endif
 VPX_LDFLAGS += -arch $(PLATFORM_SHORT_ARCH)
 endif
 
+ifdef HAVE_TVOS
+	VPX_LDFLAGS += -ld64
+endif
+
 ifneq ($(filter i386 x86_64,$(ARCH)),)
 # broken text relocations or invalid register for .seh_savexmm with gcc8
 VPX_CONF += --disable-mmx
