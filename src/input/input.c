@@ -2193,6 +2193,7 @@ static bool Control( input_thread_t *p_input,
             /* No need to force update, es_out does it if needed */
             es_out_Control( input_priv(p_input)->p_es_out_display,
                             ES_OUT_SET_ES_BY_ID, (int)val.i_int );
+            msg_Dbg(p_input,"INPUT_CONTROL_SET_ES es_id = %d",(int)val.i_int);
             if( input_priv(p_input)->i_slave > 0 && var_GetInteger( p_input, "spu-es" ) == val.i_int )
                 SlaveSeek( p_input );
 

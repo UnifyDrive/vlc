@@ -1115,6 +1115,12 @@ libvlc_media_tracks_get( libvlc_media_t *p_md, libvlc_media_track_t *** pp_es )
                                             strdup(p_es->subs.psz_encoding) : NULL;
             break;
         }
+        if (p_md->p_libvlc_instance && p_md->p_libvlc_instance->p_libvlc_int)
+        {
+            msg_Dbg(p_md->p_libvlc_instance->p_libvlc_int, "[%s:%s:%d]=zspace=: type=%d,id=%d,codec=%4.4s,lang=%s,desc=%s,path=%s", __FILE__ ,
+            __FUNCTION__, __LINE__, p_mes->i_type, p_mes->i_id, (const char*)&p_es->i_codec, p_mes->psz_language, p_mes->psz_description, p_mes->psz_path);
+        }
+
     }
 
     vlc_mutex_unlock( &p_input_item->lock );
