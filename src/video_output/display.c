@@ -714,9 +714,9 @@ static void VoutDisplayFitWindow(vout_display_t *vd, bool default_size)
     /* Fix sometimes MacOS window size is not right */
 #ifdef __APPLE__
     #include"TargetConditionals.h"
-    #if !TARGET_OS_MAC
-    msg_Dbg(vd, "[%s:%s:%d]=zspace=: Reset DisplayWindowSize (%d, %d) .", __FILE__ , __FUNCTION__, __LINE__, display_width, display_height);
-    vout_SetDisplayWindowSize(osys->vout, display_width, display_height);
+    #if (TARGET_OS_IPHONE || TARGET_OS_TV)
+        msg_Dbg(vd, "[%s:%s:%d]=zspace=: Reset DisplayWindowSize (%d, %d) .", __FILE__ , __FUNCTION__, __LINE__, display_width, display_height);
+        vout_SetDisplayWindowSize(osys->vout, display_width, display_height);
     #endif
 #else
     msg_Dbg(vd, "[%s:%s:%d]=zspace=: Reset DisplayWindowSize (%d, %d) .", __FILE__ , __FUNCTION__, __LINE__, display_width, display_height);
