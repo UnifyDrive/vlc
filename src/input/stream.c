@@ -349,6 +349,7 @@ char *vlc_stream_ReadLine( stream_t *s )
         /* Make sure the \0 is there */
         p_line[i_line] = '\0';
 
+        //msg_Dbg(s, "=zspace=: Get line=[%s].", p_line);
         return p_line;
     }
 

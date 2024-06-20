@@ -195,6 +195,9 @@ size_t HTTPChunkSource::getBytesRead() const
 
 block_t * HTTPChunkSource::read(size_t readsize)
 {
+    if (connManager && connManager->getObjectDebug()) {
+        //msg_Dbg(connManager->getObjectDebug(), "[%s:%s:%d]=zspace=: readsize=%d.", __FILE__ , __FUNCTION__, __LINE__, readsize);
+    }
     vlc_mutex_locker locker(&lock);
     if(!prepare())
     {
@@ -372,6 +375,9 @@ void HTTPChunkBufferedSource::release()
 
 void HTTPChunkBufferedSource::bufferize(size_t readsize)
 {
+    if (connManager && connManager->getObjectDebug()) {
+        //msg_Dbg(connManager->getObjectDebug(), "[%s:%s:%d]=zspace=: readsize=%d.", __FILE__ , __FUNCTION__, __LINE__, readsize);
+    }
     vlc_mutex_lock(&lock);
     if(!prepare())
     {

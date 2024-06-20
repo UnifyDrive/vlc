@@ -111,6 +111,9 @@ void PlaylistManager::unsetPeriod()
 
 bool PlaylistManager::setupPeriod()
 {
+    if (p_demux) {
+        //msg_Dbg(p_demux, "[%s:%s:%d]=zspace=: Begin.", __FILE__ , __FUNCTION__, __LINE__);
+    }
     if(!currentPeriod)
         return false;
 
@@ -138,6 +141,9 @@ bool PlaylistManager::setupPeriod()
                 continue;
             }
 
+            if (p_demux) {
+                //msg_Dbg(p_demux, "[%s:%s:%d]=zspace=: Push one AbstractStream.", __FILE__ , __FUNCTION__, __LINE__);
+            }
             streams.push_back(st);
 
             /* Generate stream description */
@@ -684,12 +690,16 @@ void PlaylistManager::Run()
         if (b_canceled)
             break;
 
+        //msg_Dbg(p_demux, "[%s:%s:%d]=zspace=: Before needupdate.", __FILE__ , __FUNCTION__, __LINE__);
         if(needsUpdate())
         {
-            if(updatePlaylist())
+            //msg_Dbg(p_demux, "[%s:%s:%d]=zspace=: Before updateplaylist.", __FILE__ , __FUNCTION__, __LINE__);
+            if(updatePlaylist()) {
+                //msg_Dbg(p_demux, "[%s:%s:%d]=zspace=: Before scheduleNextUpdate.", __FILE__ , __FUNCTION__, __LINE__);
                 scheduleNextUpdate();
-            else
-                failedupdates++;
+            }
+            //else
+                //failedupdates++;
         }
 
         vlc_mutex_lock(&demux.lock);
@@ -746,6 +756,9 @@ void PlaylistManager::updateControlsPosition()
     std::vector<AbstractStream *>::iterator it;
     for(it=streams.begin(); it!=streams.end(); ++it)
     {
+        if (p_demux) {
+            //msg_Dbg(p_demux, "[%s:%s:%d]=zspace=: Meet one AbstractStream.", __FILE__ , __FUNCTION__, __LINE__);
+        }
         AbstractStream *st = *it;
         if(st->isValid() && !st->isDisabled() && st->isSelected())
         {
@@ -774,9 +787,9 @@ void PlaylistManager::updateControlsPosition()
     cached.b_live = playlist->isLive();
 
     SeekDebug(msg_Dbg(p_demux, "playlist Start/End %ld/%ld len %ld"
-                               "rap pl/demux (%ld/%ld)",
+                               "rap pl/demux (%ld/%ld)  cached.b_live=%d",
                       cached.playlistStart, cached.playlistEnd, cached.playlistEnd,
-                      rapPlaylistStart, rapDemuxStart));
+                      rapPlaylistStart, rapDemuxStart, cached.b_live));
 
     if(cached.b_live)
     {

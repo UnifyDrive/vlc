@@ -58,6 +58,7 @@ namespace adaptive
                 virtual const std::string & getContentType() const;
                 virtual const ConnectionParams &getRedirection() const;
                 virtual void    setUsed( bool ) = 0;
+                vlc_object_t*    getObjectDebug()const;
 
             protected:
                 vlc_object_t      *p_object;

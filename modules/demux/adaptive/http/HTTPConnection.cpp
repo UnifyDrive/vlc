@@ -83,6 +83,11 @@ const ConnectionParams & AbstractConnection::getRedirection() const
     return locationparams;
 }
 
+vlc_object_t* AbstractConnection::getObjectDebug()const
+{
+    return p_object;
+}
+
 class adaptive::http::LibVLCHTTPSource : public adaptive::AbstractSource
 {
      friend class LibVLCHTTPConnection;
@@ -366,6 +371,7 @@ RequestStatus LibVLCHTTPConnection::request(const std::string &path,
     vlc_UrlClean(&crd_url);
     free(psz_realm);
 
+    //msg_Dbg(p_object, "[%s:%s:%d]=zspace=: status=%d.", __FILE__ , __FUNCTION__, __LINE__, status);
     if (status >= 400)
         return RequestStatus::GenericError;
 

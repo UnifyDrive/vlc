@@ -602,10 +602,12 @@ std::list<Tag *> M3U8Parser::parseEntries(stream_t *stream)
 {
     std::list<Tag *> entrieslist;
     Tag *lastTag = nullptr;
+    bool b_meet_gap = false;
     char *psz_line;
 
     while((psz_line = vlc_stream_ReadLine(stream)))
     {
+        //msg_Dbg(stream, "[%s:%s:%d]=zspace=: [%s].", __FILE__ , __FUNCTION__, __LINE__, psz_line);
         if(*psz_line == '#')
         {
             if(!strncmp(psz_line, "#EXT", 4)) //tag
@@ -625,14 +627,22 @@ std::list<Tag *> M3U8Parser::parseEntries(stream_t *stream)
 
                 if(!key.empty())
                 {
-                    Tag *tag = TagFactory::createTagByName(key, attributes);
-                    if(tag)
-                        entrieslist.push_back(tag);
-                    lastTag = tag;
+                    if (!strncmp(key.c_str(), "EXT-X-GAP", 9)) {
+                        b_meet_gap = true;
+                        //msg_Dbg(stream, "[%s:%s:%d]=zspace=: Meet gap.", __FILE__ , __FUNCTION__, __LINE__);
+                    }else if (b_meet_gap) {
+                        lastTag = nullptr;
+                        //msg_Dbg(stream, "[%s:%s:%d]=zspace=: Meet gap, do not care EXTINF.", __FILE__ , __FUNCTION__, __LINE__);
+                    }else {
+                        Tag *tag = TagFactory::createTagByName(key, attributes);
+                        if(tag)
+                            entrieslist.push_back(tag);
+                        lastTag = tag;
+                    }
                 }
             }
         }
-        else if(*psz_line)
+        else if(*psz_line && b_meet_gap == false)
         {
             /* URI */
             if(lastTag && lastTag->getType() == AttributesTag::EXTXSTREAMINF)
@@ -654,6 +664,8 @@ std::list<Tag *> M3U8Parser::parseEntries(stream_t *stream)
         else // drop
         {
             lastTag = nullptr;
+            b_meet_gap = false;
+            //msg_Dbg(stream, "[%s:%s:%d]=zspace=: Meet gap, set false.", __FILE__ , __FUNCTION__, __LINE__);
         }
 
         free(psz_line);

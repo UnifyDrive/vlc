@@ -212,13 +212,6 @@ static struct vlc_http_msg *vlc_http_request(struct vlc_http_mgr *mgr,
     if (mgr->creds != NULL && mgr->conn != NULL)
         return NULL; /* switch from HTTPS to HTTP not implemented */
 
-    struct vlc_http_msg *resp = vlc_http_mgr_reuse(mgr, host, port, req);
-    if (resp != NULL)
-        return resp;
-
-    struct vlc_http_conn *conn;
-    struct vlc_http_stream *stream;
-
     if (mgr && mgr->obj) {
         char *cookies = NULL;
         cookies= var_InheritString(mgr->obj, "zspace-cookies");
@@ -228,6 +221,14 @@ static struct vlc_http_msg *vlc_http_request(struct vlc_http_mgr *mgr,
             free(cookies);
         }
     }
+    
+    struct vlc_http_msg *resp = vlc_http_mgr_reuse(mgr, host, port, req);
+    if (resp != NULL)
+        return resp;
+
+    struct vlc_http_conn *conn;
+    struct vlc_http_stream *stream;
+
     if (mgr && mgr->obj)
         vlc_http_dbg((mgr->obj), "[%s:%s:%d]=zspace=: Now host=[%s], port=%d", __FILE__ , __FUNCTION__, __LINE__, host, port);
     char *proxy = vlc_http_proxy_find(host, port, false);

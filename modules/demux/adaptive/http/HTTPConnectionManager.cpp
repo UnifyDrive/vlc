@@ -70,6 +70,11 @@ void AbstractConnectionManager::deleteSource(AbstractChunkSource *source)
     delete source;
 }
 
+vlc_object_t* AbstractConnectionManager::getObjectDebug()const
+{
+    return p_object;
+}
+
 HTTPConnectionManager::HTTPConnectionManager    (vlc_object_t *p_object_)
     : AbstractConnectionManager( p_object_ ),
       localAllowed(false)

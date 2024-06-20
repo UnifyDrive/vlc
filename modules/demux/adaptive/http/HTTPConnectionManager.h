@@ -63,6 +63,7 @@ namespace adaptive
                 virtual void updateDownloadRate(const ID &, size_t,
                                                 mtime_t, mtime_t) override;
                 void setDownloadRateObserver(IDownloadRateObserver *);
+                vlc_object_t*    getObjectDebug()const;
 
             protected:
                 void deleteSource(AbstractChunkSource *);
