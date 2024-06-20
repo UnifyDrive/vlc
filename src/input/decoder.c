@@ -2234,7 +2234,8 @@ void input_DecoderDecode( decoder_t *p_dec, block_t *p_block, bool b_do_pace )
         i_block_total_len += block->i_buffer;
         block = block->p_next;
     }
-    //msg_Dbg( p_dec, "Range: bytes i_block_total_len=%lld.", i_block_total_len );
+    input_SendEventFIFOReadedLen( p_owner->p_input, i_block_total_len );
+    //msg_Warn( p_dec, "Range: bytes Media i_block_total_len=%lld.", i_block_total_len );
 
     vlc_fifo_Lock( p_owner->p_fifo );
     if( !b_do_pace )

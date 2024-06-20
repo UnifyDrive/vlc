@@ -219,6 +219,8 @@ void input_ControlVarInit ( input_thread_t *p_input )
     var_Create( p_input, "intf-event", VLC_VAR_INTEGER );
 
     var_Create( p_input, "demux-name", VLC_VAR_STRING | VLC_VAR_DOINHERIT );
+    var_Create( p_input, "fifo-readed-len", VLC_VAR_INTEGER | VLC_VAR_DOINHERIT );
+    var_Create( p_input, "socket-readed-len", VLC_VAR_INTEGER | VLC_VAR_DOINHERIT );
 
     /* Add all callbacks
      * XXX we put callback only in non preparsing mode. We need to create the variable

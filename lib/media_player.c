@@ -551,6 +551,17 @@ input_event_changed( vlc_object_t * p_this, char const * psz_cmd,
     {
         event.type = libvlc_MediaPlayerSWVdecUsed;
         libvlc_event_send( &p_mi->event_manager, &event );
+    }else if ( newval.i_int == INPUT_EVENT_FIFO_READED_LEN )
+    {
+        event.u.media_player_fifo_readed_len_changed.len = var_GetInteger( p_input, "fifo-readed-len" );
+        event.type = libvlc_MediaPlayerFifoReadedLenChanged;
+        //msg_Dbg(p_input, "[%s:%s:%d]=zspace=:  CachedLen=%d.", __FILE__ , __FUNCTION__, __LINE__, event.u.media_player_fifo_readed_len_changed.len);
+        libvlc_event_send( &p_mi->event_manager, &event );
+    }else if ( newval.i_int == INPUT_EVENT_SOCKET_READED_LEN )
+    {
+        event.u.media_player_socket_readed_len_changed.len = var_GetInteger( p_input, "socket-readed-len" );
+        event.type = libvlc_MediaPlayerSocketReadedLenChanged;
+        libvlc_event_send( &p_mi->event_manager, &event );
     }
 
     return VLC_SUCCESS;

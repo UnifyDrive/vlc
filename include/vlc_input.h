@@ -361,6 +361,10 @@ typedef enum input_event_type_e
 
     /* video decoder is software */
     INPUT_EVENT_SWVDEC,
+    /* socket Readed length */
+    INPUT_EVENT_SOCKET_READED_LEN,
+    /* FIFO Readed length */
+    INPUT_EVENT_FIFO_READED_LEN,
 } input_event_type_e;
 
 /**

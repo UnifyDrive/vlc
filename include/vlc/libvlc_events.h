@@ -102,6 +102,8 @@ enum libvlc_event_e {
     libvlc_MediaPlayerSupportVideoCodecType,
     libvlc_MediaPlayerVoutModuleName,
     libvlc_MediaPlayerDemuxModuleName,
+    libvlc_MediaPlayerSocketReadedLenChanged,
+    libvlc_MediaPlayerFifoReadedLenChanged,
 
     libvlc_MediaListItemAdded=0x200,
     libvlc_MediaListWillAddItem,
@@ -277,6 +279,18 @@ typedef struct libvlc_event_t
         {
             libvlc_time_t   new_length;
         } media_player_length_changed;
+
+        /* socket Readed length changed */
+        struct
+        {
+            int len;
+        } media_player_socket_readed_len_changed;
+
+        /* FIFO Readed length changed */
+        struct
+        {
+            int len;
+        } media_player_fifo_readed_len_changed;
 
          /* passthrough error changed */
         struct

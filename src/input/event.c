@@ -320,6 +320,25 @@ void input_SendEventDemuxModuleName( input_thread_t *p_input, char * name )
     var_SetString(p_input, "demux-name", name);
 }
 
+void input_SendEventFIFOReadedLen( input_thread_t *p_input, int len )
+{
+    vlc_value_t val;
+
+    val.i_int = len;
+    var_Change( p_input, "fifo-readed-len", VLC_VAR_SETVALUE, &val, NULL );
+    Trigger( p_input, INPUT_EVENT_FIFO_READED_LEN );
+}
+
+void input_SendEventSocketReadedLen( input_thread_t *p_input, int len )
+{
+    vlc_value_t val;
+
+    val.i_int = len;
+    var_Change( p_input, "socket-readed-len", VLC_VAR_SETVALUE, &val, NULL );
+    Trigger( p_input, INPUT_EVENT_SOCKET_READED_LEN );
+}
+
+
 /*****************************************************************************
  * Event for control.c/input.c
  *****************************************************************************/

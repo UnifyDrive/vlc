@@ -81,6 +81,9 @@ void input_SendEventAout( input_thread_t *p_input );
 *****************************************************************************/
 void input_SendEventSWVdec( input_thread_t *p_input );
 void input_SendEventDemuxModuleName( input_thread_t *p_input, char *name );
+void input_SendEventFIFOReadedLen( input_thread_t *p_input, int len );
+void input_SendEventSocketReadedLen( input_thread_t *p_input, int len );
+
 
 /*****************************************************************************
  * Event for control.c/input.c

@@ -43,6 +43,7 @@
 #include <libvlc.h>
 #include "stream.h"
 #include "mrl_helpers.h"
+#include "event.h"
 
 typedef struct stream_priv_t
 {
@@ -454,6 +455,7 @@ ssize_t vlc_stream_ReadPartial(stream_t *s, void *buf, size_t len)
 ssize_t vlc_stream_Read(stream_t *s, void *buf, size_t len)
 {
     size_t copied = 0;
+    static int64_t i_writeover_len = 0;
 
     while (len > 0)
     {
@@ -470,6 +472,8 @@ ssize_t vlc_stream_Read(stream_t *s, void *buf, size_t len)
         copied += ret;
     }
 
+    i_writeover_len += copied;
+    //msg_Warn(s, "=zspace=: vlc_stream_Read len=%lld.", i_writeover_len);
     return copied;
 }
 
@@ -524,6 +528,7 @@ ssize_t vlc_stream_Peek(stream_t *s, const uint8_t **restrict bufp, size_t len)
             return peek->i_buffer;
     }
 
+    //msg_Warn(s, "=zspace=: peek len=%lld.", len);
     return len;
 }
 
@@ -531,6 +536,7 @@ block_t *vlc_stream_ReadBlock(stream_t *s)
 {
     stream_priv_t *priv = (stream_priv_t *)s;
     block_t *block;
+    static int64_t i_readblock_len = 0;
 
     if (vlc_killed())
     {
@@ -574,6 +580,11 @@ block_t *vlc_stream_ReadBlock(stream_t *s)
     if (block != NULL)
         priv->offset += block->i_buffer;
 
+    i_readblock_len += block?block->i_buffer:0;
+    if (s->p_input) {
+        //msg_Warn(s, "=zspace=: vlc_stream_ReadBlock len=%lld, file offset=%lld.", i_readblock_len, priv->offset);
+        input_SendEventSocketReadedLen( s->p_input, i_readblock_len );
+    }
     return block;
 }
 
