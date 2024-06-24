@@ -507,6 +507,13 @@ ca_Initialize(audio_output_t *p_aout, const audio_sample_format_t *fmt,
     {
         /* 200 ms of buffering */
         p_sys->i_out_max_size = i_audiobuffer_size / 5;
+        int increase_buffer = var_GetInteger(p_aout, "increase-buffer");
+        if (increase_buffer == 1)
+        {
+            /* 500 ms */
+            p_sys->i_out_max_size = i_audiobuffer_size / 2;
+        }
+        msg_Warn(p_aout, "increase_buffer %d", increase_buffer);
     }
     p_sys->i_no_space_times = 0;
 

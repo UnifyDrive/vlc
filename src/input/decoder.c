@@ -399,6 +399,10 @@ static int aout_update_format( decoder_t *p_dec )
                 var_SetInteger( p_aout, "dtsProfile", p_dec->fmt_out.i_profile );
             }
             var_SetBool(p_aout,"outPassThroughError",false);
+            if (p_dec->fmt_in.i_codec == VLC_CODEC_WMA2)
+            {
+                var_SetInteger(p_aout, "increase-buffer", 1);
+            }
             if( aout_DecNew( p_aout, &format,
                              &p_dec->fmt_out.audio_replay_gain,
                              &request_vout ) )
