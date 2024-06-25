@@ -659,13 +659,6 @@ AudioTrack_getPlaybackHeadPosition( JNIEnv *env, audio_output_t *p_aout )
     i_pos = 0xFFFFFFFFL & JNI_AT_CALL_INT( getPlaybackHeadPosition );
     //msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Get PlaybackHeadPosition=%d. ", __FILE__ , __FUNCTION__, __LINE__, i_pos);
     /* uint32_t to uint64_t */
-    if (p_sys->b_after_flush && p_sys->b_passthrough) {
-        if (i_pos <= 0) {
-            p_sys->b_after_flush = false;
-            msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Get PlaybackHeadPosition==0, reset b_after_flush to false. ", __FILE__ , __FUNCTION__, __LINE__);
-        }else
-            i_pos = 0;
-    }
     if( p_sys->headpos.i_last > i_pos /*&& i_pos > 0*/)
         p_sys->headpos.i_wrap_count++;
     //msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Get PlaybackHeadPosition=%d,i_wrap_count=%d. ", __FILE__ , __FUNCTION__, __LINE__, i_pos, p_sys->headpos.i_wrap_count);
@@ -764,13 +757,14 @@ AudioTrack_GetSmoothPositionUs( JNIEnv *env, audio_output_t *p_aout )
                 msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Not get usefull HeadPosition for passthrough, return 0. ", __FILE__ , __FUNCTION__, __LINE__);
                 return 0;
             }
-            if (p_sys->i_ori_format == VLC_CODEC_EAC3 && p_sys->fmt.i_bytes_per_frame == 1 && p_sys->b_a52_align == true) {
-                p_sys->smoothpos.i_latency_us = -500000;
-            }else if ((p_sys->i_ori_format == VLC_CODEC_EAC3 || p_sys->i_ori_format == VLC_CODEC_DTS) && p_sys->fmt.i_bytes_per_frame != 1) {
-                p_sys->smoothpos.i_latency_us = -197000;
-            }
+            // if (p_sys->i_ori_format == VLC_CODEC_EAC3 && p_sys->fmt.i_bytes_per_frame == 1 && p_sys->b_a52_align == true) {
+            //     p_sys->smoothpos.i_latency_us = -500000;
+            // }else if ((p_sys->i_ori_format == VLC_CODEC_EAC3 || p_sys->i_ori_format == VLC_CODEC_DTS) && p_sys->fmt.i_bytes_per_frame != 1) {
+            //     p_sys->smoothpos.i_latency_us = -197000;
+            // }
         }
-        else if( jfields.AudioSystem.getOutputLatency )
+
+        if( jfields.AudioSystem.getOutputLatency )
         {
             int i_latency_ms = JNI_CALL( CallStaticIntMethod,
                                          jfields.AudioSystem.clazz,
@@ -1584,9 +1578,11 @@ Start( audio_output_t *p_aout, audio_sample_format_t *restrict p_fmt )
     }
     if( AOUT_FMT_LINEAR( &p_sys->fmt ) )
     {
+        msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: StartPCM ....",__FILE__ , __FUNCTION__, __LINE__);
         i_ret = StartPCM( env, p_aout, i_max_channels );
     }else if( b_try_passthrough ){
         vlc_fourcc_t i_format_pass = p_sys->fmt.i_format;
+        msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: StartPassthrough ....",__FILE__ , __FUNCTION__, __LINE__);
         i_ret = StartPassthrough( env, p_aout, false);
         if(i_ret != 0){
             msg_Warn(p_aout, "StartPassthrough failed, will try again after 1000ms.");
@@ -1601,6 +1597,7 @@ Start( audio_output_t *p_aout, audio_sample_format_t *restrict p_fmt )
         }
     }else if(b_try_passthrough_ac3){
         vlc_fourcc_t i_format_pass = p_sys->fmt.i_format;
+        msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: StartPassthrough eac3 ....",__FILE__ , __FUNCTION__, __LINE__);
         i_ret = StartPassthrough( env, p_aout, true);
         if(i_ret != 0){
             msg_Warn(p_aout, "StartPassthrough passthrough_ac3 failed, will try again after 1000ms.");
@@ -1682,9 +1679,15 @@ Start( audio_output_t *p_aout, audio_sample_format_t *restrict p_fmt )
         if (!var_InheritBool(p_aout, "spdif") && !var_InheritBool(p_aout, "spdif-ac3")) {
             /* 200 ms of buffering */
             p_sys->circular.i_size = p_sys->circular.i_size / 5;
-        } else {
+        }
+        else if(p_sys->fmt.i_format == VLC_CODEC_TRUEHD)
+        {
             p_sys->circular.i_size = p_sys->circular.i_size * AOUT_MAX_PREPARE_TIME
-                               / CLOCK_FREQ * 10;
+                             / CLOCK_FREQ * 10;
+        }
+        else
+        {
+            p_sys->circular.i_size = p_sys->circular.i_size;
         }
     }
 

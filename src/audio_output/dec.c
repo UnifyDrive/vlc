@@ -297,16 +297,27 @@ static void aout_DecSynchronize (audio_output_t *aout, mtime_t dec_pts,
             return;
         #endif
 #endif
-        aout_OutputFlush (aout, false);
+        if(!aout_FiltersCanResample(owner->filters))
+        {
+            aout_StopResampling (aout);
+            owner->sync.end = VLC_TS_INVALID;
+            owner->sync.discontinuity = true;
+            *b_late = true;
+            return;
+        }
+        else
+        {
+            aout_OutputFlush (aout, false);
 
-        aout_StopResampling (aout);
-        owner->sync.end = VLC_TS_INVALID;
-        owner->sync.discontinuity = true;
+            aout_StopResampling (aout);
+            owner->sync.end = VLC_TS_INVALID;
+            owner->sync.discontinuity = true;
 
-        /* Now the output might be too early... Recheck. */
-        if (aout_OutputTimeGet (aout, &drift) != 0)
-            return; /* nothing can be done if timing is unknown */
-        drift += mdate () - dec_pts;
+            /* Now the output might be too early... Recheck. */
+            if (aout_OutputTimeGet (aout, &drift) != 0)
+                return; /* nothing can be done if timing is unknown */
+            drift += mdate () - dec_pts;
+        }
     }
 
     /* Early audio output.
@@ -322,6 +333,10 @@ static void aout_DecSynchronize (audio_output_t *aout, mtime_t dec_pts,
         if (!owner->sync.discontinuity)
             msg_Warn (aout, "playback way too early (%"PRId64"): "
                       "playing silence", drift);
+        else
+            msg_Warn (aout, "playback way too early (%"PRId64"): "
+                      "playing silence", drift);
+
 #ifdef __APPLE__
         #include"TargetConditionals.h"
         #if (TARGET_OS_IPHONE || TARGET_OS_TV)
