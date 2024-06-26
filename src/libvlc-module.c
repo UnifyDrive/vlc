@@ -778,6 +778,9 @@ static const char *const ppsz_prefres[] = {
     "Load this subtitle file. To be used when autodetect cannot detect " \
     "your subtitle file.")
 
+#define BLACK_AREA_TEXT N_("Black area subtitles")
+#define BLACK_AREA_LONGTEXT N_("Black area subtitles")
+
 /* DVD and VCD devices */
 #define DVD_DEV_TEXT N_("DVD device")
 #define VCD_DEV_TEXT N_("VCD device")
@@ -1734,6 +1737,7 @@ vlc_module_begin ()
                      SUB_SOURCE_TEXT, SUB_SOURCE_LONGTEXT, false )
     add_module_list( "sub-filter", "sub filter", NULL,
                      SUB_FILTER_TEXT, SUB_FILTER_LONGTEXT, false )
+    add_bool( "support-black-area-subtitles", false, BLACK_AREA_TEXT, BLACK_AREA_LONGTEXT, true )
 
 /* Input options */
     set_category( CAT_INPUT )

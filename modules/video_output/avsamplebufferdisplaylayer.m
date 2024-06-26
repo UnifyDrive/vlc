@@ -83,6 +83,8 @@ struct vout_display_sys_t
 #if TARGET_OS_OSX
     CGImageRef cgImage;
 #endif
+    /* subtitles can be moved to out of the picture */
+    bool b_black_area_subtitles;
 };
 
 #define VLCAssertMainThread() assert([[NSThread currentThread] isMainThread])
@@ -175,6 +177,11 @@ static int Open(vlc_object_t *this)
         memset(&sys->sub_last_region, 0x00, sizeof(Rect));
         sys->i_sub_last_order = -1;
         
+        sys->b_black_area_subtitles = var_InheritBool(vd, "support-black-area-subtitles");
+        msg_Dbg(vd, "[%s:%s:%d]=zspace=: b_black_area_subtitles=%d", __FILE__ , __FUNCTION__, __LINE__, sys->b_black_area_subtitles);
+        vout_display_SendEventDisplaySize(vd, sys->displayLayer.frame.size.width,
+                                          sys->displayLayer.frame.size.height);
+
         msg_Dbg(vd, "[%s:%s:%d]=zspace=: Exit", __FILE__ , __FUNCTION__, __LINE__);
         return VLC_SUCCESS;
     
@@ -408,7 +415,10 @@ static void GetDisplayRect(vout_display_t *vd, Rect memset_bounds, Rect *p_out_b
         CGFloat height = vd->source.i_height *sys->videoView.layer.bounds.size.width/vd->source.i_width;
         scale_height = vd->source.i_height/height;
         //msg_Dbg(vd, "[%s:%s:%d]=zspace=: scale_width %f scale_height %f", __FILE__ , __FUNCTION__, __LINE__,scale_width, scale_height);
-        black_height = (sys->videoView.layer.bounds.size.height - height)/2 ;
+        if (!sys->b_black_area_subtitles)
+        {
+            black_height = (sys->videoView.layer.bounds.size.height - height)/2 ;
+        }
     }
     else
     {
@@ -451,6 +461,19 @@ static void PicturePrepare(vout_display_t *vd, picture_t *pic, subpicture_t *sub
         {
             video_format_t sub_fmt;
             video_format_ApplyRotation(&sub_fmt, &vd->fmt);
+            float video_ratio = (float)vd->source.i_height / (float)vd->source.i_width;
+            float display_ratio = (float)sys->displayLayer.frame.size.height / (float)sys->displayLayer.frame.size.width;
+            if (video_ratio >= display_ratio)
+            {
+                sys->b_black_area_subtitles = false;
+                msg_Dbg(vd, "[%s:%s:%d]=zspace=: dont set black area subtitle", __FILE__ , __FUNCTION__, __LINE__);
+            }
+
+            if (sys->b_black_area_subtitles)
+            {
+                sub_fmt.i_visible_height = sub_fmt.i_height = vd->fmt.i_width * sys->displayLayer.frame.size.height / sys->displayLayer.frame.size.width;
+                msg_Dbg(vd, "[%s:%s:%d]=zspace=: sub_fmt.i_visible_width=%d sub_fmt.i_visible_height=%d sub_fmt.i_height=%d", __FILE__ , __FUNCTION__, __LINE__, sub_fmt.i_visible_width, sub_fmt.i_visible_height, sub_fmt.i_height);
+            }
             sub_fmt.i_chroma = subpicture_chromas[0];
             SetRGBMask(&sub_fmt);
             video_format_FixRgb(&sub_fmt);
@@ -706,6 +729,16 @@ static int Control(vout_display_t *vd, int query, va_list ap)
         msg_Dbg(vd, "[%s:%s:%d]=zspace=: displayLayer width %f height %f videoView width %f height %f", __FILE__ , __FUNCTION__, __LINE__,sys->displayLayer.frame.size.width, sys->displayLayer.frame.size.height, self.layer.bounds.size.width, self.layer.bounds.size.height);
         sys->displayLayer.frame = self.layer.bounds;
     }
+    msg_Dbg(vd, "[%s:%s:%d]=zspace=: vout_display_SendEventDisplaySize width %f height %f videoView width %f height %f", __FILE__ , __FUNCTION__, __LINE__,sys->displayLayer.frame.size.width, sys->displayLayer.frame.size.height, self.layer.bounds.size.width, self.layer.bounds.size.height);
+    vout_display_SendEventDisplaySize(vd, sys->displayLayer.frame.size.width,
+                                      sys->displayLayer.frame.size.height);
+//    @autoreleasepool {
+//        if (sys->p_sub_pic)
+//        {
+//            picture_Release(sys->p_sub_pic);
+//            sys->p_sub_pic = NULL;
+//        }
+//    }
 }
 #endif
 

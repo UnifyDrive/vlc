@@ -73,8 +73,7 @@ int vout_OpenWrapper(vout_thread_t *vout,
            || vout->p->original.i_chroma == VLC_CODEC_CVPX_NV12
            || vout->p->original.i_chroma == VLC_CODEC_CVPX_I420
            || vout->p->original.i_chroma == VLC_CODEC_CVPX_BGRA
-           || vout->p->original.i_chroma == VLC_CODEC_CVPX_P010)
-            && (vout->p->original.hdr_type > 0)){
+           || vout->p->original.i_chroma == VLC_CODEC_CVPX_P010)){
 #ifdef __APPLE__
     #include"TargetConditionals.h"
     #if TARGET_OS_TV
@@ -82,8 +81,12 @@ int vout_OpenWrapper(vout_thread_t *vout,
             module_name = "avsamplebufferdisplaylayer";
     #elif TARGET_OS_IPHONE
             msg_Dbg(vout, "TARGET_OS_IPHONE");
+            if (vout->p->original.hdr_type == 0)
+                module_name = "ios";
     #elif TARGET_OS_MAC
             msg_Dbg(vout, "TARGET_OS_OSX");
+            if (vout->p->original.hdr_type == 0)
+                module_name = "caopengllayer";
     #endif
 #endif
         } else {
@@ -98,11 +101,25 @@ int vout_OpenWrapper(vout_thread_t *vout,
     #endif
 #endif
         }
+        char vout_name[256];
+        memset(vout_name, 0x00, sizeof(vout_name));
         if (strcmp("$vout", module_name) == 0){
             vout_SendEventModuleName(vout, var);
+            if (var)
+                strncpy(vout_name, var, sizeof(vout_name));
         }else {
             vout_SendEventModuleName(vout, module_name);
+            strncpy(vout_name, module_name, sizeof(vout_name));
         }
+
+        msg_Dbg(vout, "using vout_name %s",(char*)vout_name);
+#ifdef __APPLE__
+        /* Only avsamplebufferdisplaylayer can support black area subtitle. */
+        if (0!=strcmp("avsamplebufferdisplaylayer", vout_name)) {
+            vout->p->black_area_subtitles = false;
+        }
+        msg_Dbg(vout, "vout->p->black_area_subtitles = %d", vout->p->black_area_subtitles);
+#endif
         msg_Dbg(vout, "using module_name %s",(char*)module_name);
         sys->display.vd = vout_NewDisplay(vout, &vout->p->original, state, module_name,
                                           double_click_timeout, hide_timeout);
