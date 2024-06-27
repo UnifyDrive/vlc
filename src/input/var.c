@@ -533,6 +533,9 @@ void input_ConfigVarInit ( input_thread_t *p_input )
     var_Create( p_input, "meta-description", VLC_VAR_STRING|VLC_VAR_DOINHERIT);
     var_Create( p_input, "meta-date", VLC_VAR_STRING | VLC_VAR_DOINHERIT );
     var_Create( p_input, "meta-url", VLC_VAR_STRING | VLC_VAR_DOINHERIT );
+
+    var_Create( p_input, "report-readed-process", VLC_VAR_BOOL | VLC_VAR_DOINHERIT);
+    var_SetBool( p_input, "report-readed-process", false );
 }
 
 /*****************************************************************************

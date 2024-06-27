@@ -44,6 +44,8 @@
 #include "stream.h"
 #include "mrl_helpers.h"
 #include "event.h"
+#include <vlc_input.h>
+
 
 typedef struct stream_priv_t
 {
@@ -581,7 +583,7 @@ block_t *vlc_stream_ReadBlock(stream_t *s)
         priv->offset += block->i_buffer;
 
     i_readblock_len += block?block->i_buffer:0;
-    if (s->p_input) {
+    if ( s->p_input && var_GetBool( s->p_input, "report-readed-process" ) ) {
         //msg_Warn(s, "=zspace=: vlc_stream_ReadBlock len=%lld, file offset=%lld.", i_readblock_len, priv->offset);
         input_SendEventSocketReadedLen( s->p_input, i_readblock_len );
     }
