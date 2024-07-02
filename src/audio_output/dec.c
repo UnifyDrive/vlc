@@ -349,8 +349,16 @@ static void aout_DecSynchronize (audio_output_t *aout, mtime_t dec_pts,
         }
         #endif
 #endif
-        aout_DecSilence (aout, -drift, dec_pts);
-
+        if(!aout_FiltersCanResample(owner->filters))
+        {
+            msg_Dbg(aout, "[%s:%s:%d]=zspace=: playback too early will sleep %lld us",__FILE__,__FUNCTION__,__LINE__,-drift);
+            usleep(-drift);
+        }
+        else
+        {
+            msg_Dbg(aout, "[%s:%s:%d]=zspace=: playback too early will play silence %lld us",__FILE__,__FUNCTION__,__LINE__,-drift);
+            aout_DecSilence (aout, -drift, dec_pts);
+        }
         aout_StopResampling (aout);
         owner->sync.discontinuity = true;
         drift = 0;

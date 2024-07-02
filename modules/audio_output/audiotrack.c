@@ -35,6 +35,7 @@
 #include <vlc_aout.h>
 #include "../video_output/android/utils.h"
 #include "../packetizer/a52.h"
+#include "../packetizer/dts_header.h"
 
 
 #define FF_PROFILE_DTS         20
@@ -199,6 +200,7 @@ struct aout_sys_t {
     bool  b_after_flush;
     double d_duration_written;
     vlc_a52_header_t a52;
+    vlc_dts_header_t dts;
     bool  b_a52_align;
 };
 
@@ -618,6 +620,9 @@ bytes_to_frames( aout_sys_t *p_sys, size_t i_bytes )
     if (p_sys->a52.i_samples != 0 && p_sys->a52.i_size != 0) {
         return i_bytes * p_sys->fmt.i_frame_length * p_sys->a52.i_samples / p_sys->a52.i_size;
     }
+    if(p_sys->dts.i_frame_size != 0 && p_sys->dts.i_frame_length != 0) {
+        return i_bytes * p_sys->fmt.i_frame_length * p_sys->dts.i_frame_length / p_sys->dts.i_frame_size;
+    }
     return i_bytes * p_sys->fmt.i_frame_length / p_sys->fmt.i_bytes_per_frame;
 }
 #define BYTES_TO_FRAMES(x) bytes_to_frames( p_sys, (x) )
@@ -629,6 +634,11 @@ frames_to_bytes( aout_sys_t *p_sys, uint64_t i_frames )
     if (p_sys->a52.i_samples != 0 && p_sys->a52.i_size != 0) {
         return i_frames * p_sys->a52.i_size / p_sys->a52.i_samples / p_sys->fmt.i_frame_length;
     }
+
+    if(p_sys->dts.i_frame_size != 0 && p_sys->dts.i_frame_length != 0) {
+        return i_frames * p_sys->dts.i_frame_size / p_sys->dts.i_frame_length / p_sys->fmt.i_frame_length;
+    }
+
     return i_frames * p_sys->fmt.i_bytes_per_frame / p_sys->fmt.i_frame_length;
 }
 #define FRAMES_TO_BYTES(x) frames_to_bytes( p_sys, (x) )
@@ -658,6 +668,11 @@ AudioTrack_getPlaybackHeadPosition( JNIEnv *env, audio_output_t *p_aout )
     /* int32_t to uint32_t */
     i_pos = 0xFFFFFFFFL & JNI_AT_CALL_INT( getPlaybackHeadPosition );
     //msg_Warn( p_aout, "[%s:%s:%d]=zspace=: Get PlaybackHeadPosition=%d. ", __FILE__ , __FUNCTION__, __LINE__, i_pos);
+    if(i_pos == 0 && p_sys->headpos.i_last > 0 && p_sys->headpos.i_last < UINT32_MAX)
+    {
+        msg_Warn(p_aout, "position maybe have zero gap!.........");
+        return p_sys->headpos.i_last + ((uint64_t)p_sys->headpos.i_wrap_count << 32);
+    }
     /* uint32_t to uint64_t */
     if( p_sys->headpos.i_last > i_pos /*&& i_pos > 0*/)
         p_sys->headpos.i_wrap_count++;
@@ -889,7 +904,7 @@ TimeGet( audio_output_t *p_aout, mtime_t *restrict p_delay )
 #endif
     if( i_audiotrack_us > 0 )
     {
-        //msg_Warn( p_aout, "i_samples_written_us=%lld(us), i_samples_written=%lld, frame_size=%d", FRAMES_TO_US( p_sys->i_samples_written ), p_sys->i_samples_written, p_sys->fmt.i_bytes_per_frame );
+        //msg_Warn( p_aout, "i_audiotrack_us = %lld, i_samples_written_us=%lld(us), i_samples_written=%lld, frame_size=%d", i_audiotrack_us, FRAMES_TO_US( p_sys->i_samples_written ), p_sys->i_samples_written, p_sys->fmt.i_bytes_per_frame );
         /* AudioTrack delay */
         mtime_t i_delay = FRAMES_TO_US( p_sys->i_samples_written )
                         - i_audiotrack_us;
@@ -1326,6 +1341,7 @@ StartPassthrough( JNIEnv *env, audio_output_t *p_aout, bool ac3)
                     if( !jfields.AudioFormat.has_ENCODING_AC3 )
                         return VLC_EGENERIC;
                     i_at_format = jfields.AudioFormat.ENCODING_AC3;
+                    p_sys->i_ori_format = VLC_CODEC_A52;
                     break;
                 case VLC_CODEC_EAC3:
                     if( !jfields.AudioFormat.has_ENCODING_E_AC3 )
@@ -1537,6 +1553,7 @@ Start( audio_output_t *p_aout, audio_sample_format_t *restrict p_fmt )
     p_sys->b_after_flush = false;
     p_sys->d_duration_written = 0.0;
     p_sys->a52.i_samples = p_sys->a52.i_size = 0;
+    p_sys->dts.i_frame_size = p_sys->dts.i_frame_length = 0;
     p_sys->b_a52_align = true;
 
     if( p_sys->at_dev == AT_DEV_ENCODED )
@@ -1578,11 +1595,11 @@ Start( audio_output_t *p_aout, audio_sample_format_t *restrict p_fmt )
     }
     if( AOUT_FMT_LINEAR( &p_sys->fmt ) )
     {
-        msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: StartPCM ....",__FILE__ , __FUNCTION__, __LINE__);
+        msg_Warn(p_aout, "[%s:%s:%d]=zspace=: StartPCM ....",__FILE__ , __FUNCTION__, __LINE__);
         i_ret = StartPCM( env, p_aout, i_max_channels );
     }else if( b_try_passthrough ){
         vlc_fourcc_t i_format_pass = p_sys->fmt.i_format;
-        msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: StartPassthrough ....",__FILE__ , __FUNCTION__, __LINE__);
+        msg_Warn(p_aout, "[%s:%s:%d]=zspace=: StartPassthrough ....",__FILE__ , __FUNCTION__, __LINE__);
         i_ret = StartPassthrough( env, p_aout, false);
         if(i_ret != 0){
             msg_Warn(p_aout, "StartPassthrough failed, will try again after 1000ms.");
@@ -1597,7 +1614,7 @@ Start( audio_output_t *p_aout, audio_sample_format_t *restrict p_fmt )
         }
     }else if(b_try_passthrough_ac3){
         vlc_fourcc_t i_format_pass = p_sys->fmt.i_format;
-        msg_Dbg(p_aout, "[%s:%s:%d]=zspace=: StartPassthrough eac3 ....",__FILE__ , __FUNCTION__, __LINE__);
+        msg_Warn(p_aout, "[%s:%s:%d]=zspace=: StartPassthrough eac3 ....",__FILE__ , __FUNCTION__, __LINE__);
         i_ret = StartPassthrough( env, p_aout, true);
         if(i_ret != 0){
             msg_Warn(p_aout, "StartPassthrough passthrough_ac3 failed, will try again after 1000ms.");
@@ -1695,6 +1712,7 @@ Start( audio_output_t *p_aout, audio_sample_format_t *restrict p_fmt )
         if(low_latency == false)
             p_sys->circular.i_size = p_sys->circular.i_size/10;
     }
+
     /* Allocate circular buffer */
     switch( p_sys->i_write_type )
     {
@@ -2253,11 +2271,18 @@ Play( audio_output_t *p_aout, block_t *p_buffer )
         return;
     }
 
-    if( p_sys->b_passthrough && p_sys->fmt.i_format == VLC_CODEC_SPDIFB && p_sys->i_ori_format == VLC_CODEC_EAC3 && p_sys->a52.i_samples == 0 && p_sys->a52.i_size == 0)
+    if( p_sys->b_passthrough && p_sys->fmt.i_format == VLC_CODEC_SPDIFB && (p_sys->i_ori_format == VLC_CODEC_EAC3 || p_sys->i_ori_format == VLC_CODEC_A52) && p_sys->a52.i_samples == 0 && p_sys->a52.i_size == 0)
     {
         vlc_a52_header_Parse(&(p_sys->a52), p_buffer->p_buffer, p_buffer->i_buffer);
         p_sys->i_max_audiotrack_samples = BYTES_TO_FRAMES( p_sys->audiotrack_args.i_size );
         msg_Dbg( p_aout, "[%s:%s:%d]=zspace=: a52.samples(%d), a52.size(%d) .", __FILE__ , __FUNCTION__, __LINE__, p_sys->a52.i_samples, p_sys->a52.i_size);
+    }
+
+    if( p_sys->b_passthrough && p_sys->fmt.i_format == VLC_CODEC_SPDIFB && p_sys->i_ori_format == VLC_CODEC_DTS && p_sys->dts.i_frame_size == 0 && p_sys->dts.i_frame_length == 0)
+    {
+        vlc_dts_header_Parse(&(p_sys->dts), p_buffer->p_buffer, p_buffer->i_buffer);
+        p_sys->i_max_audiotrack_samples = BYTES_TO_FRAMES( p_sys->audiotrack_args.i_size );
+        msg_Dbg( p_aout, "[%s:%s:%d]=zspace=: dts.i_frame_size(%d), dts.i_frame_length(%d) .", __FILE__ , __FUNCTION__, __LINE__, p_sys->dts.i_frame_size, p_sys->dts.i_frame_length);
     }
 
     vlc_mutex_lock( &p_sys->lock );
