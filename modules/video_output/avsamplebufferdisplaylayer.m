@@ -74,6 +74,7 @@ struct vout_display_sys_t
     Rect rect;
     Rect sub_last_region;
     int64_t i_sub_last_order;
+    int64_t i_sub_first_order;
     id<VLCOpenGLVideoViewEmbedding> container;
     picture_pool_t *pool;
     picture_t *p_sub_pic;
@@ -85,6 +86,7 @@ struct vout_display_sys_t
 #endif
     /* subtitles can be moved to out of the picture */
     bool b_black_area_subtitles;
+    bool b_sub_invalid;
 };
 
 #define VLCAssertMainThread() assert([[NSThread currentThread] isMainThread])
@@ -176,6 +178,7 @@ static int Open(vlc_object_t *this)
         vd->info.subpicture_chromas = subpicture_chromas;
         memset(&sys->sub_last_region, 0x00, sizeof(Rect));
         sys->i_sub_last_order = -1;
+        sys->i_sub_first_order = -1;
         
         sys->b_black_area_subtitles = var_InheritBool(vd, "support-black-area-subtitles");
         msg_Dbg(vd, "[%s:%s:%d]=zspace=: b_black_area_subtitles=%d", __FILE__ , __FUNCTION__, __LINE__, sys->b_black_area_subtitles);
@@ -183,6 +186,7 @@ static int Open(vlc_object_t *this)
                                           sys->displayLayer.frame.size.height);
 
         msg_Dbg(vd, "[%s:%s:%d]=zspace=: Exit", __FILE__ , __FUNCTION__, __LINE__);
+        sys->b_sub_invalid = true;
         return VLC_SUCCESS;
     
     error:
@@ -405,10 +409,18 @@ static void clearLastRegion(vout_display_t *vd, subpicture_t *subpicture)
 static void GetDisplayRect(vout_display_t *vd, Rect memset_bounds, Rect *p_out_bounds)
 {
     vout_display_sys_t *sys = vd->sys;
-    CGFloat scale_width = 0.0;
-    CGFloat scale_height = 0.0;
+    CGFloat scale_width = 1.0;
+    CGFloat scale_height = 1.0;
     CGFloat black_height = 0.0;
     CGFloat black_width = 0.0;
+
+    if (ZS_DEBUG)
+        msg_Dbg(vd, "[%s:%s:%d]=zspace=: vd->source.i_width=%d,vd->source.i_height=%d,sys->videoView.layer.bounds.size.width=%f,sys->videoView.layer.bounds.size.height=%f", __FILE__ , __FUNCTION__, __LINE__,vd->source.i_width, vd->source.i_height, sys->videoView.layer.bounds.size.width, sys->videoView.layer.bounds.size.height);
+    /*
+     字幕缩放到屏幕内尺寸
+     如果字幕的宽高比>屏幕宽高比，字幕的width等于display_width，height再按比例缩放
+     如果字幕的宽高比<屏幕宽高比，图片的height等于display_height,width再按比例缩放
+     */
     if (vd->source.i_width/vd->source.i_height > sys->videoView.layer.bounds.size.width/sys->videoView.layer.bounds.size.height)
     {
         scale_width = vd->source.i_width/(sys->videoView.layer.bounds.size.width);
@@ -430,15 +442,15 @@ static void GetDisplayRect(vout_display_t *vd, Rect memset_bounds, Rect *p_out_b
 
     }
 
-    p_out_bounds->left = memset_bounds.left/scale_width + black_width;
-    p_out_bounds->right = memset_bounds.right/scale_width + black_width;
+    p_out_bounds->left = (CGFloat)memset_bounds.left/(CGFloat)scale_width + black_width;
+    p_out_bounds->right = (CGFloat)memset_bounds.right/(CGFloat)scale_width + black_width;
     
 #if TARGET_OS_OSX
     p_out_bounds->top = sys->videoView.layer.bounds.size.height - (memset_bounds.top/scale_height+black_height);
     p_out_bounds->bottom = sys->videoView.layer.bounds.size.height - (memset_bounds.bottom/scale_height+black_height);
 #else
-    p_out_bounds->top = memset_bounds.top/scale_height+black_height;
-    p_out_bounds->bottom = memset_bounds.bottom/scale_height+black_height;
+    p_out_bounds->top = (CGFloat)memset_bounds.top/(CGFloat)scale_height+black_height;
+    p_out_bounds->bottom = (CGFloat)memset_bounds.bottom/(CGFloat)scale_height+black_height;
 #endif
 }
 
@@ -446,27 +458,36 @@ static void PicturePrepare(vout_display_t *vd, picture_t *pic, subpicture_t *sub
 {
     vout_display_sys_t *sys = vd->sys;
     Rect memset_bounds;
-    SubtitleRegionToBounds(subpicture, &memset_bounds);
 
     if (subpicture)
     {
-        if( subpicture->i_order == sys->i_sub_last_order
-           && memcmp( &memset_bounds, &sys->sub_last_region, sizeof(Rect) ) == 0 )
-            return;
 
-        if(ZS_DEBUG)
-            msg_Dbg(vd, "[%s:%s:%d]=zspace=: memset_bounds [%d,%d,  %d,%d],sys->i_sub_last_order=%lld", __FILE__ , __FUNCTION__, __LINE__, memset_bounds.left, memset_bounds.top, memset_bounds.right, memset_bounds.bottom, sys->i_sub_last_order);
-            
-        if (!sys->p_sub_pic)
+        if (sys->b_sub_invalid)
         {
+            sys->b_sub_invalid = false;
+            if (sys->p_sub_pic)
+            {
+                picture_Release(sys->p_sub_pic);
+                sys->p_sub_pic = nil;
+            }
+            if (sys->p_spu_blend) {
+                filter_DeleteBlend(sys->p_spu_blend);
+                sys->p_spu_blend = nil;
+            }
             video_format_t sub_fmt;
             video_format_ApplyRotation(&sub_fmt, &vd->fmt);
+            msg_Dbg(vd, "[%s:%s:%d]=zspace=: vd->fmt.i_visible_width=%d,vd->fmt.i_visible_height=%d,sys->displayLayer.frame.size.width=%f sys->displayLayer.frame.size.height=%f", __FILE__ , __FUNCTION__, __LINE__, vd->fmt.i_visible_width, vd->fmt.i_visible_height, sys->displayLayer.frame.size.width, sys->displayLayer.frame.size.height);
             float video_ratio = (float)vd->source.i_height / (float)vd->source.i_width;
             float display_ratio = (float)sys->displayLayer.frame.size.height / (float)sys->displayLayer.frame.size.width;
-            if (video_ratio >= display_ratio)
+            /*
+             不走字幕到黑边逻辑的条件
+             1）画面高宽比>屏幕高宽比
+             2）画面高宽比<屏幕高宽比，且画面宽度<屏幕宽度
+             */
+            if (video_ratio > display_ratio || ((video_ratio < display_ratio) && (vd->source.i_width<sys->displayLayer.frame.size.width)))
             {
                 sys->b_black_area_subtitles = false;
-                msg_Dbg(vd, "[%s:%s:%d]=zspace=: dont set black area subtitle", __FILE__ , __FUNCTION__, __LINE__);
+                msg_Dbg(vd, "[%s:%s:%d]=zspace=: sys->b_black_area_subtitles=%d", __FILE__ , __FUNCTION__, __LINE__, sys->b_black_area_subtitles);
             }
 
             if (sys->b_black_area_subtitles)
@@ -479,13 +500,20 @@ static void PicturePrepare(vout_display_t *vd, picture_t *pic, subpicture_t *sub
             video_format_FixRgb(&sub_fmt);
             sys->p_sub_pic = PictureAlloc(sys, &sub_fmt);
             msg_Dbg(vd, "[%s:%s:%d]=zspace=: PictureAlloc", __FILE__ , __FUNCTION__, __LINE__);
+            if (!sys->p_spu_blend && sys->p_sub_pic)
+            {
+                sys->p_spu_blend = filter_NewBlend(VLC_OBJECT(vd),&sys->p_sub_pic->format);
+                msg_Dbg(vd, "[%s:%s:%d]=zspace=: Run filter_NewBlend(), return=%p ", __FILE__ , __FUNCTION__, __LINE__, sys->p_spu_blend);
+            }
+            memset(&sys->sub_last_region, 0x00, sizeof(Rect));
         }
-        
-        if (!sys->p_spu_blend && sys->p_sub_pic)
-        {
-            sys->p_spu_blend = filter_NewBlend(VLC_OBJECT(vd),&sys->p_sub_pic->format);
-            msg_Dbg(vd, "[%s:%s:%d]=zspace=: Run filter_NewBlend(), return=%p ", __FILE__ , __FUNCTION__, __LINE__, sys->p_spu_blend);
-        }
+        SubtitleRegionToBounds(subpicture, &memset_bounds);
+        if( subpicture->i_order == sys->i_sub_last_order
+           && memcmp( &memset_bounds, &sys->sub_last_region, sizeof(Rect) ) == 0 )
+            return;
+
+        if(ZS_DEBUG)
+            msg_Dbg(vd, "[%s:%s:%d]=zspace=: memset_bounds [%d,%d,  %d,%d],sys->i_sub_last_order=%lld", __FILE__ , __FUNCTION__, __LINE__, memset_bounds.left, memset_bounds.top, memset_bounds.right, memset_bounds.bottom, sys->i_sub_last_order);
         
 #ifdef SUPPORT_MULTI_SUBTITLE_PICTURE
         clearLastRegion(vd, subpicture);
@@ -544,6 +572,8 @@ static void PicturePrepare(vout_display_t *vd, picture_t *pic, subpicture_t *sub
 #endif
             sys->uiImage = nil;
         }
+        if (sys->i_sub_last_order == -1)
+            sys->i_sub_first_order = subpicture->i_order;
         sys->i_sub_last_order = subpicture->i_order;
         sys->uiImage = convertRGBAToImage(vd, buffer, img_width, img_height);
 #ifdef SUPPORT_MULTI_SUBTITLE_PICTURE
@@ -579,6 +609,9 @@ static void PictureDisplay(vout_display_t *vd, picture_t *pic, subpicture_t *sub
             sys->subtitleLayer.contents = sys->uiImage.CGImage;
     #endif
             /* make scale for display screen */
+            if(ZS_DEBUG)
+                msg_Dbg(vd, "[%s:%s:%d]=zspace=: memset_bounds [%d,%d,  %d,%d],sys->i_sub_last_order=%lld", __FILE__ , __FUNCTION__, __LINE__, memset_bounds.left, memset_bounds.top, memset_bounds.right, memset_bounds.bottom, sys->i_sub_last_order);
+
             Rect display_bounds;
             GetDisplayRect(vd, memset_bounds, &display_bounds);
             if (ZS_DEBUG)
@@ -588,6 +621,8 @@ static void PictureDisplay(vout_display_t *vd, picture_t *pic, subpicture_t *sub
                 
             if (sys->subtitleLayer.isHidden)
                 sys->subtitleLayer.hidden = NO;
+            if (sys->i_sub_first_order == sys->i_sub_last_order)
+                sys->subtitleLayer.hidden = YES;
             [CATransaction commit];
             memcpy(&sys->rect, &display_bounds, sizeof(Rect));
 
@@ -673,6 +708,7 @@ static int Control(vout_display_t *vd, int query, va_list ap)
             cfg = (const vout_display_cfg_t*)va_arg (ap, const vout_display_cfg_t *);
             msg_Dbg(vd, "[%s:%s:%d]=zspace=: display size: %dx%d", __FILE__ , __FUNCTION__, __LINE__, cfg->display.width,
                     cfg->display.height);
+            sys->b_sub_invalid = true;
             return VLC_SUCCESS;
         }
         case VOUT_DISPLAY_CHANGE_SOURCE_ASPECT:
@@ -729,16 +765,39 @@ static int Control(vout_display_t *vd, int query, va_list ap)
         msg_Dbg(vd, "[%s:%s:%d]=zspace=: displayLayer width %f height %f videoView width %f height %f", __FILE__ , __FUNCTION__, __LINE__,sys->displayLayer.frame.size.width, sys->displayLayer.frame.size.height, self.layer.bounds.size.width, self.layer.bounds.size.height);
         sys->displayLayer.frame = self.layer.bounds;
     }
-    msg_Dbg(vd, "[%s:%s:%d]=zspace=: vout_display_SendEventDisplaySize width %f height %f videoView width %f height %f", __FILE__ , __FUNCTION__, __LINE__,sys->displayLayer.frame.size.width, sys->displayLayer.frame.size.height, self.layer.bounds.size.width, self.layer.bounds.size.height);
-    vout_display_SendEventDisplaySize(vd, sys->displayLayer.frame.size.width,
-                                      sys->displayLayer.frame.size.height);
-//    @autoreleasepool {
-//        if (sys->p_sub_pic)
-//        {
-//            picture_Release(sys->p_sub_pic);
-//            sys->p_sub_pic = NULL;
-//        }
-//    }
+
+    msg_Dbg(vd, "[%s:%s:%d]=zspace=: vout_display_SendEventDisplaySize video width %d height %d videoView width %f height %f", __FILE__ , __FUNCTION__, __LINE__,vd->source.i_width, vd->source.i_height, self.layer.bounds.size.width, self.layer.bounds.size.height);
+
+    /*
+     视频尺寸小于屏幕尺寸时，需要设置视频尺寸给video_output,字幕才能正常显示
+     */
+    if (vd->source.i_width/vd->source.i_height > sys->videoView.layer.bounds.size.width/sys->videoView.layer.bounds.size.height)
+    {
+        if (vd->source.i_width >= sys->videoView.layer.bounds.size.width)
+        {
+
+            vout_display_SendEventDisplaySize(vd, sys->displayLayer.frame.size.width,
+                                              sys->displayLayer.frame.size.height);
+        }
+        else
+        {
+            vout_display_SendEventDisplaySize(vd, vd->source.i_width,
+                                              vd->source.i_height);
+        }
+    }
+    else
+    {
+        if (vd->source.i_height >= sys->videoView.layer.bounds.size.height)
+        {
+            vout_display_SendEventDisplaySize(vd, sys->displayLayer.frame.size.width,
+                                              sys->displayLayer.frame.size.height);
+        }
+        else
+        {
+            vout_display_SendEventDisplaySize(vd, vd->source.i_width,
+                                              vd->source.i_height);
+        }
+    }
 }
 #endif
 
