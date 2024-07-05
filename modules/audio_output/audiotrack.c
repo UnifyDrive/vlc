@@ -1037,6 +1037,19 @@ AudioTrack_Recreate( JNIEnv *env, audio_output_t *p_aout )
                               p_sys->audiotrack_args.i_channel_config,
                               p_sys->audiotrack_args.i_format,
                               p_sys->audiotrack_args.i_size );
+    if(ret != 0)
+    {
+        msg_Warn(p_aout, "AudioTrack_Recreate() create AudioTrack failed, will try again after 1000 ms ......");
+        usleep(1000000);
+        ret = AudioTrack_New( env, p_aout, p_sys->audiotrack_args.i_rate,
+                              p_sys->audiotrack_args.i_channel_config,
+                              p_sys->audiotrack_args.i_format,
+                              p_sys->audiotrack_args.i_size );
+        if(!ret)
+            msg_Warn(p_aout, "AudioTrack_Recreate() Recreate AudioTrack succed!");
+        else
+            msg_Warn(p_aout, "AudioTrack_Recreate() Recreate AudioTrack failed!");
+    }
 
     if( ret == 0 )
     {
@@ -1568,7 +1581,7 @@ Start( audio_output_t *p_aout, audio_sample_format_t *restrict p_fmt )
         b_try_passthrough_ac3 = var_InheritBool( p_aout, "spdif-ac3");
         if(b_try_passthrough_ac3)
             p_sys->isjiguang4pro = var_InheritBool( p_aout, "spdif-isjiguang4pro");
-        p_sys->isz9x = var_InheritBool( p_aout, "spdif-isz9x");
+        p_sys->isz9x = false; //var_InheritBool( p_aout, "spdif-isz9x");
         if(p_sys->isz9x){
             jfields.AudioFormat.has_ENCODING_IEC61937 = false;
         }

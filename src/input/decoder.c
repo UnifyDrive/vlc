@@ -1159,6 +1159,7 @@ static int DecoderPlayVideo( decoder_t *p_dec, picture_t *p_picture,
     {
         vlc_mutex_unlock( &p_owner->lock );
         picture_Release( p_picture );
+        p_owner->i_preroll_end = INT64_MIN;
         return -1;
     }
 
@@ -1298,6 +1299,7 @@ static int DecoderPlayAudio( decoder_t *p_dec, block_t *p_audio,
     {
         vlc_mutex_unlock( &p_owner->lock );
         block_Release( p_audio );
+        p_owner->i_preroll_end = INT64_MIN;
         return -1;
     }
 
