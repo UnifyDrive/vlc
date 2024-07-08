@@ -153,7 +153,7 @@ void M3U8Parser::createAndFillRepresentation(vlc_object_t *p_obj, BaseAdaptation
     HLSRepresentation *rep  = createRepresentation(adaptSet, tag);
     if(rep)
     {
-        parseSegments(p_obj, rep, tagslist);
+        parseSegments(p_obj, rep, tagslist, true);
         adaptSet->addRepresentation(rep);
     }
 }
@@ -214,7 +214,7 @@ static bool parseEncryption(const AttributesTag *keytag, const Url &playlistUrl,
     }
 }
 
-void M3U8Parser::parseSegments(vlc_object_t *, HLSRepresentation *rep, const std::list<Tag *> &tagslist)
+void M3U8Parser::parseSegments(vlc_object_t *p_obj, HLSRepresentation *rep, const std::list<Tag *> &tagslist, bool first)
 {
     SegmentList *segmentList = new (std::nothrow) SegmentList(rep);
 
@@ -266,6 +266,8 @@ void M3U8Parser::parseSegments(vlc_object_t *, HLSRepresentation *rep, const std
                 HLSSegment *segment = new (std::nothrow) HLSSegment(rep, sequenceNumber++);
                 if(!segment)
                     break;
+                if (p_obj)
+                    msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: Find new segment[%s].", __FILE__ , __FUNCTION__, __LINE__, uritag->getValue().value.c_str());
 
                 segment->setSourceUrl(uritag->getValue().value);
 
@@ -324,6 +326,7 @@ void M3U8Parser::parseSegments(vlc_object_t *, HLSRepresentation *rep, const std
                 break;
 
             case SingleValueTag::EXTXPROGRAMDATETIME:
+                //break;
                 rep->b_consistent = false;
                 absReferenceTime = VLC_TS_0 +
                         UTCTime(static_cast<const SingleValueTag *>(tag)->getValue().value).mtime();
@@ -381,8 +384,17 @@ void M3U8Parser::parseSegments(vlc_object_t *, HLSRepresentation *rep, const std
         }
     }
 
-    for(HLSSegment *seg : segmentstoappend)
-        segmentList->addSegment(seg);
+    if (first) {
+        int i = segmentstoappend.size();
+        for(HLSSegment *seg : segmentstoappend) {
+            i--;
+            if(i <= 1)
+                segmentList->addSegment(seg);
+        }
+    }else {
+        for(HLSSegment *seg : segmentstoappend)
+            segmentList->addSegment(seg);
+    }
     segmentstoappend.clear();
 
     if(rep->isLive())
@@ -556,6 +568,7 @@ M3U8 * M3U8Parser::parse(vlc_object_t *p_object, stream_t *p_stream, const std::
     }
     else /* Non master playlist (opened directly subplaylist or HLS v1) */
     {
+        msg_Dbg(p_object, "[%s:%s:%d]=zspace=: Non master playlist (opened directly subplaylist or HLS v1).", __FILE__ , __FUNCTION__, __LINE__);
         BaseAdaptationSet *adaptSet = new (std::nothrow) BaseAdaptationSet(period);
         if(adaptSet)
         {
@@ -638,6 +651,7 @@ std::list<Tag *> M3U8Parser::parseEntries(stream_t *stream)
                         if(tag)
                             entrieslist.push_back(tag);
                         lastTag = tag;
+                        msg_Dbg(stream, "[%s:%s:%d]=zspace=: Add [%s]=[%s] to entrieslist.", __FILE__ , __FUNCTION__, __LINE__, key.c_str(), attributes.c_str());
                     }
                 }
             }
@@ -658,6 +672,7 @@ std::list<Tag *> M3U8Parser::parseEntries(stream_t *stream)
                 Tag *tag = TagFactory::createTagByName("", std::string(psz_line));
                 if(tag)
                     entrieslist.push_back(tag);
+                msg_Dbg(stream, "[%s:%s:%d]=zspace=: Add [URI]=[%s] to entrieslist.", __FILE__ , __FUNCTION__, __LINE__, psz_line);
             }
             lastTag = nullptr;
         }
