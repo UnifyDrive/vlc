@@ -728,46 +728,9 @@ static int Control(vout_display_t *vd, int query, va_list ap)
     return VLC_SUCCESS;
 }
 
-#pragma mark -
-#pragma mark TDXVideoView
-@implementation TDXVideoView
-#if TARGET_OS_OSX
-- (void)layout {
-    [super layout];
-    [CATransaction begin];
-    [CATransaction setDisableActions:YES];
-    vout_display_sys_t *sys = vd->sys;
-    if (sys->displayLayer.frame.size.height != self.layer.bounds.size.height
-        || sys->displayLayer.frame.size.width != self.layer.bounds.size.width)
-    {
-        msg_Dbg(vd, "[%s:%s:%d]=zspace=: displayLayer width %f height %f videoView width %f height %f", __FILE__ , __FUNCTION__, __LINE__,sys->displayLayer.frame.size.width, sys->displayLayer.frame.size.height, self.layer.bounds.size.width, self.layer.bounds.size.height);
-        sys->displayLayer.frame = self.layer.bounds;
-    }
-//    if (sys->subtitleLayer)
-//    {
-//        if ((sys->rect.right-sys->rect.left > 0) && (sys->rect.bottom-sys->rect.top > 0))
-//        {
-//            sys->subtitleLayer.frame = CGRectMake(sys->rect.left, sys->rect.top, sys->rect.right-sys->rect.left, sys->rect.bottom-sys->rect.top);
-//        }
-//        msg_Dbg(vd, "[%s:%s:%d]=zspace=: left %d top %d right %d right %d", __FILE__ , __FUNCTION__, __LINE__,sys->rect.left, sys->rect.top, sys->rect.right, sys->rect.bottom);
-//    }
-    [CATransaction commit];
-}
-#else
-- (void)layoutSubviews
+static void SendEventDisplaySize(vout_display_t *vd)
 {
-    [super layoutSubviews];
     vout_display_sys_t *sys = vd->sys;
-    
-    if (sys->displayLayer.frame.size.height != self.layer.bounds.size.height
-        || sys->displayLayer.frame.size.width != self.layer.bounds.size.width)
-    {
-        msg_Dbg(vd, "[%s:%s:%d]=zspace=: displayLayer width %f height %f videoView width %f height %f", __FILE__ , __FUNCTION__, __LINE__,sys->displayLayer.frame.size.width, sys->displayLayer.frame.size.height, self.layer.bounds.size.width, self.layer.bounds.size.height);
-        sys->displayLayer.frame = self.layer.bounds;
-    }
-
-    msg_Dbg(vd, "[%s:%s:%d]=zspace=: vout_display_SendEventDisplaySize video width %d height %d videoView width %f height %f", __FILE__ , __FUNCTION__, __LINE__,vd->source.i_width, vd->source.i_height, self.layer.bounds.size.width, self.layer.bounds.size.height);
-
     /*
      视频尺寸小于屏幕尺寸时，需要设置视频尺寸给video_output,字幕才能正常显示
      */
@@ -798,6 +761,48 @@ static int Control(vout_display_t *vd, int query, va_list ap)
                                               vd->source.i_height);
         }
     }
+}
+#pragma mark -
+#pragma mark TDXVideoView
+@implementation TDXVideoView
+#if TARGET_OS_OSX
+- (void)layout {
+    [super layout];
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES];
+    vout_display_sys_t *sys = vd->sys;
+    if (sys->displayLayer.frame.size.height != self.layer.bounds.size.height
+        || sys->displayLayer.frame.size.width != self.layer.bounds.size.width)
+    {
+        msg_Dbg(vd, "[%s:%s:%d]=zspace=: displayLayer width %f height %f videoView width %f height %f", __FILE__ , __FUNCTION__, __LINE__,sys->displayLayer.frame.size.width, sys->displayLayer.frame.size.height, self.layer.bounds.size.width, self.layer.bounds.size.height);
+        sys->displayLayer.frame = self.layer.bounds;
+    }
+//    if (sys->subtitleLayer)
+//    {
+//        if ((sys->rect.right-sys->rect.left > 0) && (sys->rect.bottom-sys->rect.top > 0))
+//        {
+//            sys->subtitleLayer.frame = CGRectMake(sys->rect.left, sys->rect.top, sys->rect.right-sys->rect.left, sys->rect.bottom-sys->rect.top);
+//        }
+//        msg_Dbg(vd, "[%s:%s:%d]=zspace=: left %d top %d right %d right %d", __FILE__ , __FUNCTION__, __LINE__,sys->rect.left, sys->rect.top, sys->rect.right, sys->rect.bottom);
+    SendEventDisplaySize(vd);
+    [CATransaction commit];
+}
+#else
+- (void)layoutSubviews
+{
+    [super layoutSubviews];
+    vout_display_sys_t *sys = vd->sys;
+    
+    if (sys->displayLayer.frame.size.height != self.layer.bounds.size.height
+        || sys->displayLayer.frame.size.width != self.layer.bounds.size.width)
+    {
+        msg_Dbg(vd, "[%s:%s:%d]=zspace=: displayLayer width %f height %f videoView width %f height %f", __FILE__ , __FUNCTION__, __LINE__,sys->displayLayer.frame.size.width, sys->displayLayer.frame.size.height, self.layer.bounds.size.width, self.layer.bounds.size.height);
+        sys->displayLayer.frame = self.layer.bounds;
+    }
+
+    msg_Dbg(vd, "[%s:%s:%d]=zspace=: vout_display_SendEventDisplaySize video width %d height %d videoView width %f height %f", __FILE__ , __FUNCTION__, __LINE__,vd->source.i_width, vd->source.i_height, self.layer.bounds.size.width, self.layer.bounds.size.height);
+
+    SendEventDisplaySize(vd);
 }
 #endif
 

@@ -94,7 +94,7 @@ set_callbacks(OpenDecoder, CloseDecoder)
 
 add_obsolete_bool("videotoolbox-temporal-deinterlacing")
 add_bool("videotoolbox", true, VT_ENABLE_TEXT, NULL, false)
-add_bool("videotoolbox-hw-decoder-only", true, VT_REQUIRE_HW_DEC, VT_REQUIRE_HW_DEC, false)
+add_bool("videotoolbox-hw-decoder-only", false, VT_REQUIRE_HW_DEC, VT_REQUIRE_HW_DEC, false)
 add_bool("videotoolbox-async-decode", true, VT_REQUIRE_ASYNC_DEC, VT_REQUIRE_ASYNC_DEC, false)
 add_string("videotoolbox-cvpx-chroma", "", VT_FORCE_CVPX_CHROMA, VT_FORCE_CVPX_CHROMA_LONG, true);
 vlc_module_end()
@@ -1303,36 +1303,20 @@ static CFMutableDictionaryRef CreateSessionDescriptionFormat(decoder_t *p_dec,
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wpartial-availability"
 
-    bool enableHardwareAccelerate = false;
-#if TARGET_OS_OSX
-    enableHardwareAccelerate = true;
-#elif TARGET_OS_TV
 
-#elif TARGET_OS_IPHONE
-    char *var = NULL;
-    var = var_InheritString (p_dec, "vout");
-    if ( (var && 0 == strncmp(var, "ios", 3)) || (p_dec->fmt_in.video.hdr_type == HDR_TYPE_UNDEF))
-    {
-        enableHardwareAccelerate = true;
-    }
-    msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: vout=[%s]. enableHardwareAccelerate = %d", __FILE__ , __FUNCTION__, __LINE__, var, enableHardwareAccelerate);
-#endif
-    if (enableHardwareAccelerate)
-    {
-        /* enable HW accelerated playback, since this is optional on OS X
-         * note that the backend may still fallback on software mode if no
-         * suitable hardware is available */
+    /* enable HW accelerated playback, since this is optional on OS X
+     * note that the backend may still fallback on software mode if no
+     * suitable hardware is available */
+    CFDictionarySetValue(decoderConfiguration,
+                         kVTVideoDecoderSpecification_EnableHardwareAcceleratedVideoDecoder,
+                         kCFBooleanTrue);
+
+    /* on OS X, we can force VT to fail if no suitable HW decoder is available,
+     * preventing the aforementioned SW fallback */
+    if (var_InheritBool(p_dec, "videotoolbox-hw-decoder-only"))
         CFDictionarySetValue(decoderConfiguration,
-                             kVTVideoDecoderSpecification_EnableHardwareAcceleratedVideoDecoder,
+                             kVTVideoDecoderSpecification_RequireHardwareAcceleratedVideoDecoder,
                              kCFBooleanTrue);
-
-        /* on OS X, we can force VT to fail if no suitable HW decoder is available,
-         * preventing the aforementioned SW fallback */
-        if (var_InheritBool(p_dec, "videotoolbox-hw-decoder-only"))
-            CFDictionarySetValue(decoderConfiguration,
-                                 kVTVideoDecoderSpecification_RequireHardwareAcceleratedVideoDecoder,
-                                 kCFBooleanTrue);
-    }
 
 #pragma clang diagnostic pop
 
