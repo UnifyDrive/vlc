@@ -323,6 +323,9 @@ Tag * TagFactory::createTagByName(const std::string &name, const std::string &va
         {"EXT-X-SESSION-KEY",               AttributesTag::EXTXSESSIONKEY},
         {"EXTINF",                          ValuesListTag::EXTINF},
         {"",                                SingleValueTag::URI},
+        {"EXT-X-SERVER-CONTROL",            AttributesTag::EXTXSERVERCONTROL},
+        {"EXT-X-PART-INF",                  AttributesTag::EXTXPARTINF},
+        {"EXT-X-PART",                      AttributesTag::EXTXPART},
         {nullptr,                              0},
     };
 
@@ -358,6 +361,9 @@ Tag * TagFactory::createTagByName(const std::string &name, const std::string &va
         case AttributesTag::EXTXMEDIA:
         case AttributesTag::EXTXSTART:
         case AttributesTag::EXTXSTREAMINF:
+        case AttributesTag::EXTXSERVERCONTROL:
+        case AttributesTag::EXTXPARTINF:
+        case AttributesTag::EXTXPART:
             return new (std::nothrow) AttributesTag(exttagmapping[i].i, value);
         }
 

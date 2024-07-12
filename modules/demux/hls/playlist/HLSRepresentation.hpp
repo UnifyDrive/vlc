@@ -45,6 +45,8 @@ namespace hls
 
                 void setPlaylistUrl(const std::string &);
                 Url getPlaylistUrl() const;
+                void setPlayedSeqNumber(uint64_t);
+                uint64_t getPlayedSeqNumber() const;
                 bool isLive() const;
                 bool initialized() const;
                 virtual void scheduleNextUpdate(uint64_t, bool) override;
@@ -61,7 +63,9 @@ namespace hls
                 bool b_failed;
                 mtime_t lastUpdateTime;
                 time_t targetDuration;
+                time_t parttargetDuration;
                 Url playlistUrl;
+                uint64_t i_played_seq_num;
         };
     }
 }

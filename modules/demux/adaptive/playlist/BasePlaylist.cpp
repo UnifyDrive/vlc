@@ -70,6 +70,8 @@ void BasePlaylist::addBaseUrl(const std::string &url)
 void BasePlaylist::setPlaylistUrl(const std::string &url)
 {
     playlistUrl = url;
+    if (p_object)
+        msg_Dbg(p_object, "[%s:%s:%d]=zspace=: uri[%s].", __FILE__ , __FUNCTION__, __LINE__, url.c_str());
 }
 
 void BasePlaylist::addPeriod(BasePeriod *period)

@@ -80,6 +80,7 @@ namespace adaptive
                 Property<stime_t>       startTime;
                 Property<stime_t>       duration;
                 bool                    discontinuity;
+                bool                    independent;
 
             protected:
                 virtual bool                            prepareChunk    (SharedResources *,

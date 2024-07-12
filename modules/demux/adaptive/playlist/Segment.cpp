@@ -51,6 +51,7 @@ ISegment::ISegment(const ICanonicalUrl *parent):
     templated = false;
     discontinuity = false;
     displayTime = VLC_TS_INVALID;
+    independent = false;
 }
 
 ISegment::~ISegment()

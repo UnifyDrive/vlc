@@ -99,6 +99,9 @@ namespace hls
                     EXTXSTART,
                     EXTXSTREAMINF,
                     EXTXSESSIONKEY,
+                    EXTXSERVERCONTROL,
+                    EXTXPARTINF,
+                    EXTXPART,
                 };
                 AttributesTag(int, const std::string &);
                 virtual ~AttributesTag();

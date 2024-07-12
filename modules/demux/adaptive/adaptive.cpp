@@ -131,6 +131,8 @@ vlc_module_begin ()
         set_subcategory( SUBCAT_INPUT_DEMUX )
         add_string( "adaptive-logic",  "", ADAPT_LOGIC_TEXT, nullptr, false )
             change_string_list( ppsz_logics_values, ppsz_logics )
+        add_integer( "use-llhls-live",  1,
+                     "use LLHLS for live",  "use LLHLS for live",  false )
         add_integer( "adaptive-maxwidth",  0,
                      ADAPT_WIDTH_TEXT,  ADAPT_WIDTH_TEXT,  false )
         add_integer( "adaptive-maxheight", 0,

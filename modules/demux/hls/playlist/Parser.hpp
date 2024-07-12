@@ -62,7 +62,7 @@ namespace hls
                 bool appendSegmentsFromPlaylistURI(vlc_object_t *, HLSRepresentation *);
 
             private:
-                HLSRepresentation * createRepresentation(BaseAdaptationSet *, const AttributesTag *);
+                HLSRepresentation * createRepresentation(BaseAdaptationSet *, const AttributesTag *, vlc_object_t *);
                 void createAndFillRepresentation(vlc_object_t *, BaseAdaptationSet *,
                                                  const AttributesTag *, const std::list<Tag *>&);
                 void parseSegments(vlc_object_t *, HLSRepresentation *, const std::list<Tag *>&, bool first=false);

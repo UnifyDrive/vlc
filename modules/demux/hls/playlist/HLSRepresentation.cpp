@@ -47,7 +47,9 @@ HLSRepresentation::HLSRepresentation  ( BaseAdaptationSet *set ) :
     b_failed = false;
     lastUpdateTime = 0;
     targetDuration = 0;
+    parttargetDuration = 0;
     streamFormat = StreamFormat::Type::Unknown;
+    i_played_seq_num = 0;
 }
 
 HLSRepresentation::~HLSRepresentation ()
@@ -87,6 +89,20 @@ Url HLSRepresentation::getPlaylistUrl() const
             ret.append(playlistUrl);
         return ret;
     }
+}
+
+void HLSRepresentation::setPlayedSeqNumber(uint64_t num)
+{
+    const BasePlaylist *playlist = getPlaylist();
+    msg_Dbg(playlist->getVLCObject(), "Set i_played_seq_num=%d", num);
+    i_played_seq_num = num;
+}
+
+uint64_t HLSRepresentation::getPlayedSeqNumber() const
+{
+    const BasePlaylist *playlist = getPlaylist();
+    msg_Dbg(playlist->getVLCObject(), "Now i_played_seq_num=%d", i_played_seq_num);
+    return i_played_seq_num;
 }
 
 void HLSRepresentation::debug(vlc_object_t *obj, int indent) const
@@ -135,9 +151,9 @@ bool HLSRepresentation::needsUpdate(uint64_t number) const
     {
         const mtime_t now = mdate();
         const mtime_t elapsed = now - lastUpdateTime;
-        const mtime_t duration = targetDuration
+        const mtime_t duration = parttargetDuration?parttargetDuration*3:(targetDuration
                                   ? CLOCK_FREQ * targetDuration
-                                  : CLOCK_FREQ * 2;
+                                  : CLOCK_FREQ * 2);
         if(elapsed < duration)
             return false;
 

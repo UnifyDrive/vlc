@@ -88,7 +88,7 @@ static void releaseTagsList(std::list<Tag *> &list)
     list.clear();
 }
 
-HLSRepresentation * M3U8Parser::createRepresentation(BaseAdaptationSet *adaptSet, const AttributesTag * tag)
+HLSRepresentation * M3U8Parser::createRepresentation(BaseAdaptationSet *adaptSet, const AttributesTag * tag, vlc_object_t *p_obj)
 {
     const Attribute *uriAttr = tag->getAttributeByName("URI");
     const Attribute *bwAttr = tag->getAttributeByName("BANDWIDTH");
@@ -108,6 +108,8 @@ HLSRepresentation * M3U8Parser::createRepresentation(BaseAdaptationSet *adaptSet
             {
                 uri = uriAttr->value;
             }
+            if (p_obj)
+                    msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: uri[%s].", __FILE__ , __FUNCTION__, __LINE__, uri.c_str());
             rep->setID(uri);
             rep->setPlaylistUrl(uri);
             if(uri.find('/') != std::string::npos)
@@ -150,7 +152,7 @@ void M3U8Parser::createAndFillRepresentation(vlc_object_t *p_obj, BaseAdaptation
                                              const AttributesTag *tag,
                                              const std::list<Tag *> &tagslist)
 {
-    HLSRepresentation *rep  = createRepresentation(adaptSet, tag);
+    HLSRepresentation *rep  = createRepresentation(adaptSet, tag, p_obj);
     if(rep)
     {
         parseSegments(p_obj, rep, tagslist, true);
@@ -225,12 +227,20 @@ void M3U8Parser::parseSegments(vlc_object_t *p_obj, HLSRepresentation *rep, cons
     mtime_t totalduration = 0;
     mtime_t nzStartTime = 0;
     mtime_t absReferenceTime = VLC_TS_INVALID;
+    mtime_t partTarget = 0;
+    mtime_t partduration = 0;
+    int     partmp4_numbers = 0;
     uint64_t sequenceNumber = 0;
     bool discontinuity = false;
+    bool partIndependent = false;
     std::size_t prevbyterangeoffset = 0;
     const SingleValueTag *ctx_byterange = nullptr;
     CommonEncryption encryption;
     const ValuesListTag *ctx_extinf = nullptr;
+    int useLLhlsLive = 0;
+
+    if(p_obj)
+        useLLhlsLive = var_InheritInteger (p_obj, "use-llhls-live");
 
     std::list<HLSSegment *> segmentstoappend;
 
@@ -238,6 +248,8 @@ void M3U8Parser::parseSegments(vlc_object_t *p_obj, HLSRepresentation *rep, cons
     for(it = tagslist.begin(); it != tagslist.end(); ++it)
     {
         const Tag *tag = *it;
+        partduration = 0;
+        partIndependent = false;
         switch(tag->getType())
         {
             /* using static cast as attribute type permits avoiding class check */
@@ -253,10 +265,129 @@ void M3U8Parser::parseSegments(vlc_object_t *p_obj, HLSRepresentation *rep, cons
             }
             break;
 
+            case AttributesTag::EXTXPARTINF:
+            {
+                if(useLLhlsLive == 0){
+                    if (p_obj)
+                        msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: Do not run useLLhlsLive.", __FILE__ , __FUNCTION__, __LINE__);
+                    break;
+                }
+                const AttributesTag *keytag = static_cast<const AttributesTag *>(tag);
+                const Attribute *partTargetAttr;
+                if(keytag && (partTargetAttr = keytag->getAttributeByName("PART-TARGET"))) 
+                {
+                    if(partTargetAttr){
+                        partTarget = CLOCK_FREQ * partTargetAttr->floatingPoint();
+                        rep->parttargetDuration = partTarget;
+                    }
+                    keytag = nullptr;
+                    if (p_obj && 0)
+                        msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: Find PART-TARGET[%lld].", __FILE__ , __FUNCTION__, __LINE__, partTarget);
+                }
+            }
+            break;
+
+            case AttributesTag::EXTXPART:
+            {
+                if(useLLhlsLive == 0){
+                    if (p_obj)
+                        msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: Do not run useLLhlsLive.", __FILE__ , __FUNCTION__, __LINE__);
+                    break;
+                }
+                const AttributesTag *keytag = static_cast<const AttributesTag *>(tag);
+                const Attribute *partDurationAttr = NULL;
+                const Attribute *partUriAttr = NULL;
+                const Attribute *partIndependentAttr = NULL;
+                std::string uri;
+                if(keytag)
+                {
+                    partDurationAttr = keytag->getAttributeByName("DURATION");
+                    if(partDurationAttr) {
+                        partduration = CLOCK_FREQ * partDurationAttr->floatingPoint();
+                        if(partduration > 0){
+                            partmp4_numbers = rep->targetDuration * CLOCK_FREQ / partduration;
+                        }
+                    }
+                    partUriAttr = keytag->getAttributeByName("URI");
+                    if(partUriAttr){
+                        uri = partUriAttr->quotedString();
+                        if(!uri.empty()){
+                            std::istringstream iss(uri);
+                            std::ostringstream oss;
+
+                            while(!iss.eof())
+                            {
+                                char c = iss.peek();
+                                if(c == '_'){
+                                    break;
+                                }else{
+                                    iss.get();
+                                }
+                            }
+                            while(!iss.eof())
+                            {
+                                char c = iss.peek();
+                                if(c >= '0' && c <= '9') {
+                                    oss.put((char)iss.get());
+                                }else if(c == '.')
+                                {
+                                    iss.get();
+                                    break;
+                                }else {
+                                    iss.get();
+                                }
+                            }
+
+                            std::string part_index_num = oss.str();
+                            oss.str("");
+                            std::istringstream is(part_index_num);
+                            is.imbue(std::locale("C"));
+                            sequenceNumber = 0;
+                            is >> sequenceNumber;
+                        }
+                    }
+                    partIndependentAttr = keytag->getAttributeByName("INDEPENDENT");
+                    if(partIndependentAttr){
+                        partIndependent = true;
+                    }
+                    keytag = nullptr;
+                    if (p_obj && 0)
+                        msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: Find PART-DURATION(%lld)[%lld],URI[%s],INDEP[%d].", __FILE__ , __FUNCTION__, __LINE__, sequenceNumber, partduration, uri.c_str(), partIndependent);
+                    
+                    if(uri.empty()){
+                        break;
+                    }
+                    HLSSegment *segment = new (std::nothrow) HLSSegment(rep, sequenceNumber++);
+                    if(!segment)
+                        break;
+
+                    segment->setSourceUrl(uri);
+                    segment->duration.Set(timescale.ToScaled(partduration));
+                    segment->startTime.Set(timescale.ToScaled(nzStartTime));
+                    segment->independent = partIndependent;
+                    nzStartTime += partduration;
+                    totalduration += partduration;
+                    if(absReferenceTime > VLC_TS_INVALID)
+                    {
+                        segment->setDisplayTime(absReferenceTime);
+                        absReferenceTime += partduration;
+                    }
+
+                    segmentstoappend.push_back(segment);
+
+                    if(discontinuity)
+                    {
+                        segment->discontinuity = true;
+                        discontinuity = false;
+                    }
+                }
+            }
+            break;
+
             case SingleValueTag::URI:
             {
                 const SingleValueTag *uritag = static_cast<const SingleValueTag *>(tag);
-                if(uritag->getValue().value.empty())
+                if(uritag->getValue().value.empty() || partTarget > 0)
                 {
                     ctx_extinf = nullptr;
                     ctx_byterange = nullptr;
@@ -266,7 +397,7 @@ void M3U8Parser::parseSegments(vlc_object_t *p_obj, HLSRepresentation *rep, cons
                 HLSSegment *segment = new (std::nothrow) HLSSegment(rep, sequenceNumber++);
                 if(!segment)
                     break;
-                if (p_obj)
+                if (p_obj && 0)
                     msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: Find new segment[%s].", __FILE__ , __FUNCTION__, __LINE__, uritag->getValue().value.c_str());
 
                 segment->setSourceUrl(uritag->getValue().value);
@@ -384,14 +515,45 @@ void M3U8Parser::parseSegments(vlc_object_t *p_obj, HLSRepresentation *rep, cons
         }
     }
 
-    if (first) {
+    if (p_obj && 0)
+        msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: Find partmp4_numbers=[%d].", __FILE__ , __FUNCTION__, __LINE__, partmp4_numbers);
+    if (first && partTarget <= 0) {//HLS start
         int i = segmentstoappend.size();
         for(HLSSegment *seg : segmentstoappend) {
             i--;
             if(i <= 1)
                 segmentList->addSegment(seg);
         }
-    }else {
+    }else if (first && partTarget > 0) {//LLHLS start
+        int i = segmentstoappend.size();
+        bool need_play = false;
+        bool need_update_num = true;
+        int added_num =0;
+        for(HLSSegment *seg : segmentstoappend) {
+            i--;
+            if(i < partmp4_numbers && seg->independent)
+                need_play = true;
+            if (need_play && ++added_num <= 3) {
+                segmentList->addSegment(seg);
+                if(need_update_num) {
+                    rep->setPlayedSeqNumber(seg->sequence);
+                    need_update_num = false;
+                }
+            }
+        }
+    }else if (partTarget > 0) {//LLHLS
+        uint64_t parsed_num = rep->getPlayedSeqNumber() + 2;
+        bool need_update_num = true;
+        for(HLSSegment *seg : segmentstoappend) {
+            if (seg->sequence >= parsed_num) {
+                segmentList->addSegment(seg);
+                if(need_update_num) {
+                    rep->setPlayedSeqNumber(seg->sequence);
+                    need_update_num = false;
+                }
+            }
+        }
+    }else {//HLS
         for(HLSSegment *seg : segmentstoappend)
             segmentList->addSegment(seg);
     }
@@ -408,6 +570,7 @@ void M3U8Parser::parseSegments(vlc_object_t *p_obj, HLSRepresentation *rep, cons
 
     rep->updateSegmentList(segmentList, true);
 }
+
 M3U8 * M3U8Parser::parse(vlc_object_t *p_object, stream_t *p_stream, const std::string &playlisturl)
 {
     char *psz_line = vlc_stream_ReadLine(p_stream);
@@ -477,7 +640,7 @@ M3U8 * M3U8Parser::parse(vlc_object_t *p_object, stream_t *p_stream, const std::
                     if(groupsmap.find(tag->getAttributeByName("URI")->value) == groupsmap.end())
                     {
                         /* not a group, belong to default adaptation set */
-                        HLSRepresentation *rep  = createRepresentation(adaptSet, tag);
+                        HLSRepresentation *rep  = createRepresentation(adaptSet, tag, p_object);
                         if(rep)
                         {
                             adaptSet->addRepresentation(rep);
@@ -503,7 +666,7 @@ M3U8 * M3U8Parser::parse(vlc_object_t *p_object, stream_t *p_stream, const std::
             BaseAdaptationSet *altAdaptSet = new (std::nothrow) BaseAdaptationSet(period);
             if(altAdaptSet)
             {
-                HLSRepresentation *rep  = createRepresentation(altAdaptSet, pair.second);
+                HLSRepresentation *rep  = createRepresentation(altAdaptSet, pair.second, p_object);
                 if(rep)
                 {
                     altAdaptSet->addRepresentation(rep);
@@ -651,7 +814,7 @@ std::list<Tag *> M3U8Parser::parseEntries(stream_t *stream)
                         if(tag)
                             entrieslist.push_back(tag);
                         lastTag = tag;
-                        msg_Dbg(stream, "[%s:%s:%d]=zspace=: Add [%s]=[%s] to entrieslist.", __FILE__ , __FUNCTION__, __LINE__, key.c_str(), attributes.c_str());
+                        //msg_Dbg(stream, "[%s:%s:%d]=zspace=: Add [%s]=[%s] to entrieslist.", __FILE__ , __FUNCTION__, __LINE__, key.c_str(), attributes.c_str());
                     }
                 }
             }
@@ -672,7 +835,7 @@ std::list<Tag *> M3U8Parser::parseEntries(stream_t *stream)
                 Tag *tag = TagFactory::createTagByName("", std::string(psz_line));
                 if(tag)
                     entrieslist.push_back(tag);
-                msg_Dbg(stream, "[%s:%s:%d]=zspace=: Add [URI]=[%s] to entrieslist.", __FILE__ , __FUNCTION__, __LINE__, psz_line);
+                //msg_Dbg(stream, "[%s:%s:%d]=zspace=: Add [URI]=[%s] to entrieslist.", __FILE__ , __FUNCTION__, __LINE__, psz_line);
             }
             lastTag = nullptr;
         }
