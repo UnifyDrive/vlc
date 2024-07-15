@@ -335,8 +335,37 @@ static block_t *PacketizeBlock( decoder_t *p_dec, block_t **pp_block )
             }
             else /* Otherwise that's core + extensions, we need to output both */
             {
-                p_dec->fmt_out.i_profile = PROFILE_DTS_HD;
                 p_sys->i_input_size += p_sys->second.i_frame_size;
+                if( block_PeekOffsetBytes( &p_sys->bytestream, p_sys->i_next_offset + p_sys->second.i_substream_header_size,
+                                       p_header, VLC_DTS_HEADER_SIZE ) != VLC_SUCCESS )
+                {
+                    /* Need more data */
+                    p_sys->i_state = STATE_GET_DATA;
+                    break;
+                }
+
+                vlc_dts_header_t xssheader;
+                if( vlc_dts_header_Parse( &xssheader, p_header,
+                                        VLC_DTS_HEADER_SIZE ) != VLC_SUCCESS )
+                {
+                    msg_Dbg( p_dec, "emulated substream sync word, can't find extension" );
+                    p_sys->i_state = STATE_GET_DATA;
+                    break;
+                }
+
+                if( xssheader.syncword == DTS_SYNC_SUBSTREAM_XLL )
+                {
+                    p_dec->fmt_out.i_profile = PROFILE_DTS_HD_MA;
+                }
+                else
+                if( xssheader.syncword == DTS_SYNC_SUBSTREAM_XCH
+                    || xssheader.syncword == DTS_SYNC_SUBSTREAM_XXCH
+                    || xssheader.syncword == DTS_SYNC_SUBSTREAM_X96K
+                    || xssheader.syncword == DTS_SYNC_SUBSTREAM_XBR
+                    || xssheader.syncword == DTS_SYNC_SUBSTREAM_LBR )
+                {
+                    p_dec->fmt_out.i_profile = PROFILE_DTS_HD;
+                }
             }
             p_sys->i_state = STATE_GET_DATA;
             break;

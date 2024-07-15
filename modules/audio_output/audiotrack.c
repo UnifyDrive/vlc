@@ -37,14 +37,6 @@
 #include "../packetizer/a52.h"
 #include "../packetizer/dts_header.h"
 
-
-#define FF_PROFILE_DTS         20
-#define FF_PROFILE_DTS_ES      30
-#define FF_PROFILE_DTS_96_24   40
-#define FF_PROFILE_DTS_HD_HRA  50
-#define FF_PROFILE_DTS_HD_MA   60
-#define FF_PROFILE_DTS_EXPRESS 70
-
 const uint64_t UINT64_LOWER_BYTES = 0x00000000FFFFFFFF;
 const uint64_t UINT64_UPPER_BYTES = 0xFFFFFFFF00000000;
 
@@ -976,6 +968,7 @@ AudioTrack_New( JNIEnv *env, audio_output_t *p_aout, unsigned int i_rate,
 {
     aout_sys_t *p_sys = p_aout->sys;
     jint session_id = var_InheritInteger( p_aout, "audiotrack-session-id" );
+    msg_Warn(p_aout, "[%s:%s:%d]=zspace=: AudioTrack_New i_rate=%d, i_channel_config=%d, i_format=%d, i_size=%d",__FILE__ , __FUNCTION__, __LINE__, i_rate, i_channel_config, i_format,i_size);
     jobject p_audiotrack = JNI_AT_NEW( jfields.AudioManager.STREAM_MUSIC,
                                        i_rate, i_channel_config, i_format,
                                        i_size, jfields.AudioTrack.MODE_STREAM,
@@ -1323,11 +1316,10 @@ StartPassthrough( JNIEnv *env, audio_output_t *p_aout, bool ac3)
                     {
                         p_sys->fmt.i_rate = 192000;
                         //p_sys->fmt.i_bytes_per_frame = 16;
-                        if (p_sys->i_dts_profile == FF_PROFILE_DTS_HD_MA) {
+                        if (p_sys->i_dts_profile == FF_PROFILE_DTS_HD_MA || p_sys->i_dts_profile == PROFILE_DTS_HD_MA) {
                             msg_Warn( p_aout, "[%s:%s:%d]=zspace=: has_ENCODING_DTS_HD_MA=[%d]. ", __FILE__ , __FUNCTION__, __LINE__, jfields.AudioFormat.has_ENCODING_DTS_HD_MA);
-                            if (jfields.AudioFormat.has_ENCODING_DTS_HD_MA) {
-                                p_sys->fmt.i_physical_channels =  AOUT_CHANS_7_1;
-                            }
+                            p_sys->fmt.i_physical_channels = AOUT_CHANS_7_1;
+                            p_sys->fmt.i_bytes_per_frame = 16;
                         }
                     }
                     p_sys->i_ori_format = VLC_CODEC_DTS;

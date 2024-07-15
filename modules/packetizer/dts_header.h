@@ -28,6 +28,16 @@
 #define PROFILE_DTS 0
 #define PROFILE_DTS_HD 1
 #define PROFILE_DTS_EXPRESS 2
+#define PROFILE_DTS_HD_MA 3
+
+
+
+#define FF_PROFILE_DTS         20
+#define FF_PROFILE_DTS_ES      30
+#define FF_PROFILE_DTS_96_24   40
+#define FF_PROFILE_DTS_HD_HRA  50
+#define FF_PROFILE_DTS_HD_MA   60
+#define FF_PROFILE_DTS_EXPRESS 70
 
 enum vlc_dts_syncword_e
 {
@@ -39,6 +49,11 @@ enum vlc_dts_syncword_e
     DTS_SYNC_SUBSTREAM,
     /* Substreams internal syncs */
     DTS_SYNC_SUBSTREAM_LBR,
+    DTS_SYNC_SUBSTREAM_XLL,
+    DTS_SYNC_SUBSTREAM_XCH,
+    DTS_SYNC_SUBSTREAM_XXCH,
+    DTS_SYNC_SUBSTREAM_X96K,
+    DTS_SYNC_SUBSTREAM_XBR,
 };
 
 typedef struct

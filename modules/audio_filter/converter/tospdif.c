@@ -56,6 +56,7 @@ struct filter_sys_t
     block_t *p_out_buf;
     size_t i_out_offset;
     bool    b_AC3_passthrough;
+    int     i_dts_profile;
     union
     {
         struct
@@ -501,9 +502,13 @@ static int write_buffer_dtshd( filter_t *p_filter, block_t *p_in_buf )
     if( vlc_dts_header_Parse( &core, p_in_buf->p_buffer,
                               p_in_buf->i_buffer ) != VLC_SUCCESS )
         return SPDIF_ERROR;
-    unsigned i_period = p_filter->fmt_out.audio.i_rate
-                      * core.i_frame_length / core.i_rate;
-    //msg_Dbg( p_filter, "i_period=%d,fmt_out.rate=%d,core[%d, %d]", i_period, p_filter->fmt_out.audio.i_rate, core.i_frame_length, core.i_rate );
+
+    unsigned i_period = 0;
+    if (p_sys->i_dts_profile == FF_PROFILE_DTS_HD_MA || p_sys->i_dts_profile == PROFILE_DTS_HD_MA)
+        i_period = 4 * p_filter->fmt_out.audio.i_rate * core.i_frame_length / core.i_rate;
+    else
+        i_period = p_filter->fmt_out.audio.i_rate * core.i_frame_length / core.i_rate;
+    //msg_Dbg( p_filter, "i_period=%d,fmt_out.rate=%d,core[%d, %d, %d]", i_period, p_filter->fmt_out.audio.i_rate, core.i_frame_length, core.i_frame_size, core.i_rate );
 
     int i_subtype = dtshd_get_subtype( i_period );
     if( i_subtype == -1 )
@@ -652,7 +657,9 @@ static int Open( vlc_object_t *p_this )
     if( unlikely( p_sys == NULL ) )
         return VLC_ENOMEM;
 
+    vlc_object_t *p_aout = p_filter->obj.parent;
     p_sys->b_AC3_passthrough = var_InheritBool( p_filter, "spdif-ac3");
+    p_sys->i_dts_profile = var_InheritInteger( p_aout, "dtsProfile" );
     p_filter->pf_audio_filter = DoWork;
     p_filter->pf_flush = Flush;
 

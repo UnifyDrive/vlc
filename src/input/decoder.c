@@ -54,6 +54,7 @@
 #include "modules/modules.h"
 
 #include "../video_output/vout_control.h"
+#include "../../modules/packetizer/dts_header.h"
 #define  ZS_DEBUG      (0)
 
 /*
@@ -395,7 +396,8 @@ static int aout_update_format( decoder_t *p_dec )
             /* TODO: 3.0 HACK: we need to put i_profile inside audio_format_t
              * for 4.0 */
             if( p_dec->fmt_out.i_codec == VLC_CODEC_DTS ) {
-                var_SetBool( p_aout, "dtshd", p_dec->fmt_out.i_profile > 0 );
+                bool b_dtshd = (p_dec->fmt_out.i_profile == FF_PROFILE_DTS_HD_HRA || p_dec->fmt_out.i_profile == FF_PROFILE_DTS_HD_MA || p_dec->fmt_out.i_profile == PROFILE_DTS_HD || p_dec->fmt_out.i_profile == PROFILE_DTS_HD_MA);
+                var_SetBool( p_aout, "dtshd", b_dtshd );
                 var_SetInteger( p_aout, "dtsProfile", p_dec->fmt_out.i_profile );
             }
             var_SetBool(p_aout,"outPassThroughError",false);

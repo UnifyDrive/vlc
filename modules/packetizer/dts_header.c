@@ -117,6 +117,21 @@ static enum vlc_dts_syncword_e dts_header_getSyncword( const uint8_t *p_buf )
     if( memcmp( p_buf, "\x0A\x80\x19\x21", 4 ) == 0 )
         return DTS_SYNC_SUBSTREAM_LBR;
     else
+    if( memcmp( p_buf, "\x41\xA2\x95\x47", 4 ) == 0 )
+        return DTS_SYNC_SUBSTREAM_XLL;
+    else
+    if( memcmp( p_buf, "\x5A\x5A\x5A\x5A", 4 ) == 0 )
+        return DTS_SYNC_SUBSTREAM_XCH;
+    else
+    if( memcmp( p_buf, "\x47\x00\x4A\x03", 4 ) == 0 )
+        return DTS_SYNC_SUBSTREAM_XXCH;
+    else
+    if( memcmp( p_buf, "\x1d\x95\xF2\x62", 4 ) == 0 )
+        return DTS_SYNC_SUBSTREAM_X96K;
+    else
+    if( memcmp( p_buf, "\x65\x5E\x31\x5E", 4 ) == 0 )
+        return DTS_SYNC_SUBSTREAM_XBR;
+    else
         return DTS_SYNC_NONE;
 }
 
@@ -438,6 +453,12 @@ int vlc_dts_header_Parse( vlc_dts_header_t *p_header,
             return dts_header_ParseSubstream( p_header, p_buffer );
         case DTS_SYNC_SUBSTREAM_LBR:
             return dts_header_ParseLBRExtSubstream( p_header, p_buffer );
+        case DTS_SYNC_SUBSTREAM_XLL:
+        case DTS_SYNC_SUBSTREAM_XCH:
+        case DTS_SYNC_SUBSTREAM_XXCH:
+        case DTS_SYNC_SUBSTREAM_X96K:
+        case DTS_SYNC_SUBSTREAM_XBR:
+            return VLC_SUCCESS;
         default:
             vlc_assert_unreachable();
     }
