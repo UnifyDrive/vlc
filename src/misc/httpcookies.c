@@ -367,8 +367,8 @@ char *vlc_http_cookies_fetch(vlc_http_cookie_jar_t *p_jar, bool secure,
 {
     char *psz_cookiebuf = NULL;
 
-    if(mPrintObj) {
-        msg_Dbg((stream_t *)mPrintObj, "[%s:%s:%d]=zspace=: Input cookies array count=%d, host=[%s], path=[%s].", __FILE__ , __FUNCTION__, __LINE__, vlc_array_count( &p_jar->cookies ), host, path);
+    if(mPrintObj && p_jar) {
+        //msg_Dbg((stream_t *)mPrintObj, "[%s:%s:%d]=zspace=: Input cookies array count=%d, host=[%s], path=[%s].", __FILE__ , __FUNCTION__, __LINE__, vlc_array_count( &p_jar->cookies ), host, path);
     }
 
     vlc_mutex_lock( &p_jar->lock );

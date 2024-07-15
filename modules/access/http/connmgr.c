@@ -215,7 +215,7 @@ static struct vlc_http_msg *vlc_http_request(struct vlc_http_mgr *mgr,
     if (mgr && mgr->obj) {
         char *cookies = NULL;
         cookies= var_InheritString(mgr->obj, "zspace-cookies");
-        msg_Dbg(mgr->obj, "[%s:%s:%d]=zspace=: zspace-cookies =[%s].", __FILE__ , __FUNCTION__, __LINE__, cookies);
+        //msg_Dbg(mgr->obj, "[%s:%s:%d]=zspace=: zspace-cookies =[%s].", __FILE__ , __FUNCTION__, __LINE__, cookies);
         if (cookies != NULL) {
             vlc_http_msg_add_header(req, "Cookie", "%s", cookies);
             free(cookies);

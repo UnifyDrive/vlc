@@ -938,7 +938,7 @@ int vlc_http_msg_add_cookies(struct vlc_http_msg *m,
     free(host);
 
     if(print_obj) {
-        msg_Dbg((stream_t *)print_obj, "[%s:%s:%d]=zspace=: Fetch cookies =[%s].", __FILE__ , __FUNCTION__, __LINE__, cookies);
+        //msg_Dbg((stream_t *)print_obj, "[%s:%s:%d]=zspace=: Fetch cookies =[%s].", __FILE__ , __FUNCTION__, __LINE__, cookies);
     }
 
     if (cookies != NULL)
@@ -948,7 +948,7 @@ int vlc_http_msg_add_cookies(struct vlc_http_msg *m,
     }else if (print_obj != NULL){
         cookies= var_InheritString((vlc_object_t *)print_obj, "zspace-cookies");
         if(print_obj) {
-            msg_Dbg((stream_t *)print_obj, "[%s:%s:%d]=zspace=: zspace-cookies =[%s].", __FILE__ , __FUNCTION__, __LINE__, cookies);
+            //msg_Dbg((stream_t *)print_obj, "[%s:%s:%d]=zspace=: zspace-cookies =[%s].", __FILE__ , __FUNCTION__, __LINE__, cookies);
         }
         if (cookies != NULL) {
             val = vlc_http_msg_add_header(m, "Cookie", "%s", cookies);
