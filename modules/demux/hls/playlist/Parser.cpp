@@ -351,7 +351,7 @@ void M3U8Parser::parseSegments(vlc_object_t *p_obj, HLSRepresentation *rep, cons
                         partIndependent = true;
                     }
                     keytag = nullptr;
-                    if (p_obj && 0)
+                    if (p_obj && (0 || partIndependent))
                         msg_Dbg(p_obj, "[%s:%s:%d]=zspace=: Find PART-DURATION(%lld)[%lld],URI[%s],INDEP[%d].", __FILE__ , __FUNCTION__, __LINE__, sequenceNumber, partduration, uri.c_str(), partIndependent);
                     
                     if(uri.empty()){
@@ -542,7 +542,7 @@ void M3U8Parser::parseSegments(vlc_object_t *p_obj, HLSRepresentation *rep, cons
             }
         }
     }else if (partTarget > 0) {//LLHLS
-        uint64_t parsed_num = rep->getPlayedSeqNumber() + 2;
+        uint64_t parsed_num = rep->getPlayedSeqNumber() + 1;
         bool need_update_num = true;
         for(HLSSegment *seg : segmentstoappend) {
             if (seg->sequence >= parsed_num) {

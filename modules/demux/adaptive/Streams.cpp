@@ -538,7 +538,7 @@ block_t * AbstractStream::readNextBlock()
         if(currentChunk->getRequestStatus() == RequestStatus::NotFound &&
            ++notfound_sequence < 3)
         {
-            discontinuity = true;
+            //discontinuity = true;
         }
         delete currentChunk;
         currentChunk = nullptr;
@@ -638,7 +638,7 @@ void AbstractStream::trackerEvent(const TrackerEvent &ev)
     switch(ev.getType())
     {
         case TrackerEvent::Type::Discontinuity:
-            discontinuity = true;
+            //discontinuity = true;
             break;
 
         case TrackerEvent::Type::FormatChange:
