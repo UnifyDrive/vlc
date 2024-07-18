@@ -1844,7 +1844,6 @@ static void EsSelect( es_out_t *out, es_out_id_t *es )
                 return;
             }
         }
-
         EsCreateDecoder( out, es );
 
         if( es->p_dec == NULL || es->p_pgrm != p_sys->p_pgrm )
@@ -1920,6 +1919,19 @@ static void EsUnselect( es_out_t *out, es_out_id_t *es, bool b_update )
         input_SendEventTeletextSelect( p_input, -1 );
 }
 
+static bool isValidTrackId(es_out_t *out, enum es_format_category_e i_cat, int trackId)
+{
+    es_out_sys_t *p_sys = out->p_sys;
+
+    for( int i = 0; i < p_sys->i_es; i++ )
+    {
+        es_out_id_t *p_es = p_sys->es[i];
+        if( p_es && (p_es->fmt.i_cat == i_cat) && (p_es->i_id == trackId) )
+            return true;
+    }
+    return false;
+}
+
 /**
  * Select an ES given the current mode
  * XXX: you need to take a the lock before (stream.stream_lock)
@@ -1982,6 +1994,11 @@ static void EsOutSelect( es_out_t *out, es_out_id_t *es, bool b_force )
         if( es->p_pgrm != p_sys->p_pgrm || !p_esprops )
             return;
 
+        if(p_esprops->i_id >= 0 && !isValidTrackId(out, es->fmt.i_cat, p_esprops->i_id))
+        {
+            msg_Err(p_sys->p_input, "[%s:%s:%d]=zspace=: User set invalid trackid(%d), force use default.",__FILE__ , __FUNCTION__, __LINE__, p_esprops->i_id);
+            p_esprops->i_id = -1;
+        }
         /* user designated by ID ES have higher prio than everything */
         if ( p_esprops->i_id >= 0 )
         {
