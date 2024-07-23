@@ -148,6 +148,7 @@ struct frame_info_t
 #define H264_MAX_DPB 16
 #define VT_MAX_SEI_COUNT 16
 #define MAX_B_FRAME_COUNT 7
+#define MAX_FRAME_RATE 50
 
 struct decoder_sys_t
 {
@@ -2335,14 +2336,18 @@ static int DecodeBlock(decoder_t *p_dec, block_t *p_block)
     }
 
     VTDecodeInfoFlags flagOut;
+    int i_fps = 0;
+    if (p_dec->fmt_in.video.i_frame_rate_base > 0) {
+        i_fps = p_dec->fmt_in.video.i_frame_rate / p_dec->fmt_in.video.i_frame_rate_base;
+    }
 
     if (p_sys->hevc_slice_type == HEVC_SLICE_TYPE_B)
         p_sys->hevc_b_frame_count ++;
     else
         p_sys->hevc_b_frame_count = 0;
-    if (p_sys->hevc_b_frame_count >= MAX_B_FRAME_COUNT && p_sys->decoderFlags == kVTDecodeFrame_EnableAsynchronousDecompression) {
+    if (p_sys->hevc_b_frame_count >= MAX_B_FRAME_COUNT && p_sys->decoderFlags == kVTDecodeFrame_EnableAsynchronousDecompression && i_fps < MAX_FRAME_RATE) {
         p_sys->decoderFlags = 0;
-        msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: switch to synchronous decoding", __FILE__ , __FUNCTION__, __LINE__);
+        msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: switch to synchronous decoding,BFrames=%d.", __FILE__ , __FUNCTION__, __LINE__, p_sys->hevc_b_frame_count);
     }
 
     OSStatus status =
