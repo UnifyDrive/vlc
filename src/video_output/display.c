@@ -692,8 +692,11 @@ static void VoutDisplayFitWindow(vout_display_t *vd, bool default_size)
     if (!cfg.is_display_filled)
         return;
 
+#ifndef __APPLE__
     cfg.display.width = 0;
+#endif
     if (default_size) {
+        cfg.display.width = 0;
         cfg.display.height = 0;
     } else {
         cfg.zoom.num = 1;
@@ -863,7 +866,12 @@ bool vout_ManageDisplay(vout_display_t *vd, bool allow_reset_pictures)
         }
         /* */
         if (osys->ch_zoom) {
+#ifdef __APPLE__
+            /* Avoid the first subpicture jump */
+            osys->fit_window = 0;
+#else
             osys->fit_window = -1;
+#endif
             osys->cfg.zoom.num = osys->zoom.num;
             osys->cfg.zoom.den = osys->zoom.den;
             osys->ch_zoom = false;

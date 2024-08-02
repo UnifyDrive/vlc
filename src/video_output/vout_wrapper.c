@@ -81,8 +81,8 @@ int vout_OpenWrapper(vout_thread_t *vout,
             module_name = "avsamplebufferdisplaylayer";
     #elif TARGET_OS_IPHONE
             msg_Dbg(vout, "TARGET_OS_IPHONE");
-            if (vout->p->original.hdr_type == 0)
-                module_name = "ios";
+            //if (vout->p->original.hdr_type == 0)
+            //    module_name = "ios";
     #elif TARGET_OS_MAC
             msg_Dbg(vout, "TARGET_OS_OSX");
     #endif

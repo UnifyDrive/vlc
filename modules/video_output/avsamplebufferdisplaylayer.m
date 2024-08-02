@@ -51,6 +51,7 @@ static picture_pool_t *Pool (vout_display_t *vd, unsigned requested_count);
 static void PicturePrepare  (vout_display_t *vd, picture_t *pic, subpicture_t *subpicture);
 static void PictureDisplay  (vout_display_t *vd, picture_t *pic, subpicture_t *subpicture);
 static int Control          (vout_display_t *vd, int query, va_list ap);
+static void SendEventDisplaySize(vout_display_t *vd);
 
 @interface TDXVideoView : TDXView
 {
@@ -416,41 +417,24 @@ static void GetDisplayRect(vout_display_t *vd, Rect memset_bounds, Rect *p_out_b
 
     if (ZS_DEBUG)
         msg_Dbg(vd, "[%s:%s:%d]=zspace=: vd->source.i_width=%d,vd->source.i_height=%d,sys->videoView.layer.bounds.size.width=%f,sys->videoView.layer.bounds.size.height=%f", __FILE__ , __FUNCTION__, __LINE__,vd->source.i_width, vd->source.i_height, sys->videoView.layer.bounds.size.width, sys->videoView.layer.bounds.size.height);
-    /*
-     字幕缩放到屏幕内尺寸
-     如果字幕的宽高比>屏幕宽高比，字幕的width等于display_width，height再按比例缩放
-     如果字幕的宽高比<屏幕宽高比，图片的height等于display_height,width再按比例缩放
-     */
-    if (vd->source.i_width/vd->source.i_height > sys->videoView.layer.bounds.size.width/sys->videoView.layer.bounds.size.height)
-    {
-        scale_width = vd->source.i_width/(sys->videoView.layer.bounds.size.width);
-        CGFloat height = vd->source.i_height *sys->videoView.layer.bounds.size.width/vd->source.i_width;
-        scale_height = vd->source.i_height/height;
-        //msg_Dbg(vd, "[%s:%s:%d]=zspace=: scale_width %f scale_height %f", __FILE__ , __FUNCTION__, __LINE__,scale_width, scale_height);
-        if (!sys->b_black_area_subtitles)
-        {
-            black_height = (sys->videoView.layer.bounds.size.height - height)/2 ;
-        }
-    }
-    else
-    {
-        scale_height = vd->source.i_height/(sys->videoView.layer.bounds.size.height);
-        CGFloat width = vd->source.i_width * sys->videoView.layer.bounds.size.height/vd->source.i_height;
-        scale_width = vd->source.i_width/width;
-        //msg_Dbg(vd, "[%s:%s:%d]=zspace=: scale_width %f scale_height %f", __FILE__ , __FUNCTION__, __LINE__,scale_width, scale_height);
-        black_width = (sys->videoView.layer.bounds.size.width - width)/2;
+    vout_display_place_t aspect_place;
+    vout_display_PlacePicture(&aspect_place, &vd->source, vd->cfg, false);
 
-    }
+    CGFloat scale_x = (CGFloat)aspect_place.width / (CGFloat)vd->source.i_width;
+    CGFloat scale_y = (CGFloat)aspect_place.height / (CGFloat)vd->source.i_height;
 
-    p_out_bounds->left = (CGFloat)memset_bounds.left/(CGFloat)scale_width + black_width;
-    p_out_bounds->right = (CGFloat)memset_bounds.right/(CGFloat)scale_width + black_width;
+    if (!sys->b_black_area_subtitles)
+        black_height = (vd->cfg->display.height - vd->source.i_height * scale_y) / 2 ;
+    black_width = (vd->cfg->display.width - vd->source.i_width * scale_x) / 2;
+    p_out_bounds->left = (CGFloat)memset_bounds.left * (CGFloat)scale_x + black_width;
+    p_out_bounds->right = (CGFloat)memset_bounds.right * (CGFloat)scale_x + black_width;
     
 #if TARGET_OS_OSX
-    p_out_bounds->top = sys->videoView.layer.bounds.size.height - (memset_bounds.top/scale_height+black_height);
-    p_out_bounds->bottom = sys->videoView.layer.bounds.size.height - (memset_bounds.bottom/scale_height+black_height);
+    p_out_bounds->top = vd->cfg->display.height - ((CGFloat)memset_bounds.top * (CGFloat)scale_y + black_height);
+    p_out_bounds->bottom = vd->cfg->display.height - ((CGFloat)memset_bounds.bottom * (CGFloat)scale_y + black_height);
 #else
-    p_out_bounds->top = (CGFloat)memset_bounds.top/(CGFloat)scale_height+black_height;
-    p_out_bounds->bottom = (CGFloat)memset_bounds.bottom/(CGFloat)scale_height+black_height;
+    p_out_bounds->top = (CGFloat)memset_bounds.top * (CGFloat)scale_y + black_height;
+    p_out_bounds->bottom = (CGFloat)memset_bounds.bottom * (CGFloat)scale_y + black_height;
 #endif
 }
 
@@ -478,13 +462,13 @@ static void PicturePrepare(vout_display_t *vd, picture_t *pic, subpicture_t *sub
             video_format_ApplyRotation(&sub_fmt, &vd->fmt);
             msg_Dbg(vd, "[%s:%s:%d]=zspace=: vd->fmt.i_visible_width=%d,vd->fmt.i_visible_height=%d,sys->displayLayer.frame.size.width=%f sys->displayLayer.frame.size.height=%f", __FILE__ , __FUNCTION__, __LINE__, vd->fmt.i_visible_width, vd->fmt.i_visible_height, sys->displayLayer.frame.size.width, sys->displayLayer.frame.size.height);
             float video_ratio = (float)vd->source.i_height / (float)vd->source.i_width;
-            float display_ratio = (float)sys->displayLayer.frame.size.height / (float)sys->displayLayer.frame.size.width;
+            float display_ratio = (float)vd->cfg->display.height / (float)vd->cfg->display.width;
             /*
              不走字幕到黑边逻辑的条件
              1）画面高宽比>屏幕高宽比
              2）画面高宽比<屏幕高宽比，且画面宽度<屏幕宽度
              */
-            if (video_ratio > display_ratio || ((video_ratio < display_ratio) && (vd->source.i_width<sys->displayLayer.frame.size.width)))
+            if (video_ratio > display_ratio || ((video_ratio < display_ratio) && (vd->source.i_width < vd->cfg->display.width)))
             {
                 sys->b_black_area_subtitles = false;
                 msg_Dbg(vd, "[%s:%s:%d]=zspace=: sys->b_black_area_subtitles=%d", __FILE__ , __FUNCTION__, __LINE__, sys->b_black_area_subtitles);
@@ -492,7 +476,7 @@ static void PicturePrepare(vout_display_t *vd, picture_t *pic, subpicture_t *sub
 
             if (sys->b_black_area_subtitles)
             {
-                sub_fmt.i_visible_height = sub_fmt.i_height = vd->fmt.i_width * sys->displayLayer.frame.size.height / sys->displayLayer.frame.size.width;
+                sub_fmt.i_visible_height = sub_fmt.i_height = vd->fmt.i_width * vd->cfg->display.height / vd->cfg->display.width;
                 msg_Dbg(vd, "[%s:%s:%d]=zspace=: sub_fmt.i_visible_width=%d sub_fmt.i_visible_height=%d sub_fmt.i_height=%d", __FILE__ , __FUNCTION__, __LINE__, sub_fmt.i_visible_width, sub_fmt.i_visible_height, sub_fmt.i_height);
             }
             sub_fmt.i_chroma = subpicture_chromas[0];
@@ -541,8 +525,17 @@ static void PicturePrepare(vout_display_t *vd, picture_t *pic, subpicture_t *sub
         }
         memset(buffer, 0x00, img_width*img_height*4);
         for (int y = memset_bounds.top; y < memset_bounds.bottom; y++)
-            memcpy(&buffer[(y-memset_bounds.top)*img_width*4], &sys->p_sub_pic->p[0].p_pixels[y * sys->p_sub_pic->p[0].i_pitch
-                                                    + x_pixels_offset], img_width*4);
+        {
+            if (y * sys->p_sub_pic->p[0].i_pitch + x_pixels_offset + img_width * 4 < sys->p_sub_pic->p[0].i_lines * sys->p_sub_pic->p[0].i_pitch )
+            {
+                memcpy(&buffer[(y - memset_bounds.top) * img_width * 4], &sys->p_sub_pic->p[0].p_pixels[y * sys->p_sub_pic->p[0].i_pitch
+                                                                                                  + x_pixels_offset], img_width * 4);
+            }
+            else
+            {
+                msg_Dbg(vd, "[%s:%s:%d]=zspace=: out of range", __FILE__ , __FUNCTION__, __LINE__);
+            }
+        }
 #else
         subpicture_region_t *r = subpicture->p_region;
         if(r)
@@ -621,8 +614,8 @@ static void PictureDisplay(vout_display_t *vd, picture_t *pic, subpicture_t *sub
                 
             if (sys->subtitleLayer.isHidden)
                 sys->subtitleLayer.hidden = NO;
-            if (sys->i_sub_first_order == sys->i_sub_last_order)
-                sys->subtitleLayer.hidden = YES;
+            //if (sys->i_sub_first_order == sys->i_sub_last_order)
+            //    sys->subtitleLayer.hidden = YES;
             [CATransaction commit];
             memcpy(&sys->rect, &display_bounds, sizeof(Rect));
 
@@ -715,8 +708,29 @@ static int Control(vout_display_t *vd, int query, va_list ap)
         {
             const vout_display_cfg_t *cfg;
             cfg = vd->cfg;
-            msg_Dbg(vd, "[%s:%s:%d]=zspace=: aspect size: %dx%d", __FILE__ , __FUNCTION__, __LINE__, cfg->display.width,
-                    cfg->display.height);
+            msg_Dbg(vd, "[%s:%s:%d]=zspace=: aspect size: %dx%d vd->source.den %d num %d", __FILE__ , __FUNCTION__, __LINE__, cfg->display.width,
+                    cfg->display.height, vd->source.i_sar_den, vd->source.i_sar_num);
+            vout_display_place_t original_place;
+            video_format_t original_source = vd->source;
+            original_source.i_sar_den = 1;
+            original_source.i_sar_num = 1;
+            vout_display_PlacePicture(&original_place, &original_source, cfg, false);
+            msg_Dbg(vd, "[%s:%s:%d]=zspace=: original_place width=%d height=%d", __FILE__ , __FUNCTION__, __LINE__, original_place.width,original_place.height);
+
+            vout_display_place_t aspect_place;
+            vout_display_PlacePicture(&aspect_place, &vd->source, cfg, false);
+            msg_Dbg(vd, "[%s:%s:%d]=zspace=: aspect_place width=%d height=%d", __FILE__ , __FUNCTION__, __LINE__, aspect_place.width,aspect_place.height);
+
+            CGFloat scale_x = (CGFloat)aspect_place.width / (CGFloat)original_place.width;
+            CGFloat scale_y = (CGFloat)aspect_place.height / (CGFloat)original_place.height;
+            msg_Dbg(vd, "[%s:%s:%d]=zspace=: scale_x=%f scale_y=%f", __FILE__ , __FUNCTION__, __LINE__, scale_x, scale_y);
+            dispatch_sync(dispatch_get_main_queue(), ^{
+                [CATransaction begin];
+                [CATransaction setDisableActions:YES];
+                CATransform3D scaleTransorm = CATransform3DMakeScale(scale_x, scale_y, 1);
+                sys->displayLayer.transform = scaleTransorm;
+                [CATransaction commit];
+            });
             return VLC_SUCCESS;
         }
 
@@ -731,6 +745,10 @@ static int Control(vout_display_t *vd, int query, va_list ap)
 static void SendEventDisplaySize(vout_display_t *vd)
 {
     vout_display_sys_t *sys = vd->sys;
+
+    vout_display_SendEventDisplaySize(vd, sys->displayLayer.frame.size.width,
+                                      sys->displayLayer.frame.size.height);
+    return;
     /*
      视频尺寸小于屏幕尺寸时，需要设置视频尺寸给video_output,字幕才能正常显示
      */

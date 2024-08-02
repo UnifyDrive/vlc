@@ -1047,6 +1047,7 @@ static int ThreadDisplayRenderPicture(vout_thread_t *vout, bool is_forced)
         #endif
         /*msg_Warn( vout, "[%s:%s:%d]=zspace=: fmt[(%d,%d) (%d,%d)] place[%d,%d]. vd->cfg->display.width %d height %d", __FILE__ , __FUNCTION__, __LINE__,
             fmt_spu.i_width, fmt_spu.i_height, fmt_spu.i_visible_width, fmt_spu.i_visible_height, place.width, place.height, vd->cfg->display.width,vd->cfg->display.height);*/
+#ifndef __APPLE__
         if (force_use_display || fmt_spu.i_width * fmt_spu.i_height < place.width * place.height) {
             fmt_spu.i_sar_num = vd->cfg->display.sar.num;
             fmt_spu.i_sar_den = vd->cfg->display.sar.den;
@@ -1063,6 +1064,7 @@ static int ThreadDisplayRenderPicture(vout_thread_t *vout, bool is_forced)
                 fmt_spu.i_visible_height = vd->cfg->display.height;
             }
         }
+#endif
         subpicture_chromas = vd->info.subpicture_chromas;
     } else {
         if (do_early_spu) {
