@@ -692,7 +692,11 @@ static void VoutDisplayFitWindow(vout_display_t *vd, bool default_size)
     if (!cfg.is_display_filled)
         return;
 
-#ifndef __APPLE__
+#ifdef __APPLE__
+    char * module_name = module_get_object(vd->module);
+    if(0 != strcmp(module_name, "avsamplebufferdisplaylayer"))
+        cfg.display.width = 0;
+#else
     cfg.display.width = 0;
 #endif
     if (default_size) {
