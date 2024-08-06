@@ -466,12 +466,20 @@ static void PicturePrepare(vout_display_t *vd, picture_t *pic, subpicture_t *sub
             /*
              不走字幕到黑边逻辑的条件
              1）画面高宽比>屏幕高宽比
-             2）画面高宽比<屏幕高宽比，且画面宽度<屏幕宽度
              */
-            if (video_ratio > display_ratio || ((video_ratio < display_ratio) && (vd->source.i_width < vd->cfg->display.width)))
+            if (video_ratio > display_ratio)
             {
                 sys->b_black_area_subtitles = false;
                 msg_Dbg(vd, "[%s:%s:%d]=zspace=: sys->b_black_area_subtitles=%d", __FILE__ , __FUNCTION__, __LINE__, sys->b_black_area_subtitles);
+            }
+
+            vout_display_place_t place;
+            vout_display_PlacePicture(&place, &vd->source, vd->cfg, false);
+            if (sub_fmt.i_visible_width  < place.width && sub_fmt.i_visible_height < place.height)
+            {
+                msg_Dbg(vd, "[%s:%s:%d]=zspace=: sub_fmt.i_visible_width=%d sub_fmt.i_visible_height=%d place width=%d height=%d", __FILE__ , __FUNCTION__, __LINE__, sub_fmt.i_visible_width, sub_fmt.i_visible_height, place.width, place.height);
+                sub_fmt.i_visible_height = sub_fmt.i_height = place.height;
+                sub_fmt.i_visible_width = sub_fmt.i_width = place.width;
             }
 
             if (sys->b_black_area_subtitles)
@@ -526,7 +534,7 @@ static void PicturePrepare(vout_display_t *vd, picture_t *pic, subpicture_t *sub
         memset(buffer, 0x00, img_width*img_height*4);
         for (int y = memset_bounds.top; y < memset_bounds.bottom; y++)
         {
-            if (y * sys->p_sub_pic->p[0].i_pitch + x_pixels_offset + img_width * 4 < sys->p_sub_pic->p[0].i_lines * sys->p_sub_pic->p[0].i_pitch )
+            if (y * sys->p_sub_pic->p[0].i_pitch + x_pixels_offset + img_width * 4 < sys->p_sub_pic->p[0].i_lines * sys->p_sub_pic->p[0].i_pitch)
             {
                 memcpy(&buffer[(y - memset_bounds.top) * img_width * 4], &sys->p_sub_pic->p[0].p_pixels[y * sys->p_sub_pic->p[0].i_pitch
                                                                                                   + x_pixels_offset], img_width * 4);
