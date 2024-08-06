@@ -200,6 +200,7 @@ struct decoder_sys_t
     VTDecodeFrameFlags          decoderFlags;
     enum hevc_slice_type_e      hevc_slice_type;
     uint8_t                     hevc_b_frame_count;
+    uint8_t                     hevc_b_frame_count_max;
 };
 
 struct pic_holder
@@ -1638,6 +1639,7 @@ static int OpenDecoder(vlc_object_t *p_this)
     p_sys->decoderFlags = kVTDecodeFrame_EnableAsynchronousDecompression;
     p_sys->hevc_b_frame_count = 0;
     p_sys->hevc_slice_type = 0;
+    p_sys->hevc_b_frame_count_max = 0;
 
     char *cvpx_chroma = var_InheritString(p_dec, "videotoolbox-cvpx-chroma");
     if (cvpx_chroma != NULL)
@@ -2343,9 +2345,18 @@ static int DecodeBlock(decoder_t *p_dec, block_t *p_block)
 
     if (p_sys->hevc_slice_type == HEVC_SLICE_TYPE_B)
         p_sys->hevc_b_frame_count ++;
-    else
+    else {
+        if (p_sys->hevc_b_frame_count > p_sys->hevc_b_frame_count_max)
+            p_sys->hevc_b_frame_count_max = p_sys->hevc_b_frame_count;
+
+        if (p_sys->hevc_b_frame_count_max > 10) {
+            p_sys->decoderFlags = kVTDecodeFrame_EnableAsynchronousDecompression;
+            //msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: switch to asynchronous decoding,BFrames=%d.", __FILE__ , __FUNCTION__, __LINE__, p_sys->hevc_b_frame_count);
+        }
         p_sys->hevc_b_frame_count = 0;
-    if (p_sys->hevc_b_frame_count >= MAX_B_FRAME_COUNT && p_sys->decoderFlags == kVTDecodeFrame_EnableAsynchronousDecompression && i_fps < MAX_FRAME_RATE) {
+    }
+
+    if ((p_sys->hevc_b_frame_count >= MAX_B_FRAME_COUNT && p_sys->hevc_b_frame_count_max <= 0) && p_sys->decoderFlags == kVTDecodeFrame_EnableAsynchronousDecompression && i_fps < MAX_FRAME_RATE) {
         p_sys->decoderFlags = 0;
         msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: switch to synchronous decoding,BFrames=%d.", __FILE__ , __FUNCTION__, __LINE__, p_sys->hevc_b_frame_count);
     }
