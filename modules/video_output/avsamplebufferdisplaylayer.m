@@ -88,6 +88,7 @@ struct vout_display_sys_t
     /* subtitles can be moved to out of the picture */
     bool b_black_area_subtitles;
     bool b_sub_invalid;
+    CATransform3D rotateTransform;
 };
 
 #define VLCAssertMainThread() assert([[NSThread currentThread] isMainThread])
@@ -145,13 +146,27 @@ static int Open(vlc_object_t *this)
 #if TARGET_OS_OSX
                         angle = M_PI * 1.5;
 #else
-                        angle = M_PI/2;
+                        angle = M_PI / 2;
 #endif
+                        sys->rotateTransform = CATransform3DMakeRotation(angle, 0, 0, 1);;
+                        break;
+                    case ORIENT_ROTATED_180:
+                        angle = M_PI;
+                        sys->rotateTransform = CATransform3DMakeRotation(angle, 0, 0, 1);
+                        break;
+                    case ORIENT_ROTATED_270:
+#if TARGET_OS_OSX
+                        angle = M_PI * 1.5;
+#else
+                        angle = M_PI / 2;
+#endif
+                        sys->rotateTransform = CATransform3DMakeRotation(angle, 0, 0, -1);
                         break;
                     default :
+                        sys->rotateTransform = CATransform3DMakeRotation(angle, 0, 0, 1);
                         break;
                 }
-                sys->displayLayer.transform = CATransform3DMakeRotation(angle, 0, 0, 1);
+                sys->displayLayer.transform = sys->rotateTransform;
                 [sys->videoView.layer addSublayer:sys->displayLayer];
             }
             
@@ -736,7 +751,7 @@ static int Control(vout_display_t *vd, int query, va_list ap)
                 [CATransaction begin];
                 [CATransaction setDisableActions:YES];
                 CATransform3D scaleTransorm = CATransform3DMakeScale(scale_x, scale_y, 1);
-                sys->displayLayer.transform = scaleTransorm;
+                sys->displayLayer.transform = CATransform3DConcat(scaleTransorm, sys->rotateTransform);
                 [CATransaction commit];
             });
             return VLC_SUCCESS;
