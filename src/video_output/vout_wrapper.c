@@ -78,7 +78,7 @@ int vout_OpenWrapper(vout_thread_t *vout,
     #include"TargetConditionals.h"
     #if TARGET_OS_TV
             msg_Dbg(vout, "TARGET_OS_TV");
-            module_name = "avsamplebufferdisplaylayer";
+            //module_name = "avsamplebufferdisplaylayer";
     #elif TARGET_OS_IPHONE
             msg_Dbg(vout, "TARGET_OS_IPHONE");
             //if (vout->p->original.hdr_type == 0)

@@ -201,6 +201,7 @@ struct decoder_sys_t
     enum hevc_slice_type_e      hevc_slice_type;
     uint8_t                     hevc_b_frame_count;
     uint8_t                     hevc_b_frame_count_max;
+    bool                        b_vout_avsamplebufferdisplaylayer;
 };
 
 struct pic_holder
@@ -575,19 +576,7 @@ static bool ConfigureVoutH264(decoder_t *p_dec)
             /* mp4 demux can't get hdr info when hdr info is in NAL, so we need do it in decoder */
             if (!strcmp(p_dec->demux_module, "mp4") && (p_dec->fmt_in.video.hdr_type == HDR_TYPE_UNDEF))
             {
-                int set_hdr_type = 0;
-                char *var = NULL;
-                var = var_InheritString (p_dec, "vout");
-#if TARGET_OS_OSX
-                if (var && 0 == strcmp(var, "avsamplebufferdisplaylayer"))
-                    set_hdr_type = 1;
-#elif TARGET_OS_TV
-                set_hdr_type = 1;
-#elif TARGET_OS_IPHONE
-                if (var && 0 == strcmp(var, "avsamplebufferdisplaylayer"))
-                    set_hdr_type = 1;
-#endif
-                if (set_hdr_type == 1)
+                if (p_sys->b_vout_avsamplebufferdisplaylayer)
                 {
                     if (p_dec->fmt_out.video.transfer == TRANSFER_FUNC_SMPTE_ST2084)
                     {
@@ -1458,15 +1447,24 @@ static int StartVideoToolbox(decoder_t *p_dec)
         return VLC_EGENERIC;
     }
 
+    if (p_sys->b_vout_avsamplebufferdisplaylayer)
+    {
+        CFDictionarySetValue(destinationPixelBufferAttributes,
+                             kCVPixelBufferIOSurfaceCoreAnimationCompatibilityKey,
+                             kCFBooleanTrue);
+    }
+    else
+    {
 #if !TARGET_OS_IPHONE
-    CFDictionarySetValue(destinationPixelBufferAttributes,
-                         kCVPixelBufferIOSurfaceCoreAnimationCompatibilityKey,
-                         kCFBooleanTrue);
+        CFDictionarySetValue(destinationPixelBufferAttributes,
+                             kCVPixelBufferIOSurfaceOpenGLTextureCompatibilityKey,
+                             kCFBooleanTrue);
 #else
-    CFDictionarySetValue(destinationPixelBufferAttributes,
-                         kCVPixelBufferOpenGLESCompatibilityKey,
-                         kCFBooleanTrue);
+        CFDictionarySetValue(destinationPixelBufferAttributes,
+                             kCVPixelBufferOpenGLESCompatibilityKey,
+                             kCFBooleanTrue);
 #endif
+    }
 
     cfdict_set_int32(destinationPixelBufferAttributes,
                      kCVPixelBufferWidthKey, p_dec->fmt_out.video.i_visible_width);
@@ -1673,6 +1671,7 @@ static int OpenDecoder(vlc_object_t *p_this)
     p_sys->pic_holder->closed = false;
     p_sys->pic_holder->field_reorder_max = p_sys->i_pic_reorder_max * 2;
     p_sys->b_vt_need_keyframe = false;
+    p_sys->b_vout_avsamplebufferdisplaylayer = false;
 
     vlc_mutex_init(&p_sys->lock);
 
@@ -1682,21 +1681,17 @@ static int OpenDecoder(vlc_object_t *p_this)
     char *var = NULL;
     var = var_InheritString (p_dec, "vout");
     msg_Dbg(p_dec, "[%s:%s:%d]=zspace=: vout=[%s].", __FILE__ , __FUNCTION__, __LINE__, var);
-#if TARGET_OS_OSX
-    /* Don't set HDR if vout is caopengllayer */
-    if (!var || (0 == strcmp(var, "caopengllayer")))
+
+    /* Don't set HDR if vout is caopengllayer or ios */
+    if (!var || (0 == strcmp(var, "avsamplebufferdisplaylayer")))
+    {
+        p_sys->b_vout_avsamplebufferdisplaylayer = true;
+    }
+    if (!p_sys->b_vout_avsamplebufferdisplaylayer)
     {
         p_dec->fmt_in.video.hdr_type = HDR_TYPE_UNDEF;
     }
 
-#elif TARGET_OS_TV
-#elif TARGET_OS_IPHONE
-    /* Don't set HDR if vout is ios */
-    if (!var || (0 == strncmp(var, "ios", 3)))
-    {
-        p_dec->fmt_in.video.hdr_type = HDR_TYPE_UNDEF;
-    }
-#endif
 
     switch(codec)
     {
