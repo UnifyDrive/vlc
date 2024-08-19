@@ -611,6 +611,16 @@ static void PictureDisplay(vout_display_t *vd, picture_t *pic, subpicture_t *sub
     SubtitleRegionToBounds(subpicture, &memset_bounds);
     if (subpicture)
     {
+        /* make scale for display screen */
+        if(ZS_DEBUG)
+            msg_Dbg(vd, "[%s:%s:%d]=zspace=: memset_bounds [%d,%d,  %d,%d],sys->i_sub_last_order=%lld", __FILE__ , __FUNCTION__, __LINE__, memset_bounds.left, memset_bounds.top, memset_bounds.right, memset_bounds.bottom, sys->i_sub_last_order);
+
+        Rect display_bounds;
+        GetDisplayRect(vd, memset_bounds, &display_bounds);
+        if (ZS_DEBUG)
+            msg_Dbg(vd, "[%s:%s:%d]=zspace=: display_bounds [%d,%d,  %d,%d],sys->i_sub_last_order=%lld", __FILE__ , __FUNCTION__, __LINE__,
+                    display_bounds.left, display_bounds.top, display_bounds.right, display_bounds.bottom, sys->i_sub_last_order);
+
         dispatch_sync(dispatch_get_main_queue(), ^{
             if (!sys->subtitleLayer)
             {
@@ -619,43 +629,34 @@ static void PictureDisplay(vout_display_t *vd, picture_t *pic, subpicture_t *sub
             }
             [CATransaction begin];
             [CATransaction setDisableActions:YES];
-    #if TARGET_OS_OSX
+#if TARGET_OS_OSX
             sys->subtitleLayer.contents = sys->uiImage;
-    #else
+#else
             sys->subtitleLayer.contents = sys->uiImage.CGImage;
-    #endif
-            /* make scale for display screen */
-            if(ZS_DEBUG)
-                msg_Dbg(vd, "[%s:%s:%d]=zspace=: memset_bounds [%d,%d,  %d,%d],sys->i_sub_last_order=%lld", __FILE__ , __FUNCTION__, __LINE__, memset_bounds.left, memset_bounds.top, memset_bounds.right, memset_bounds.bottom, sys->i_sub_last_order);
-
-            Rect display_bounds;
-            GetDisplayRect(vd, memset_bounds, &display_bounds);
-            if (ZS_DEBUG)
-                msg_Dbg(vd, "[%s:%s:%d]=zspace=: display_bounds [%d,%d,  %d,%d],sys->i_sub_last_order=%lld", __FILE__ , __FUNCTION__, __LINE__,
-                    display_bounds.left, display_bounds.top, display_bounds.right, display_bounds.bottom, sys->i_sub_last_order);
+#endif
             sys->subtitleLayer.frame = CGRectMake(display_bounds.left, display_bounds.top, display_bounds.right-display_bounds.left, display_bounds.bottom-display_bounds.top);
-                
-            if (sys->subtitleLayer.isHidden)
+
+            if (sys->subtitleLayer.hidden)
                 sys->subtitleLayer.hidden = NO;
             //if (sys->i_sub_first_order == sys->i_sub_last_order)
             //    sys->subtitleLayer.hidden = YES;
             [CATransaction commit];
-            memcpy(&sys->rect, &display_bounds, sizeof(Rect));
-
         });
+        memcpy(&sys->rect, &display_bounds, sizeof(Rect));
     }
     else
     {
-        dispatch_sync(dispatch_get_main_queue(), ^{
-            if (!sys->subtitleLayer.isHidden)
-            {
+        if (sys->subtitleLayer && !sys->subtitleLayer.hidden)
+        {
+            dispatch_sync(dispatch_get_main_queue(), ^{
                 [CATransaction begin];
                 [CATransaction setDisableActions:YES];
                 sys->subtitleLayer.contents = nil;
                 sys->subtitleLayer.hidden = YES;
+                sys->subtitleLayer = nil;
                 [CATransaction commit];
-            }
-        });
+            });
+        }
     }
     
     CVPixelBufferRef pixelBuffer = cvpxpic_get_ref(pic);
@@ -772,36 +773,6 @@ static void SendEventDisplaySize(vout_display_t *vd)
     vout_display_SendEventDisplaySize(vd, sys->displayLayer.frame.size.width,
                                       sys->displayLayer.frame.size.height);
     return;
-    /*
-     视频尺寸小于屏幕尺寸时，需要设置视频尺寸给video_output,字幕才能正常显示
-     */
-    if (vd->source.i_width/vd->source.i_height > sys->videoView.layer.bounds.size.width/sys->videoView.layer.bounds.size.height)
-    {
-        if (vd->source.i_width >= sys->videoView.layer.bounds.size.width)
-        {
-
-            vout_display_SendEventDisplaySize(vd, sys->displayLayer.frame.size.width,
-                                              sys->displayLayer.frame.size.height);
-        }
-        else
-        {
-            vout_display_SendEventDisplaySize(vd, vd->source.i_width,
-                                              vd->source.i_height);
-        }
-    }
-    else
-    {
-        if (vd->source.i_height >= sys->videoView.layer.bounds.size.height)
-        {
-            vout_display_SendEventDisplaySize(vd, sys->displayLayer.frame.size.width,
-                                              sys->displayLayer.frame.size.height);
-        }
-        else
-        {
-            vout_display_SendEventDisplaySize(vd, vd->source.i_width,
-                                              vd->source.i_height);
-        }
-    }
 }
 #pragma mark -
 #pragma mark TDXVideoView
