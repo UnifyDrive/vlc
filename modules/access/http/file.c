@@ -257,14 +257,25 @@ int vlc_http_file_seek(struct vlc_http_resource *res, uintmax_t offset)
             goto vlc_http_msg_ready;
     }
 
-    resp = vlc_http_res_open(res, &offset);
-    if (resp == NULL)
-    {
-        if (mPrintObj) {
-            msg_Dbg((stream_t *)mPrintObj, "[%s:%s:%d]=zspace=: vlc_http_res_open return null.", __FILE__ , __FUNCTION__, __LINE__);
+    int try_times = 3;
+    int sleep_times = 0;
+    do {
+        resp = vlc_http_res_open(res, &offset);
+        if (resp == NULL)
+        {
+            sleep_times = 100;
+            while (!vlc_killed() && sleep_times > 0) {
+                msleep(10000);
+                sleep_times--;
+            }
+            try_times--;
+            if (mPrintObj) {
+                msg_Dbg((stream_t *)mPrintObj, "[%s:%s:%d]=zspace=: vlc_http_res_open failed(%d).", __FILE__ , __FUNCTION__, __LINE__, try_times);
+            }
+            if (try_times <= 0 || vlc_killed())
+                return -1;
         }
-        return -1;
-    }
+    }while(resp == NULL);
 
     int status = vlc_http_msg_get_status(resp);
     if (res->response != NULL)
@@ -291,6 +302,9 @@ int vlc_http_file_seek(struct vlc_http_resource *res, uintmax_t offset)
 vlc_http_msg_ready:
     res->response = resp;
     file->offset = offset;
+    if (mPrintObj) {
+        msg_Dbg((stream_t *)mPrintObj, "[%s:%s:%d]=zspace=: seek over offset=%llu, ,status=%d.", __FILE__ , __FUNCTION__, __LINE__, offset, status);
+    }
     return 0;
 }
 
@@ -309,7 +323,7 @@ block_t *vlc_http_file_read(struct vlc_http_resource *res)
          && file->offset < vlc_http_msg_get_file_size(res->response)
          && */vlc_http_file_seek(res, file->offset) == 0)
             block = vlc_http_res_read(res);
-        if(try_times-- <= 0) {
+        if(try_times-- <= 0 || vlc_killed()) {
             break;
         }
         sleep_times = 900;
