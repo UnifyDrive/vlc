@@ -278,6 +278,7 @@ ssize_t vlc_tls_Read_zs(vlc_tls_t *session, void *buf, size_t len, bool waitall,
     struct iovec iov;
     int ret = 0;
     int try_times = 0;
+    //mtime_t begin_time = 0;
 
     ufd.fd = vlc_tls_GetFD(session);
     ufd.events = POLLIN;
@@ -286,7 +287,7 @@ ssize_t vlc_tls_Read_zs(vlc_tls_t *session, void *buf, size_t len, bool waitall,
 
     for (size_t rcvd = 0;;)
     {
-        
+        //begin_time = mdate();
 
         do {
             if (vlc_killed())
@@ -294,11 +295,12 @@ ssize_t vlc_tls_Read_zs(vlc_tls_t *session, void *buf, size_t len, bool waitall,
                 errno = EINTR;
                 return -1;
             }
-            ret = vlc_poll_i11e(&ufd, 1, 1000);
+            ret = vlc_poll_i11e(&ufd, 1, 10);
             try_times++;
-        } while (ret <=0 && try_times <= 30);
+        } while (ret <=0 && try_times <= 3000);
         ssize_t val = session->readv(session, &iov, 1);
-        //vlc_http_err(obj_tmp, "session->readv(%d), ret=%d, val=%d, try_times=%d.", (int)len, ret, val, try_times);
+        if (mPrintObj)
+            //msg_Dbg(mPrintObj, "[%s:%s:%d]=zspace=: Network session->readv(%d), ret=%d, val=%d, try_times=%d, costtime=(%lld)us.", __FILE__ , __FUNCTION__, __LINE__, (int)len, ret, val, try_times, (mdate()-begin_time));
         if (val > 0)
         {
             if (!waitall)

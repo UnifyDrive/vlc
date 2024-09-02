@@ -339,6 +339,9 @@ block_t *vlc_http_file_read(struct vlc_http_resource *res)
         return NULL; /* End of stream */
 
     file->offset += block->i_buffer;
+    if (mPrintReleaseObj) {
+        //msg_Dbg((stream_t *)mPrintReleaseObj, "[%s:%s:%d]=zspace=: Network file->offset=[%lld].", __FILE__ , __FUNCTION__, __LINE__, file->offset);
+    }
     res->response->offset_last = file->offset;
     res->response->read_times++;
     if (res->response->read_times >= 4096 && res->bak_num > 0) {

@@ -367,7 +367,7 @@ struct vlc_http_stream *vlc_h1_request(void *ctx, const char *hostname,
         .ai_protocol = IPPROTO_TCP,
     }, *res;
 
-    //vlc_http_dbg(ctx, "resolving %s ...", hostname);
+    vlc_http_dbg(ctx, "resolving %s ...", hostname);
 
     int val = vlc_getaddrinfo_i11e(hostname, port, &hints, &res);
     if (val != 0)
