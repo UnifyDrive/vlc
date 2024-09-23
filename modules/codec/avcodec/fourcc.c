@@ -475,6 +475,7 @@ static const struct vlc_avcodec_fourcc audio_codecs[] =
     { VLC_CODEC_DSD_LSBF_PLANAR, AV_CODEC_ID_DSD_LSBF_PLANAR },
     { VLC_CODEC_DSD_MSBF_PLANAR, AV_CODEC_ID_DSD_MSBF_PLANAR },
     { VLC_CODEC_DST, AV_CODEC_ID_DST },
+    { VLC_CODEC_DVD_PCM, AV_CODEC_ID_PCM_DVD},
 };
 
 /* Subtitle streams */
@@ -499,6 +500,7 @@ static const struct vlc_avcodec_fourcc spu_codecs[] =
 #endif
     { VLC_CODEC_TELETEXT, AV_CODEC_ID_DVB_TELETEXT },
     { VLC_CODEC_TX3G, AV_CODEC_ID_MOV_TEXT},
+    { VLC_CODEC_DVD_NAV, AV_CODEC_ID_DVD_NAV},
     /* AV_CODEC_ID_SRT */
     /* ffmpeg only: AV_CODEC_ID_MICRODVD */
     /* ffmpeg only: AV_CODEC_ID_EIA_608 */

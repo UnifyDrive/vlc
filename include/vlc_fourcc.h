@@ -616,6 +616,10 @@
 #define VLC_CODEC_MP2       VLC_FOURCC('m','p','2',' ')
 /* MPEG-I/II layer 3 audio */
 #define VLC_CODEC_MP3       VLC_FOURCC('m','p','3',' ')
+#define VLC_CODEC_DVD_NAV   VLC_FOURCC('D','V','D','N')
+#define VLC_CODEC_DVD_PCM   VLC_FOURCC('D','V','D','P')
+
+
 
 /**
  * It returns the codec associated to a fourcc within an ES category.

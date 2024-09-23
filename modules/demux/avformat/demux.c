@@ -1400,12 +1400,16 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
         case DEMUX_SET_POSITION:
             f = va_arg( args, double );
             i64 = p_sys->ic->duration * f + i_start_time;
+            int seek_by_bytes = -1;
 
-            msg_Warn( p_demux, "DEMUX_SET_POSITION: %"PRId64, i64 );
+            seek_by_bytes = !(p_sys->ic->iformat->flags & AVFMT_NO_BYTE_SEEK) &&
+                        !!(p_sys->ic->iformat->flags & AVFMT_TS_DISCONT) &&
+                        strcmp("ogg", p_sys->ic->iformat->name);
+            msg_Warn( p_demux, "DEMUX_SET_POSITION: %"PRId64"seek_by_bytes=%d", i64, seek_by_bytes );
 
             /* If we have a duration, we prefer to seek by time
                but if we don't, or if the seek fails, try BYTE seeking */
-            if( p_sys->ic->duration == (int64_t)AV_NOPTS_VALUE ||
+            if( seek_by_bytes > 0 || p_sys->ic->duration == (int64_t)AV_NOPTS_VALUE ||
                 (av_seek_frame( p_sys->ic, -1, i64, AVSEEK_FLAG_BACKWARD ) < 0) )
             {
                 int64_t i_size = stream_Size( p_demux->s );
@@ -1416,6 +1420,9 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
                     return VLC_EGENERIC;
 
                 ResetTime( p_demux, -1 );
+                if (seek_by_bytes > 0) {
+                    i64 = p_sys->ic->duration * f + i_start_time;
+                }
             }
             else
             {
@@ -1449,14 +1456,31 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
             /* I can not find better way to make sup decoder work fine. */
             if (p_sys->is_sup)
                 i64 = i_start_time;
+            int seek_by_bytes = -1;
 
-            msg_Warn( p_demux, "DEMUX_SET_TIME: %"PRId64, i64 );
+            seek_by_bytes = !(p_sys->ic->iformat->flags & AVFMT_NO_BYTE_SEEK) &&
+                        !!(p_sys->ic->iformat->flags & AVFMT_TS_DISCONT) &&
+                        strcmp("ogg", p_sys->ic->iformat->name);
 
-            if( av_seek_frame( p_sys->ic, -1, i64, AVSEEK_FLAG_BACKWARD ) < 0 )
-            {
-                return VLC_EGENERIC;
+            msg_Warn( p_demux, "DEMUX_SET_TIME: %"PRId64"seek_by_bytes=%d", i64, seek_by_bytes );
+            if (seek_by_bytes && p_sys->ic->duration > 0) {
+                int64_t i_size = stream_Size( p_demux->s );
+                f = (double)(i64 - i_start_time)/p_sys->ic->duration;
+                i64 = (i_size * f);
+
+                msg_Warn( p_demux, "DEMUX_SET_BYTE_POSITION: %"PRId64, i64 );
+                if( av_seek_frame( p_sys->ic, -1, i64, AVSEEK_FLAG_BYTE ) < 0 )
+                    return VLC_EGENERIC;
+
+                ResetTime( p_demux, -1 );
+                i64 = p_sys->ic->duration * f + i_start_time;
+            }else {
+                if( av_seek_frame( p_sys->ic, -1, i64, AVSEEK_FLAG_BACKWARD ) < 0 )
+                {
+                    return VLC_EGENERIC;
+                }
+                ResetTime( p_demux, i64 - i_start_time );
             }
-            ResetTime( p_demux, i64 - i_start_time );
             if( !strcmp( p_sys->fmt->name, "mpegts" ) )
             {
                 p_sys->i_seek_flag = 1;

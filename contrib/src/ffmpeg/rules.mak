@@ -50,7 +50,8 @@ FFMPEGCONF = \
 	--enable-decoder=dsd_msbf \
 	--enable-decoder=dsd_msbf_planar \
 	--enable-decoder=dst \
-	--enable-demuxer=dsf
+	--enable-demuxer=dsf \
+	--enable-decoder=pcm_dvd
 
 ifdef USE_FFMPEG
 FFMPEGCONF += \
