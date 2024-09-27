@@ -58,10 +58,13 @@ struct stream_sys_t
     uint64_t     stream_offset;
     size_t       buffer_length;
     size_t       buffer_size;
+    size_t       buffer_preload_max;
     char        *buffer;
     size_t       read_size;
     size_t       seek_threshold;
 };
+
+static size_t BufferLevel(const stream_t *stream, bool *eof);
 
 static ssize_t ThreadRead(stream_t *stream, void *buf, size_t length)
 {
@@ -230,6 +233,16 @@ static void *Thread(void *data)
             if (len > sys->read_size)
                 len = sys->read_size;
         }
+
+#ifdef __ANDROID__
+        bool eof = false;
+        size_t unused = BufferLevel(stream, &eof);
+        if( unused > sys->buffer_preload_max )
+        {
+            vlc_cond_wait(&sys->wait_space, &sys->lock);
+            continue;
+        }
+#endif
 
         size_t offset = (sys->buffer_offset + sys->buffer_length)
                         % sys->buffer_size;
@@ -450,6 +463,7 @@ static int Open(vlc_object_t *obj)
     sys->stream_offset = 0;
     sys->buffer_length = 0;
     sys->buffer_size = var_InheritInteger(obj, "prefetch-buffer-size") << 10u;
+    sys->buffer_preload_max = var_InheritInteger(obj, "prefetch-preload-max");
     sys->read_size = var_InheritInteger(obj, "prefetch-read-size");
     sys->seek_threshold = var_InheritInteger(obj, "prefetch-seek-threshold");
 
@@ -463,6 +477,11 @@ static int Open(vlc_object_t *obj)
     }
     if (sys->buffer_size < sys->read_size)
         sys->buffer_size = sys->read_size;
+
+    if (sys->buffer_preload_max <= 0)
+        sys->buffer_preload_max = sys->buffer_size;
+
+    msg_Warn(stream, "[%s,%s,%d]: prefetch parament, buffer_preload_max(%d), buffer_size(%d), read_size(%d), seek_threshold(%d)",__FILE__,__FUNCTION__,__LINE__,sys->buffer_preload_max, sys->buffer_size,sys->read_size,sys->seek_threshold);
 
     sys->buffer = malloc(sys->buffer_size);
     if (sys->buffer == NULL)
@@ -533,6 +552,9 @@ vlc_module_begin()
 
     add_integer("prefetch-buffer-size", 1 << 14, N_("Buffer size"),
                 N_("Prefetch buffer size (KiB)"), false)
+        change_integer_range(4, 1 << 20)
+    add_integer("prefetch-preload-max", 0, N_("Preload max size"),
+                N_("Unused prefetch buffer size (bytes)"), false)
         change_integer_range(4, 1 << 20)
     add_integer("prefetch-read-size", 1 << 24, N_("Read size"),
                 N_("Prefetch background read size (bytes)"), true)
