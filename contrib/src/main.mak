@@ -321,6 +321,10 @@ endif
 endif
 endif
 
+ifdef HAVE_TVOS
+	LDFLAGS += -ld64
+endif
+
 HOSTVARS := $(HOSTTOOLS) \
 	CPPFLAGS="$(CPPFLAGS)" \
 	CFLAGS="$(CFLAGS)" \
