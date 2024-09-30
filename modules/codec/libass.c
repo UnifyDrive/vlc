@@ -211,10 +211,11 @@ static int Create( vlc_object_t *p_this )
     free( pp_attachments );
 
     char *psz_fontsdir = var_InheritString( p_dec, "ssa-fontsdir" );
+    msg_Warn( p_dec, "Libass psz_fontsdir=%s", psz_fontsdir );
     if( psz_fontsdir )
     {
         ass_set_fonts_dir( p_library, psz_fontsdir );
-        free( psz_fontsdir );
+        //free( psz_fontsdir );
     }
 
     ass_set_extract_fonts( p_library, true );
@@ -266,12 +267,15 @@ static int Create( vlc_object_t *p_this )
     }
 
 #elif defined( __APPLE__ )
-    const char *psz_font = NULL; /* We don't ship a default font with VLC */
-    const char *psz_family = "Helvetica Neue"; /* Use HN if we can't find anything more suitable - Arial is not on all Apple platforms */
+    //const char *psz_font = NULL; /* We don't ship a default font with VLC */
+    //const char *psz_family = "Helvetica Neue"; /* Use HN if we can't find anything more suitable - Arial is not on all Apple platforms */
+    const char *psz_family = "Noto Sans";
+    const char *psz_font = psz_fontsdir;//"NotoSansSC";
 #else
     const char *psz_font = NULL; /* We don't ship a default font with VLC */
     const char *psz_family = "Arial"; /* Use Arial if we can't find anything more suitable */
 #endif
+
 
 #ifdef HAVE_FONTCONFIG
 #if defined(_WIN32)
@@ -297,6 +301,11 @@ static int Create( vlc_object_t *p_this )
 #else
     ass_set_fonts( p_renderer, psz_font, psz_family, ASS_FONTPROVIDER_AUTODETECT, NULL, 0 );
 #endif
+
+    if( psz_fontsdir )
+    {
+        free( psz_fontsdir );
+    }
 
 #if defined(__ANDROID__)
     free(psz_ass_fontpath);
